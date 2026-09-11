@@ -33,10 +33,26 @@
 
 ## D. Security Requirements
 - **SEC-01 [Phase 0 / Ongoing]:** Credentials, private keys, API secrets, and connection strings must never be committed to source control or exposed in client bundles.
-- **SEC-02 [Future - Phase 2]:** All backend API endpoints must enforce strict TLS/HTTPS and CORS policies restricted to authorized institutional domains.
+- **SEC-02 [IMPLEMENTED - Phase 2]:** All backend API endpoints enforce CORS policies restricted to authorized institutional domains.
 - **SEC-03 [Future - Phase 7]:** The LLM must have zero direct network or credential access to the database.
 - **SEC-04 [Future - Phase 8]:** Database execution must utilize dedicated least-privilege read-only accounts.
 - **SEC-05 [Future - Phase 6]:** The system must implement robust prompt-injection safeguards to prevent prompt leaking or malicious semantic manipulation.
+- **SEC-06 [IMPLEMENTED - Phase 2]:** Backend must never expose endpoints capable of arbitrary SQL execution (`POST /execute-sql`, raw queries).
+- **SEC-07 [IMPLEMENTED - Phase 2]:** Application errors must return sanitized JSON envelopes without exposing Python stack traces, database credentials, or internal filesystem paths.
+
+---
+
+## E. Backend Foundation Requirements (Phase 2 - Implemented)
+- **BER-01 [IMPLEMENTED - Phase 2]:** The backend must provide a clean, modular FastAPI application structure with decoupled router architecture.
+- **BER-02 [IMPLEMENTED - Phase 2]:** API endpoints must reside under a versioned namespace (e.g. `/api/v1/health`).
+- **BER-03 [IMPLEMENTED - Phase 2]:** Configuration must be centralized via Pydantic Settings with validated environment variable loading and safe defaults.
+- **BER-04 [IMPLEMENTED - Phase 2]:** The application must initialize and pass tests completely without requiring a live PostgreSQL installation or connection.
+- **BER-05 [IMPLEMENTED - Phase 2]:** System telemetry must use structured JSON logging, scrubbing sensitive tokens, passwords, and PII.
+- **BER-06 [IMPLEMENTED - Phase 2]:** Every request must be tagged with a validated correlation ID (`X-Request-ID`) returned in headers and embedded in logs.
+- **BER-07 [IMPLEMENTED - Phase 2]:** Centralized exception handlers must trap domain and HTTP exceptions, returning consistent `{ "error": { "code", "message", "request_id" } }` envelopes.
+- **BER-08 [IMPLEMENTED - Phase 2]:** The system must implement distinct `/api/v1/health` (liveness) and `/api/v1/health/ready` (readiness) endpoints, explicitly reporting when the college database is unconfigured.
+- **BER-09 [IMPLEMENTED - Phase 2]:** The backend must load and validate the authoritative Phase 1 Schema Registry (`agent63_schema_registry.json`) for internal metadata lookups without exposing public discovery endpoints.
+- **BER-10 [IMPLEMENTED - Phase 2]:** The database layer must provide an isolated abstraction layer without exposing arbitrary SQL execution methods.
 
 ---
 

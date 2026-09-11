@@ -1,0 +1,12 @@
+# Agent 63 – Backend Dependencies (Phase 2 Foundation)
+# Core Framework & Server
+fastapi>=0.110.0
+uvicorn[standard]>=0.28.0
+
+# Configuration & Validation
+pydantic>=2.6.0
+pydantic-settings>=2.2.0
+
+# HTTP Client & Testing
+httpx>=0.27.0
+pytest>=8.0.0

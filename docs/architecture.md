@@ -84,6 +84,28 @@ USER
 
 ## 3. Component Deep Dive
 
+### Phase 2 Architecture Pipeline Status
+
+```
+Frontend [PLANNED - Phase 3]
+   ↓
+FastAPI Backend [IMPLEMENTED - Phase 2]
+   ↓
+API Router [IMPLEMENTED - Phase 2]
+   ↓
+Application Services [IMPLEMENTED - Phase 2]
+   ↓
+[Future Authentication / RBAC - Phase 4/5]
+   ↓
+[Future Semantic Layer - Phase 6]
+   ↓
+Schema Registry Service [IMPLEMENTED - Phase 1 & 2]
+   ↓
+[Future Safe SQL Builder & AST Validator - Phase 7]
+   ↓
+[Future Read-Only College DB Execution Pool - Phase 8+]
+```
+
 ### [1] Institutional UI & Branding Layer
 - **Status:** PLANNED (*Phase 3*)
 - **Responsibility:** Deliver a responsive, desktop-first analytics workspace reflecting the college's visual design family (white surfaces, light blue backgrounds, dark navy typography, rounded cards, institutional header, and accreditation logos).
@@ -92,12 +114,13 @@ USER
 - **Security Boundary:** Client-side only. Does not enforce security; treats backend as authoritative.
 - **Dependencies:** React 18+, Vite, Recharts, Centralized CSS Tokens.
 
-### [2] FastAPI Backend Gateway
-- **Status:** PLANNED (*Phase 2*)
-- **Responsibility:** Serves as the single API gateway, handling request validation, routing, telemetry, and rate-limiting.
-- **Inputs:** HTTP/HTTPS JSON requests, WebSocket message streams.
-- **Outputs:** Serialized API responses, streaming status updates.
-- **Security Boundary:** Primary outer perimeter. Enforces TLS, CORS, request size limits, and input sanitation.
+### [2] FastAPI Backend Gateway & Core Services
+- **Status:** IMPLEMENTED (*Phase 2*)
+- **Responsibility:** Serves as the secure foundational API gateway, providing modular routing (`/api/v1`), request correlation IDs (`X-Request-ID`), structured logging with credential scrubbing, centralized error sanitization, CORS restriction, schema registry in-memory service, and safe database abstraction.
+- **Inputs:** HTTP JSON requests.
+- **Outputs:** Serialized API responses with correlation tracking, health/readiness telemetry.
+- **Security Boundary:** Primary outer perimeter. Enforces CORS, correlation tracing, error redaction, and strict absence of arbitrary SQL or schema modification endpoints.
+- **Dependencies:** FastAPI, Pydantic Settings, Uvicorn, Starlette.
 - **Dependencies:** Python 3.11+, FastAPI, Uvicorn, Pydantic v2.
 
 ### [3] Authentication Service

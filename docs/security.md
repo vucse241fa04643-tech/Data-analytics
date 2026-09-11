@@ -58,11 +58,50 @@ The security of Agent 63 is built upon zero trust and defense-in-depth principle
 
 ### 3.4 Data Exfiltration via Telemetry
 - **Threat:** Sensitive student records or authentication headers leaked into server log files.
-- **Countermeasure:** Log sanitization filters strip authorization headers, cookies, passwords, and PII before logging to disk or console.
+- **Countermeasure:** Centralized JSON logging (`SecurityScrubbingJsonFormatter`) automatically redacts sensitive keywords (`password`, `secret`, `token`, `authorization`, `counselling`). Request bodies and raw auth headers are excluded by default.
 
 ---
 
-## 4. Current Phase Status & Phase 1 Database Controls
+## 4. Phase 2 Backend Security Foundation Implementation
+
+During Phase 2, the following security controls have been formally implemented and verified via automated test suites:
+
+### 4.1 Absence of Arbitrary SQL Endpoints
+- The backend contains **zero** endpoints accepting raw or unparsed SQL from clients (e.g. `POST /execute-sql`, `POST /api/v1/query`).
+- The `CollegeDatabaseService` explicitly contains no generic `execute_arbitrary_sql()` methods.
+- Route surface audits in `backend/tests/test_security_boundaries.py` verify that all arbitrary query paths return HTTP 404.
+
+### 4.2 Correlation ID Sanitization & Tracing
+- All requests are tagged with `X-Request-ID`.
+- Client-supplied IDs are validated against strict alphanumeric/hyphen constraints (`^[a-zA-Z0-9_-]{8,64}$`).
+- Malicious headers containing spaces, SQL fragments, script tags, or excessive lengths are discarded and replaced with random UUIDv4 identifiers.
+
+### 4.3 Sanitized Error Envelopes
+- Centralized exception handlers catch domain exceptions (`AppException`), validation errors, and unexpected server failures.
+- Production error responses return structured envelopes (`{ "error": { "code", "message", "request_id" } }`).
+- Internal stack traces, Python tracebacks, database connection strings, and filesystem paths are withheld from clients.
+
+### 4.4 Schema Registry Internal Boundary
+- The Phase 1 Schema Registry (`database/mappings/agent63_schema_registry.json`) is strictly an **internal backend configuration and metadata store**.
+- No public discovery endpoint (such as `GET /api/v1/schema`) is exposed.
+- Future semantic and query services access metadata through the internal `SchemaRegistryService` only.
+
+### 4.5 CORS & Origin Restriction
+- Cross-Origin Resource Sharing is controlled via `CORS_ORIGINS` in `backend.app.core.config.Settings`.
+- Wildcard origins (`allow_origins=["*"]`) are disallowed for production deployments.
+
+### 4.6 Future Database Least-Privilege Architecture
+- Database connectivity in Phase 2 remains optional and unconfigured.
+- Future database connectivity will require:
+  - Dedicated read-only PostgreSQL role (`agent63_readonly`)
+  - No DDL/DML permissions
+  - Connection timeout: 5s
+  - Statement timeout: 5000ms
+  - Mandatory TLS/SSL (`prefer` / `require` / `verify-full`)
+
+---
+
+## 5. Current Phase Status & Phase 1 Database Controls
 - **Phase 0:** Architectural security boundaries and policies established and documented.
 - **Phase 1 [Implemented]:**
   - **Schema Registry Control Boundary:** `agent63_schema_registry.json` created as a machine-readable allowlist. Future SQL generators will only query explicitly permitted tables and columns.
