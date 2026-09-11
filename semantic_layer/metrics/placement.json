@@ -1,0 +1,276 @@
+{
+  "domain": "placement",
+  "version": "1.0",
+  "description": "Institutional career placement metrics covering verified student offers, compensation packages, corporate participation, and readiness scores.",
+  "metrics": [
+    {
+      "metric_id": "placement.placed_students_count",
+      "canonical_name": "placed_students_count",
+      "display_name": "Placed Students Count",
+      "description": "Count of unique graduating students who have received and accepted at least one verified employment offer.",
+      "domain": "placement",
+      "category": "career_outcomes",
+      "grain": "batch",
+      "formula": "count(DISTINCT student_id) FILTER (WHERE status IN ('ACCEPTED', 'JOINED', 'OFFERED'))",
+      "aggregation": "COUNT_DISTINCT",
+      "unit": "count",
+      "numerator": "count(DISTINCT student_id)",
+      "denominator": null,
+      "source_objects": [
+        "placement.offer"
+      ],
+      "source_columns": [
+        "student_id",
+        "status",
+        "offer_date"
+      ],
+      "allowed_dimensions": [
+        "dim.academic_year",
+        "dim.department",
+        "dim.programme",
+        "dim.batch"
+      ],
+      "allowed_filters": [
+        "status"
+      ],
+      "time_semantics": {
+        "time_dimension": "dim.academic_year",
+        "time_column": "offer_date",
+        "period_grain": "academic_year"
+      },
+      "null_handling": {
+        "missing_records": "0",
+        "zero_denominator": null
+      },
+      "sensitivity": "INTERNAL_INSTITUTIONAL",
+      "status": "APPROVED",
+      "version": "1.0",
+      "provenance": "placement.offer table in schema_full.sql",
+      "validation_notes": "Distinguishes distinct placed students from total offer count to account for multi-offer recipients."
+    },
+    {
+      "metric_id": "placement.total_offers_count",
+      "canonical_name": "total_offers_count",
+      "display_name": "Total Employment Offers Count",
+      "description": "Aggregate count of all verified employment offers issued across participating recruitment companies.",
+      "domain": "placement",
+      "category": "career_outcomes",
+      "grain": "batch",
+      "formula": "count(offer_id)",
+      "aggregation": "COUNT",
+      "unit": "count",
+      "numerator": "count(offer_id)",
+      "denominator": null,
+      "source_objects": [
+        "placement.offer"
+      ],
+      "source_columns": [
+        "offer_id",
+        "status",
+        "offer_date"
+      ],
+      "allowed_dimensions": [
+        "dim.academic_year",
+        "dim.department",
+        "dim.programme",
+        "dim.batch"
+      ],
+      "allowed_filters": [
+        "status"
+      ],
+      "time_semantics": {
+        "time_dimension": "dim.academic_year",
+        "time_column": "offer_date",
+        "period_grain": "academic_year"
+      },
+      "null_handling": {
+        "missing_records": "0",
+        "zero_denominator": null
+      },
+      "sensitivity": "INTERNAL_INSTITUTIONAL",
+      "status": "APPROVED",
+      "version": "1.0",
+      "provenance": "placement.offer table in schema_full.sql",
+      "validation_notes": "Includes single and multi-offers."
+    },
+    {
+      "metric_id": "placement.average_ctc",
+      "canonical_name": "average_ctc",
+      "display_name": "Average Placement CTC (Annual)",
+      "description": "Mean annual Cost to Company (CTC) compensation package for verified placement offers.",
+      "domain": "placement",
+      "category": "compensation_analytics",
+      "grain": "batch",
+      "formula": "round(avg(ctc), 2)",
+      "aggregation": "AVG",
+      "unit": "inr_lakhs_per_annum",
+      "numerator": "sum(ctc)",
+      "denominator": "count(offer_id)",
+      "source_objects": [
+        "placement.offer"
+      ],
+      "source_columns": [
+        "ctc",
+        "status",
+        "offer_date"
+      ],
+      "allowed_dimensions": [
+        "dim.academic_year",
+        "dim.department",
+        "dim.programme",
+        "dim.batch"
+      ],
+      "allowed_filters": [
+        "status"
+      ],
+      "time_semantics": {
+        "time_dimension": "dim.academic_year",
+        "time_column": "offer_date",
+        "period_grain": "academic_year"
+      },
+      "null_handling": {
+        "missing_records": "NULL",
+        "zero_denominator": "NULL if no offers"
+      },
+      "sensitivity": "INTERNAL_INSTITUTIONAL",
+      "status": "APPROVED",
+      "version": "1.0",
+      "provenance": "placement.offer.ctc in schema_full.sql",
+      "validation_notes": "Compensation metric derived from placement.offer."
+    },
+    {
+      "metric_id": "placement.highest_ctc",
+      "canonical_name": "highest_ctc",
+      "display_name": "Highest Placement CTC (Annual)",
+      "description": "Maximum annual CTC compensation offer secured by any student in the cohort.",
+      "domain": "placement",
+      "category": "compensation_analytics",
+      "grain": "batch",
+      "formula": "max(ctc)",
+      "aggregation": "MAX",
+      "unit": "inr_lakhs_per_annum",
+      "numerator": "max(ctc)",
+      "denominator": null,
+      "source_objects": [
+        "placement.offer"
+      ],
+      "source_columns": [
+        "ctc",
+        "status",
+        "offer_date"
+      ],
+      "allowed_dimensions": [
+        "dim.academic_year",
+        "dim.department",
+        "dim.programme",
+        "dim.batch"
+      ],
+      "allowed_filters": [
+        "status"
+      ],
+      "time_semantics": {
+        "time_dimension": "dim.academic_year",
+        "time_column": "offer_date",
+        "period_grain": "academic_year"
+      },
+      "null_handling": {
+        "missing_records": "NULL",
+        "zero_denominator": null
+      },
+      "sensitivity": "INTERNAL_INSTITUTIONAL",
+      "status": "APPROVED",
+      "version": "1.0",
+      "provenance": "placement.offer.ctc in schema_full.sql",
+      "validation_notes": "Identifies top institutional placement package."
+    },
+    {
+      "metric_id": "placement.placement_rate",
+      "canonical_name": "placement_rate_percentage",
+      "display_name": "Institutional Placement Rate",
+      "description": "Proportion of graduating eligible students who secured verified placement.",
+      "domain": "placement",
+      "category": "career_outcomes",
+      "grain": "batch",
+      "formula": "round(100.0 * count(DISTINCT o.student_id) / nullif(count(DISTINCT s.student_id), 0), 2)",
+      "aggregation": "RATIO",
+      "unit": "percentage",
+      "numerator": "placed_students_count",
+      "denominator": "eligible_graduating_students_count",
+      "source_objects": [
+        "placement.offer",
+        "people.student"
+      ],
+      "source_columns": [
+        "student_id",
+        "status"
+      ],
+      "allowed_dimensions": [
+        "dim.academic_year",
+        "dim.department",
+        "dim.programme",
+        "dim.batch"
+      ],
+      "allowed_filters": [
+        "batch_id"
+      ],
+      "time_semantics": {
+        "time_dimension": "dim.academic_year",
+        "time_column": "offer_date",
+        "period_grain": "academic_year"
+      },
+      "null_handling": {
+        "missing_records": "NULL",
+        "zero_denominator": "NULLIF(eligible_students, 0) yields NULL"
+      },
+      "sensitivity": "INTERNAL_INSTITUTIONAL",
+      "status": "REVIEW_REQUIRED",
+      "version": "1.0",
+      "provenance": "Institutional placement cell policy & NIRF guidelines",
+      "validation_notes": "Denominator cohort selection requires resolution: whether opted-out, higher-education, or backlog-restricted students are included in denominator."
+    },
+    {
+      "metric_id": "placement.readiness_average_score",
+      "canonical_name": "placement_readiness_average_score",
+      "display_name": "Average Placement Readiness Quotient",
+      "description": "Mean overall placement readiness assessment score (0-100) evaluated across students preparing for campus recruitment.",
+      "domain": "placement",
+      "category": "career_preparedness",
+      "grain": "batch",
+      "formula": "round(avg(overall_score), 2)",
+      "aggregation": "AVG",
+      "unit": "score_0_to_100",
+      "numerator": "sum(overall_score)",
+      "denominator": "count(student_id)",
+      "source_objects": [
+        "placement.readiness_summary"
+      ],
+      "source_columns": [
+        "overall_score",
+        "student_id",
+        "readiness_band"
+      ],
+      "allowed_dimensions": [
+        "dim.department",
+        "dim.programme",
+        "dim.batch"
+      ],
+      "allowed_filters": [
+        "readiness_band"
+      ],
+      "time_semantics": {
+        "time_dimension": null,
+        "time_column": "assessed_on",
+        "period_grain": "assessment_date"
+      },
+      "null_handling": {
+        "missing_records": "NULL",
+        "zero_denominator": "NULL if unassessed"
+      },
+      "sensitivity": "INTERNAL_INSTITUTIONAL",
+      "status": "APPROVED",
+      "version": "1.0",
+      "provenance": "placement.readiness_summary table in schema_full.sql",
+      "validation_notes": "Composite readiness score evaluated across technical, soft skills, and aptitude."
+    }
+  ]
+}

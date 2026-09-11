@@ -101,7 +101,35 @@ During Phase 2, the following security controls have been formally implemented a
 
 ---
 
-## 5. Current Phase Status & Phase 1 Database Controls
+## 5. Phase 4 Semantic Layer Security Implementation
+
+During Phase 4, the following data governance and semantic security controls have been formally implemented and verified via automated test suites:
+
+### 5.1 Confidential Domain Total Exclusion
+- The entire `confidential` schema (medical notes, psychiatric counselling, crisis escalation logs, disability accommodations) is completely absent from all semantic metrics, dimensions, and join paths.
+- Automated tests in `tests/test_semantic_layer.py` verify that no semantic object references `confidential.*`.
+
+### 5.2 Exam Security Isolation
+- Question paper contents and examination breach objects (`assessment.question_paper`, `exams.question_paper_delivery`, `exams.malpractice_incident`) are strictly forbidden from general semantic analytics.
+- Automated validation rejects any metric or dimension referencing these restricted objects.
+
+### 5.3 Placement Fairness & Protected Demographic Prohibitions
+- Constitutional and institutional anti-bias policies strictly forbid filtering, grouping, or ranking students by protected demographic traits (`gender`, `caste`, `religion`, `region`, `socioeconomic_category`).
+- The semantic layer explicitly excludes protected attributes from placement analytics dimensions and filters.
+- Verified by unit tests in `tests/test_semantic_layer.py`.
+
+### 5.4 Metric Lifecycle Gatekeeping
+- Every metric carries an immutable lifecycle status (`APPROVED`, `REVIEW_REQUIRED`, `DRAFT`, `DEPRECATED`).
+- Only `APPROVED` metrics are accessible via `SemanticRegistryService.get_approved_metrics()` for production query construction.
+- Ambiguous metrics (e.g. `placement.placement_rate` and `attendance.students_below_threshold` requiring institution-wide parameter injection) remain quarantined in `REVIEW_REQUIRED` status.
+
+### 5.5 Provenance and Formula Tamper-Proofing
+- Every approved metric must cite its authoritative database view, table, or institutional policy.
+- Automated validator (`scripts/validate_semantic_layer.py`) enforces that LLMs cannot synthesize arbitrary formulas at runtime.
+
+---
+
+## 6. Current Phase Status & Phase 1 Database Controls
 - **Phase 0:** Architectural security boundaries and policies established and documented.
 - **Phase 1 [Implemented]:**
   - **Schema Registry Control Boundary:** `agent63_schema_registry.json` created as a machine-readable allowlist. Future SQL generators will only query explicitly permitted tables and columns.
@@ -109,4 +137,7 @@ During Phase 2, the following security controls have been formally implemented a
   - **Exam Security Lockdown:** `assessment.question_paper`, `exams.question_paper_delivery`, and `exams.malpractice_incident` marked `DENY_GENERAL_ANALYTICS`.
   - **Database RLS Awareness:** Cataloged 7 RLS-enabled tables and 19 security policies (`database/documentation/database-security-integration.md`). Dual enforcement will verify scopes in Python and PostgreSQL session claims.
   - **Read-Only Least Privilege:** Architecture documented in `database/documentation/read-only-integration.md` with explicit 5,000ms execution timeout and read-only role requirements.
-- **Phases 2–16:** Incremental implementation of code-level guards, validators, and tests according to the master plan.
+- **Phase 2 [Implemented]:** Hardened FastAPI foundation, structured error redacting, correlation tracing, schema registry service.
+- **Phase 3 [Implemented]:** Institutional frontend foundation, zero synthetic data, live backend telemetry probe.
+- **Phase 4 [Implemented]:** Authoritative semantic layer, 26 metrics, 10 dimensions, 24 join paths, security policy, and validation suite.
+- **Phases 5–16:** Incremental implementation of authentication, intent parsing, safe SQL generation, and read-only execution according to the master plan.

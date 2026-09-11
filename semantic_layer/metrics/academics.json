@@ -1,0 +1,101 @@
+{
+  "domain": "academics",
+  "version": "1.0",
+  "description": "Institutional academic structure and capacity metrics covering student enrollments and course delivery offerings.",
+  "metrics": [
+    {
+      "metric_id": "academics.active_student_strength",
+      "canonical_name": "active_student_strength",
+      "display_name": "Active Student Strength",
+      "description": "Total count of active enrolled students across academic departments, programmes, and cohorts.",
+      "domain": "academics",
+      "category": "institutional_capacity",
+      "grain": "programme_batch",
+      "formula": "count(DISTINCT student_id) FILTER (WHERE status = 'ACTIVE')",
+      "aggregation": "COUNT_DISTINCT",
+      "unit": "students_count",
+      "numerator": "count(student_id)",
+      "denominator": null,
+      "source_objects": [
+        "people.student"
+      ],
+      "source_columns": [
+        "student_id",
+        "status",
+        "batch_id",
+        "current_section_id"
+      ],
+      "allowed_dimensions": [
+        "dim.department",
+        "dim.programme",
+        "dim.batch",
+        "dim.section"
+      ],
+      "allowed_filters": [
+        "status",
+        "batch_id"
+      ],
+      "time_semantics": {
+        "time_dimension": null,
+        "time_column": null,
+        "period_grain": "current_state"
+      },
+      "null_handling": {
+        "missing_records": "0",
+        "zero_denominator": null
+      },
+      "sensitivity": "PUBLIC_INSTITUTIONAL",
+      "status": "APPROVED",
+      "version": "1.0",
+      "provenance": "people.student table in schema_full.sql",
+      "validation_notes": "Sourced from people.student where status = 'ACTIVE'."
+    },
+    {
+      "metric_id": "academics.active_course_offerings",
+      "canonical_name": "active_course_offerings_count",
+      "display_name": "Active Course Offerings Delivered",
+      "description": "Total count of scheduled course offerings actively delivered in an academic term.",
+      "domain": "academics",
+      "category": "curriculum_delivery",
+      "grain": "term_department",
+      "formula": "count(DISTINCT course_offering_id) FILTER (WHERE status = 'RUNNING')",
+      "aggregation": "COUNT_DISTINCT",
+      "unit": "offerings_count",
+      "numerator": "count(course_offering_id)",
+      "denominator": null,
+      "source_objects": [
+        "academics.course_offering"
+      ],
+      "source_columns": [
+        "course_offering_id",
+        "term_id",
+        "department_id",
+        "status"
+      ],
+      "allowed_dimensions": [
+        "dim.academic_year",
+        "dim.term",
+        "dim.department"
+      ],
+      "allowed_filters": [
+        "term_id",
+        "department_id",
+        "status"
+      ],
+      "time_semantics": {
+        "time_dimension": "dim.term",
+        "time_column": "term_id",
+        "period_grain": "term"
+      },
+      "null_handling": {
+        "missing_records": "0",
+        "zero_denominator": null
+      },
+      "sensitivity": "PUBLIC_INSTITUTIONAL",
+      "status": "APPROVED",
+      "version": "1.0",
+      "provenance": "academics.course_offering table in schema_full.sql",
+      "validation_notes": "Count of running course delivery sections."
+    }
+  ]
+}

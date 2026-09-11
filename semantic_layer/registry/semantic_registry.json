@@ -1,0 +1,1963 @@
+{
+  "version": "1.0",
+  "title": "Agent 63 Authoritative Institutional Semantic Registry",
+  "description": "Machine-readable catalog of institutional analytics metrics, dimensions, join paths, and security governance.",
+  "summary": {
+    "total_metrics": 26,
+    "approved_metrics": 24,
+    "review_required_metrics": 2,
+    "deprecated_metrics": 0,
+    "total_dimensions": 10,
+    "total_joins": 24
+  },
+  "security_policy": {
+    "version": "1.0",
+    "policy_name": "Agent 63 Semantic Security & Data Governance Policy",
+    "description": "Defines access tiers, strict confidentiality boundaries, protected demographic restrictions, and lifecycle governance for all institutional semantic models.",
+    "sensitivity_tiers": [
+      {
+        "tier": "PUBLIC_INSTITUTIONAL",
+        "description": "Public or general institutional metadata (e.g., campus details, department names, course catalogs, academic calendar).",
+        "allowed_in_unscoped_analytics": true
+      },
+      {
+        "tier": "INTERNAL_INSTITUTIONAL",
+        "description": "Standard institutional operational metrics (e.g., aggregate attendance, course pass rates, grade distributions, CO/PO attainment, placement statistics).",
+        "allowed_in_unscoped_analytics": false,
+        "requires_institutional_auth": true
+      },
+      {
+        "tier": "SENSITIVE",
+        "description": "Individual student marks, individual attendance records, placement CTC packages, faculty workload details. Must be role-scoped and aggregated where appropriate.",
+        "requires_role_scoping": true
+      },
+      {
+        "tier": "RESTRICTED",
+        "description": "Disciplinary records, grievances, confidential exam preparation, identity authentication credentials. Strictly excluded from general institutional analytics.",
+        "general_analytics_allowed": false
+      }
+    ],
+    "strictly_denied_prefixes": [
+      "confidential.",
+      "assessment.question_paper",
+      "exams.question_paper_delivery",
+      "exams.malpractice_incident",
+      "identity.credential",
+      "identity.auth_token"
+    ],
+    "confidential_domain_isolation": {
+      "schema": "confidential",
+      "rule": "TOTAL_EXCLUSION",
+      "rationale": "Medical notes, psychological counselling records, accommodation requests, and crisis escalation logs must never be mapped or queryable in Agent 63 under any circumstance."
+    },
+    "placement_fairness_constraints": {
+      "protected_attributes": [
+        "gender",
+        "caste",
+        "religion",
+        "nationality",
+        "disability_status",
+        "region",
+        "socioeconomic_category"
+      ],
+      "rule": "PROHIBIT_FILTER_AND_GROUPING",
+      "rationale": "Constitutional and institutional placement fairness prohibits filtering, ranking, or discriminating candidates based on protected demographic traits."
+    },
+    "lifecycle_rules": {
+      "allowed_production_statuses": [
+        "APPROVED"
+      ],
+      "non_production_statuses": [
+        "DRAFT",
+        "REVIEW_REQUIRED",
+        "DEPRECATED"
+      ],
+      "approval_criteria": [
+        "Verified against Phase 1 agent63_schema_registry.json",
+        "Mathematical formula unambiguously documented",
+        "Grain and aggregation behavior explicitly defined",
+        "Null and zero division handling specified",
+        "Provenance and authoritative source cited"
+      ]
+    }
+  },
+  "dimensions": [
+    {
+      "dimension_id": "dim.academic_year",
+      "canonical_name": "academic_year",
+      "display_name": "Academic Year",
+      "description": "Institutional academic calendar cycle spanning instructional terms (e.g., 2024-2025).",
+      "source_object": "core.academic_year",
+      "key_column": "academic_year_id",
+      "display_column": "label",
+      "code_column": "label",
+      "attributes": [
+        "academic_year_id",
+        "institution_id",
+        "label",
+        "start_date",
+        "end_date",
+        "is_current"
+      ],
+      "hierarchies": [
+        {
+          "hierarchy_name": "academic_calendar",
+          "parent_dimension": null,
+          "child_dimension": "dim.term"
+        }
+      ],
+      "sensitivity": "PUBLIC_INSTITUTIONAL",
+      "status": "APPROVED",
+      "version": "1.0",
+      "provenance": "core.academic_year table in schema_full.sql"
+    },
+    {
+      "dimension_id": "dim.batch",
+      "canonical_name": "batch",
+      "display_name": "Student Batch / Cohort",
+      "description": "Admission cohort of students pursuing a specific programme (e.g., 2022-2026 Batch).",
+      "source_object": "curriculum.batch",
+      "key_column": "batch_id",
+      "display_column": "label",
+      "code_column": "label",
+      "attributes": [
+        "batch_id",
+        "programme_id",
+        "regulation_id",
+        "admission_year",
+        "label",
+        "expected_graduation_year",
+        "status"
+      ],
+      "hierarchies": [
+        {
+          "hierarchy_name": "academic_structure",
+          "parent_dimension": "dim.programme",
+          "child_dimension": "dim.section"
+        }
+      ],
+      "sensitivity": "PUBLIC_INSTITUTIONAL",
+      "status": "APPROVED",
+      "version": "1.0",
+      "provenance": "curriculum.batch table in schema_full.sql"
+    },
+    {
+      "dimension_id": "dim.course",
+      "canonical_name": "course",
+      "display_name": "Curricular Course",
+      "description": "Specific course version offering syllabus credits, lecture/practical hours, and passing norms.",
+      "source_object": "curriculum.course_version",
+      "key_column": "course_version_id",
+      "display_column": "course_code",
+      "code_column": "course_code",
+      "attributes": [
+        "course_version_id",
+        "course_id",
+        "regulation_id",
+        "programme_id",
+        "course_code",
+        "term_no",
+        "year_of_study",
+        "course_category",
+        "course_type",
+        "is_elective",
+        "credits",
+        "lecture_hours",
+        "tutorial_hours",
+        "practical_hours",
+        "total_contact_hours",
+        "status"
+      ],
+      "hierarchies": [
+        {
+          "hierarchy_name": "curricular_structure",
+          "parent_dimension": "dim.programme",
+          "child_dimension": "dim.course_offering"
+        }
+      ],
+      "sensitivity": "PUBLIC_INSTITUTIONAL",
+      "status": "APPROVED",
+      "version": "1.0",
+      "provenance": "curriculum.course_version table in schema_full.sql"
+    },
+    {
+      "dimension_id": "dim.course_offering",
+      "canonical_name": "course_offering",
+      "display_name": "Scheduled Course Offering",
+      "description": "Specific delivery instance of a course version assigned to a section and term.",
+      "source_object": "academics.course_offering",
+      "key_column": "course_offering_id",
+      "display_column": "course_offering_id",
+      "code_column": "course_offering_id",
+      "attributes": [
+        "course_offering_id",
+        "course_version_id",
+        "term_id",
+        "section_id",
+        "department_id",
+        "enrolled_count",
+        "delivery_mode",
+        "status"
+      ],
+      "hierarchies": [
+        {
+          "hierarchy_name": "instructional_delivery",
+          "parent_dimension": "dim.term",
+          "child_dimension": null
+        }
+      ],
+      "sensitivity": "INTERNAL_INSTITUTIONAL",
+      "status": "APPROVED",
+      "version": "1.0",
+      "provenance": "academics.course_offering table in schema_full.sql"
+    },
+    {
+      "dimension_id": "dim.department",
+      "canonical_name": "department",
+      "display_name": "Academic Department",
+      "description": "Operating academic department (e.g., Computer Science & Engineering, Electronics & Communication).",
+      "source_object": "core.department",
+      "key_column": "department_id",
+      "display_column": "name",
+      "code_column": "code",
+      "attributes": [
+        "department_id",
+        "institution_id",
+        "code",
+        "name",
+        "short_name",
+        "type",
+        "hod_faculty_id",
+        "established_on",
+        "is_active"
+      ],
+      "hierarchies": [
+        {
+          "hierarchy_name": "academic_structure",
+          "parent_dimension": null,
+          "child_dimension": "dim.programme"
+        }
+      ],
+      "sensitivity": "PUBLIC_INSTITUTIONAL",
+      "status": "APPROVED",
+      "version": "1.0",
+      "provenance": "core.department table in schema_full.sql"
+    },
+    {
+      "dimension_id": "dim.faculty",
+      "canonical_name": "faculty",
+      "display_name": "Instructional Faculty",
+      "description": "Teaching and instructional faculty member identified by employee number and departmental affiliation.",
+      "source_object": "people.faculty",
+      "key_column": "faculty_id",
+      "display_column": "employee_no",
+      "code_column": "employee_no",
+      "attributes": [
+        "faculty_id",
+        "person_id",
+        "employee_no",
+        "department_id",
+        "designation",
+        "cadre",
+        "employment_type",
+        "highest_qualification",
+        "is_phd_holder",
+        "status"
+      ],
+      "hierarchies": [
+        {
+          "hierarchy_name": "faculty_structure",
+          "parent_dimension": "dim.department",
+          "child_dimension": null
+        }
+      ],
+      "sensitivity": "INTERNAL_INSTITUTIONAL",
+      "status": "APPROVED",
+      "version": "1.0",
+      "provenance": "people.faculty table in schema_full.sql"
+    },
+    {
+      "dimension_id": "dim.programme",
+      "canonical_name": "programme",
+      "display_name": "Academic Programme",
+      "description": "Degree program offered by a department (e.g., B.Tech Computer Science and Engineering).",
+      "source_object": "curriculum.programme",
+      "key_column": "programme_id",
+      "display_column": "name",
+      "code_column": "code",
+      "attributes": [
+        "programme_id",
+        "institution_id",
+        "department_id",
+        "code",
+        "name",
+        "level",
+        "degree",
+        "specialisation",
+        "duration_years",
+        "total_terms",
+        "sanctioned_intake",
+        "is_active"
+      ],
+      "hierarchies": [
+        {
+          "hierarchy_name": "academic_structure",
+          "parent_dimension": "dim.department",
+          "child_dimension": "dim.batch"
+        }
+      ],
+      "sensitivity": "PUBLIC_INSTITUTIONAL",
+      "status": "APPROVED",
+      "version": "1.0",
+      "provenance": "curriculum.programme table in schema_full.sql"
+    },
+    {
+      "dimension_id": "dim.section",
+      "canonical_name": "section",
+      "display_name": "Class Section",
+      "description": "Instructional classroom cohort division within a batch (e.g., Section A, Section B).",
+      "source_object": "curriculum.section",
+      "key_column": "section_id",
+      "display_column": "code",
+      "code_column": "code",
+      "attributes": [
+        "section_id",
+        "batch_id",
+        "code",
+        "year_of_study",
+        "strength",
+        "class_advisor_faculty_id",
+        "is_active"
+      ],
+      "hierarchies": [
+        {
+          "hierarchy_name": "academic_structure",
+          "parent_dimension": "dim.batch",
+          "child_dimension": "dim.student"
+        }
+      ],
+      "sensitivity": "PUBLIC_INSTITUTIONAL",
+      "status": "APPROVED",
+      "version": "1.0",
+      "provenance": "curriculum.section table in schema_full.sql"
+    },
+    {
+      "dimension_id": "dim.student",
+      "canonical_name": "student",
+      "display_name": "Enrolled Student",
+      "description": "Enrolled student entity identified by institutional roll number and assigned cohort.",
+      "source_object": "people.student",
+      "key_column": "student_id",
+      "display_column": "roll_no",
+      "code_column": "roll_no",
+      "attributes": [
+        "student_id",
+        "person_id",
+        "admission_no",
+        "roll_no",
+        "register_no",
+        "batch_id",
+        "admission_date",
+        "admission_category",
+        "entry_qualification",
+        "current_section_id",
+        "current_year_of_study",
+        "status",
+        "graduation_date"
+      ],
+      "hierarchies": [
+        {
+          "hierarchy_name": "student_cohort",
+          "parent_dimension": "dim.section",
+          "child_dimension": null
+        }
+      ],
+      "sensitivity": "SENSITIVE",
+      "status": "APPROVED",
+      "version": "1.0",
+      "provenance": "people.student table in schema_full.sql"
+    },
+    {
+      "dimension_id": "dim.term",
+      "canonical_name": "term",
+      "display_name": "Academic Term",
+      "description": "Specific semester or trimester instructional period within an academic year.",
+      "source_object": "core.term",
+      "key_column": "term_id",
+      "display_column": "label",
+      "code_column": "label",
+      "attributes": [
+        "term_id",
+        "academic_year_id",
+        "term_no",
+        "label",
+        "parity",
+        "start_date",
+        "end_date",
+        "instruction_end",
+        "status"
+      ],
+      "hierarchies": [
+        {
+          "hierarchy_name": "academic_calendar",
+          "parent_dimension": "dim.academic_year",
+          "child_dimension": "dim.course_offering"
+        }
+      ],
+      "sensitivity": "PUBLIC_INSTITUTIONAL",
+      "status": "APPROVED",
+      "version": "1.0",
+      "provenance": "core.term table in schema_full.sql"
+    }
+  ],
+  "join_paths": [
+    {
+      "join_id": "join.academic_year_to_term",
+      "left_object": "core.academic_year",
+      "left_key": "academic_year_id",
+      "right_object": "core.term",
+      "right_key": "academic_year_id",
+      "relationship_type": "ONE_TO_MANY",
+      "confidence": "VERIFIED_FK",
+      "allowed_usage": "GENERAL_ANALYTICS",
+      "provenance": "core.term.academic_year_id foreign key in schema_full.sql",
+      "notes": "Links calendar academic year to constituent terms."
+    },
+    {
+      "join_id": "join.institution_to_department",
+      "left_object": "core.institution",
+      "left_key": "institution_id",
+      "right_object": "core.department",
+      "right_key": "institution_id",
+      "relationship_type": "ONE_TO_MANY",
+      "confidence": "VERIFIED_FK",
+      "allowed_usage": "GENERAL_ANALYTICS",
+      "provenance": "core.department.institution_id foreign key in schema_full.sql",
+      "notes": "Links parent institution to academic departments."
+    },
+    {
+      "join_id": "join.department_to_programme",
+      "left_object": "core.department",
+      "left_key": "department_id",
+      "right_object": "curriculum.programme",
+      "right_key": "department_id",
+      "relationship_type": "ONE_TO_MANY",
+      "confidence": "VERIFIED_FK",
+      "allowed_usage": "GENERAL_ANALYTICS",
+      "provenance": "curriculum.programme.department_id foreign key in schema_full.sql",
+      "notes": "Links department to degree programmes offered."
+    },
+    {
+      "join_id": "join.programme_to_batch",
+      "left_object": "curriculum.programme",
+      "left_key": "programme_id",
+      "right_object": "curriculum.batch",
+      "right_key": "programme_id",
+      "relationship_type": "ONE_TO_MANY",
+      "confidence": "VERIFIED_FK",
+      "allowed_usage": "GENERAL_ANALYTICS",
+      "provenance": "curriculum.batch.programme_id foreign key in schema_full.sql",
+      "notes": "Links degree programme to admission cohorts."
+    },
+    {
+      "join_id": "join.batch_to_section",
+      "left_object": "curriculum.batch",
+      "left_key": "batch_id",
+      "right_object": "curriculum.section",
+      "right_key": "batch_id",
+      "relationship_type": "ONE_TO_MANY",
+      "confidence": "VERIFIED_FK",
+      "allowed_usage": "GENERAL_ANALYTICS",
+      "provenance": "curriculum.section.batch_id foreign key in schema_full.sql",
+      "notes": "Links cohort batch to classroom sections."
+    },
+    {
+      "join_id": "join.course_to_course_version",
+      "left_object": "curriculum.course",
+      "left_key": "course_id",
+      "right_object": "curriculum.course_version",
+      "right_key": "course_id",
+      "relationship_type": "ONE_TO_MANY",
+      "confidence": "VERIFIED_FK",
+      "allowed_usage": "GENERAL_ANALYTICS",
+      "provenance": "curriculum.course_version.course_id foreign key in schema_full.sql",
+      "notes": "Links catalog master course to regulation-specific course versions."
+    },
+    {
+      "join_id": "join.course_version_to_course_offering",
+      "left_object": "curriculum.course_version",
+      "left_key": "course_version_id",
+      "right_object": "academics.course_offering",
+      "right_key": "course_version_id",
+      "relationship_type": "ONE_TO_MANY",
+      "confidence": "VERIFIED_FK",
+      "allowed_usage": "GENERAL_ANALYTICS",
+      "provenance": "academics.course_offering.course_version_id foreign key in schema_full.sql",
+      "notes": "Links syllabus version to scheduled delivery instance."
+    },
+    {
+      "join_id": "join.term_to_course_offering",
+      "left_object": "core.term",
+      "left_key": "term_id",
+      "right_object": "academics.course_offering",
+      "right_key": "term_id",
+      "relationship_type": "ONE_TO_MANY",
+      "confidence": "VERIFIED_FK",
+      "allowed_usage": "GENERAL_ANALYTICS",
+      "provenance": "academics.course_offering.term_id foreign key in schema_full.sql",
+      "notes": "Links instructional term to course offerings scheduled in that term."
+    },
+    {
+      "join_id": "join.section_to_course_offering",
+      "left_object": "curriculum.section",
+      "left_key": "section_id",
+      "right_object": "academics.course_offering",
+      "right_key": "section_id",
+      "relationship_type": "ONE_TO_MANY",
+      "confidence": "VERIFIED_FK",
+      "allowed_usage": "GENERAL_ANALYTICS",
+      "provenance": "academics.course_offering.section_id foreign key in schema_full.sql",
+      "notes": "Links section to dedicated course offering."
+    },
+    {
+      "join_id": "join.course_offering_to_student_registration",
+      "left_object": "academics.course_offering",
+      "left_key": "course_offering_id",
+      "right_object": "academics.student_registration",
+      "right_key": "course_offering_id",
+      "relationship_type": "ONE_TO_MANY",
+      "confidence": "VERIFIED_FK",
+      "allowed_usage": "GENERAL_ANALYTICS",
+      "provenance": "academics.student_registration.course_offering_id foreign key in schema_full.sql",
+      "notes": "Links offering to registered student records."
+    },
+    {
+      "join_id": "join.student_to_student_registration",
+      "left_object": "people.student",
+      "left_key": "student_id",
+      "right_object": "academics.student_registration",
+      "right_key": "student_id",
+      "relationship_type": "ONE_TO_MANY",
+      "confidence": "VERIFIED_FK",
+      "allowed_usage": "GENERAL_ANALYTICS",
+      "provenance": "academics.student_registration.student_id foreign key in schema_full.sql",
+      "notes": "Links student to enrolled course offerings."
+    },
+    {
+      "join_id": "join.person_to_student",
+      "left_object": "people.person",
+      "left_key": "person_id",
+      "right_object": "people.student",
+      "right_key": "person_id",
+      "relationship_type": "ONE_TO_ONE",
+      "confidence": "VERIFIED_FK",
+      "allowed_usage": "ROLE_SCOPED_ANALYTICS",
+      "provenance": "people.student.person_id foreign key in schema_full.sql",
+      "notes": "Resolves student person details (name, gender)."
+    },
+    {
+      "join_id": "join.person_to_faculty",
+      "left_object": "people.person",
+      "left_key": "person_id",
+      "right_object": "people.faculty",
+      "right_key": "person_id",
+      "relationship_type": "ONE_TO_ONE",
+      "confidence": "VERIFIED_FK",
+      "allowed_usage": "ROLE_SCOPED_ANALYTICS",
+      "provenance": "people.faculty.person_id foreign key in schema_full.sql",
+      "notes": "Resolves faculty person details."
+    },
+    {
+      "join_id": "join.department_to_faculty",
+      "left_object": "core.department",
+      "left_key": "department_id",
+      "right_object": "people.faculty",
+      "right_key": "department_id",
+      "relationship_type": "ONE_TO_MANY",
+      "confidence": "VERIFIED_FK",
+      "allowed_usage": "GENERAL_ANALYTICS",
+      "provenance": "people.faculty.department_id foreign key in schema_full.sql",
+      "notes": "Links academic department to affiliated instructional faculty."
+    },
+    {
+      "join_id": "join.course_offering_to_attendance_summary",
+      "left_object": "academics.course_offering",
+      "left_key": "course_offering_id",
+      "right_object": "attendance.attendance_summary",
+      "right_key": "course_offering_id",
+      "relationship_type": "ONE_TO_MANY",
+      "confidence": "VERIFIED_FK",
+      "allowed_usage": "GENERAL_ANALYTICS",
+      "provenance": "attendance.attendance_summary.course_offering_id foreign key in schema_full.sql",
+      "notes": "Connects offering to student attendance summaries."
+    },
+    {
+      "join_id": "join.student_to_attendance_summary",
+      "left_object": "people.student",
+      "left_key": "student_id",
+      "right_object": "attendance.attendance_summary",
+      "right_key": "student_id",
+      "relationship_type": "ONE_TO_MANY",
+      "confidence": "VERIFIED_FK",
+      "allowed_usage": "ROLE_SCOPED_ANALYTICS",
+      "provenance": "attendance.attendance_summary.student_id foreign key in schema_full.sql",
+      "notes": "Connects student to individual attendance records."
+    },
+    {
+      "join_id": "join.course_offering_to_course_result",
+      "left_object": "academics.course_offering",
+      "left_key": "course_offering_id",
+      "right_object": "assessment.course_result",
+      "right_key": "course_offering_id",
+      "relationship_type": "ONE_TO_MANY",
+      "confidence": "VERIFIED_FK",
+      "allowed_usage": "GENERAL_ANALYTICS",
+      "provenance": "assessment.course_result.course_offering_id foreign key in schema_full.sql",
+      "notes": "Links course offering to examination course results."
+    },
+    {
+      "join_id": "join.student_to_course_result",
+      "left_object": "people.student",
+      "left_key": "student_id",
+      "right_object": "assessment.course_result",
+      "right_key": "student_id",
+      "relationship_type": "ONE_TO_MANY",
+      "confidence": "VERIFIED_FK",
+      "allowed_usage": "ROLE_SCOPED_ANALYTICS",
+      "provenance": "assessment.course_result.student_id foreign key in schema_full.sql",
+      "notes": "Links student to examination course results."
+    },
+    {
+      "join_id": "join.co_to_co_po_map",
+      "left_object": "curriculum.course_outcome",
+      "left_key": "course_outcome_id",
+      "right_object": "curriculum.co_po_map",
+      "right_key": "course_outcome_id",
+      "relationship_type": "ONE_TO_MANY",
+      "confidence": "VERIFIED_FK",
+      "allowed_usage": "GENERAL_ANALYTICS",
+      "provenance": "curriculum.co_po_map.course_outcome_id foreign key in schema_full.sql",
+      "notes": "Maps course outcome to programme outcome articulation matrix."
+    },
+    {
+      "join_id": "join.po_to_co_po_map",
+      "left_object": "curriculum.programme_outcome",
+      "left_key": "programme_outcome_id",
+      "right_object": "curriculum.co_po_map",
+      "right_key": "programme_outcome_id",
+      "relationship_type": "ONE_TO_MANY",
+      "confidence": "VERIFIED_FK",
+      "allowed_usage": "GENERAL_ANALYTICS",
+      "provenance": "curriculum.co_po_map.programme_outcome_id foreign key in schema_full.sql",
+      "notes": "Maps programme outcome to course outcomes."
+    },
+    {
+      "join_id": "join.student_to_placement_offer",
+      "left_object": "people.student",
+      "left_key": "student_id",
+      "right_object": "placement.offer",
+      "right_key": "student_id",
+      "relationship_type": "ONE_TO_MANY",
+      "confidence": "VERIFIED_FK",
+      "allowed_usage": "ROLE_SCOPED_ANALYTICS",
+      "provenance": "placement.offer.student_id foreign key in schema_full.sql",
+      "notes": "Links candidate student to employment offers received."
+    },
+    {
+      "join_id": "join.company_to_placement_offer",
+      "left_object": "placement.company",
+      "left_key": "company_id",
+      "right_object": "placement.offer",
+      "right_key": "company_id",
+      "relationship_type": "ONE_TO_MANY",
+      "confidence": "VERIFIED_FK",
+      "allowed_usage": "GENERAL_ANALYTICS",
+      "provenance": "placement.offer.company_id foreign key in schema_full.sql",
+      "notes": "Links recruiting company to offers issued."
+    },
+    {
+      "join_id": "join.student_to_placement_readiness",
+      "left_object": "people.student",
+      "left_key": "student_id",
+      "right_object": "placement.readiness_summary",
+      "right_key": "student_id",
+      "relationship_type": "ONE_TO_MANY",
+      "confidence": "VERIFIED_FK",
+      "allowed_usage": "ROLE_SCOPED_ANALYTICS",
+      "provenance": "placement.readiness_summary.student_id foreign key in schema_full.sql",
+      "notes": "Links student to computed placement readiness band and score."
+    },
+    {
+      "join_id": "join.kpi_definition_to_kpi_value",
+      "left_object": "quality.kpi_definition",
+      "left_key": "kpi_definition_id",
+      "right_object": "quality.kpi_value",
+      "right_key": "kpi_definition_id",
+      "relationship_type": "ONE_TO_MANY",
+      "confidence": "VERIFIED_FK",
+      "allowed_usage": "GENERAL_ANALYTICS",
+      "provenance": "quality.kpi_value.kpi_definition_id foreign key in schema_full.sql",
+      "notes": "Links IQAC KPI master definition to periodic evaluated values."
+    }
+  ],
+  "metrics": [
+    {
+      "metric_id": "academics.active_student_strength",
+      "canonical_name": "active_student_strength",
+      "display_name": "Active Student Strength",
+      "description": "Total count of active enrolled students across academic departments, programmes, and cohorts.",
+      "domain": "academics",
+      "category": "institutional_capacity",
+      "grain": "programme_batch",
+      "formula": "count(DISTINCT student_id) FILTER (WHERE status = 'ACTIVE')",
+      "aggregation": "COUNT_DISTINCT",
+      "unit": "students_count",
+      "numerator": "count(student_id)",
+      "denominator": null,
+      "source_objects": [
+        "people.student"
+      ],
+      "source_columns": [
+        "student_id",
+        "status",
+        "batch_id",
+        "current_section_id"
+      ],
+      "allowed_dimensions": [
+        "dim.department",
+        "dim.programme",
+        "dim.batch",
+        "dim.section"
+      ],
+      "allowed_filters": [
+        "status",
+        "batch_id"
+      ],
+      "time_semantics": {
+        "time_dimension": null,
+        "time_column": null,
+        "period_grain": "current_state"
+      },
+      "null_handling": {
+        "missing_records": "0",
+        "zero_denominator": null
+      },
+      "sensitivity": "PUBLIC_INSTITUTIONAL",
+      "status": "APPROVED",
+      "version": "1.0",
+      "provenance": "people.student table in schema_full.sql",
+      "validation_notes": "Sourced from people.student where status = 'ACTIVE'."
+    },
+    {
+      "metric_id": "academics.active_course_offerings",
+      "canonical_name": "active_course_offerings_count",
+      "display_name": "Active Course Offerings Delivered",
+      "description": "Total count of scheduled course offerings actively delivered in an academic term.",
+      "domain": "academics",
+      "category": "curriculum_delivery",
+      "grain": "term_department",
+      "formula": "count(DISTINCT course_offering_id) FILTER (WHERE status = 'RUNNING')",
+      "aggregation": "COUNT_DISTINCT",
+      "unit": "offerings_count",
+      "numerator": "count(course_offering_id)",
+      "denominator": null,
+      "source_objects": [
+        "academics.course_offering"
+      ],
+      "source_columns": [
+        "course_offering_id",
+        "term_id",
+        "department_id",
+        "status"
+      ],
+      "allowed_dimensions": [
+        "dim.academic_year",
+        "dim.term",
+        "dim.department"
+      ],
+      "allowed_filters": [
+        "term_id",
+        "department_id",
+        "status"
+      ],
+      "time_semantics": {
+        "time_dimension": "dim.term",
+        "time_column": "term_id",
+        "period_grain": "term"
+      },
+      "null_handling": {
+        "missing_records": "0",
+        "zero_denominator": null
+      },
+      "sensitivity": "PUBLIC_INSTITUTIONAL",
+      "status": "APPROVED",
+      "version": "1.0",
+      "provenance": "academics.course_offering table in schema_full.sql",
+      "validation_notes": "Count of running course delivery sections."
+    },
+    {
+      "metric_id": "assessment.course_pass_percentage",
+      "canonical_name": "course_pass_percentage",
+      "display_name": "Course Pass Percentage",
+      "description": "Percentage of examined students who passed the course examination offering.",
+      "domain": "assessment",
+      "category": "academic_performance",
+      "grain": "course_offering",
+      "formula": "round(100.0 * count(*) FILTER (WHERE result_status = 'PASS') / nullif(count(*) FILTER (WHERE result_status <> 'ABSENT'), 0), 2)",
+      "aggregation": "RATIO",
+      "unit": "percentage",
+      "numerator": "passed",
+      "denominator": "students_appeared",
+      "source_objects": [
+        "assessment.v_course_performance"
+      ],
+      "source_columns": [
+        "pass_pct",
+        "passed",
+        "students_appeared",
+        "course_offering_id",
+        "term_id",
+        "department_id"
+      ],
+      "allowed_dimensions": [
+        "dim.academic_year",
+        "dim.term",
+        "dim.department",
+        "dim.course",
+        "dim.course_offering",
+        "dim.section"
+      ],
+      "allowed_filters": [
+        "term_id",
+        "course_offering_id",
+        "department_id",
+        "section_id"
+      ],
+      "time_semantics": {
+        "time_dimension": "dim.term",
+        "time_column": "term_id",
+        "period_grain": "term"
+      },
+      "null_handling": {
+        "missing_records": "NULL",
+        "zero_denominator": "NULLIF(students_appeared, 0) yields NULL (prevents divide by zero when 0 students appeared)"
+      },
+      "sensitivity": "INTERNAL_INSTITUTIONAL",
+      "status": "APPROVED",
+      "version": "1.0",
+      "provenance": "assessment.v_course_performance view in schema_full.sql",
+      "validation_notes": "Directly matches authoritative institutional view calculation."
+    },
+    {
+      "metric_id": "assessment.average_total_marks",
+      "canonical_name": "average_total_marks",
+      "display_name": "Average Course Marks",
+      "description": "Arithmetic mean of total marks scored by examined students in a course offering.",
+      "domain": "assessment",
+      "category": "academic_performance",
+      "grain": "course_offering",
+      "formula": "round(avg(total_marks), 2)",
+      "aggregation": "AVG",
+      "unit": "marks",
+      "numerator": "sum(total_marks)",
+      "denominator": "count(student_id)",
+      "source_objects": [
+        "assessment.v_course_performance"
+      ],
+      "source_columns": [
+        "avg_total_marks",
+        "course_offering_id",
+        "term_id",
+        "department_id"
+      ],
+      "allowed_dimensions": [
+        "dim.academic_year",
+        "dim.term",
+        "dim.department",
+        "dim.course",
+        "dim.course_offering",
+        "dim.section"
+      ],
+      "allowed_filters": [
+        "term_id",
+        "course_offering_id",
+        "department_id"
+      ],
+      "time_semantics": {
+        "time_dimension": "dim.term",
+        "time_column": "term_id",
+        "period_grain": "term"
+      },
+      "null_handling": {
+        "missing_records": "NULL",
+        "zero_denominator": "NULL if no students appeared"
+      },
+      "sensitivity": "INTERNAL_INSTITUTIONAL",
+      "status": "APPROVED",
+      "version": "1.0",
+      "provenance": "assessment.v_course_performance view in schema_full.sql",
+      "validation_notes": "Derived from assessment.course_result.total_marks."
+    },
+    {
+      "metric_id": "assessment.students_appeared",
+      "canonical_name": "students_appeared_count",
+      "display_name": "Students Appeared Count",
+      "description": "Total number of registered candidates who appeared for examination in a course offering.",
+      "domain": "assessment",
+      "category": "examination_administration",
+      "grain": "course_offering",
+      "formula": "count(*) FILTER (WHERE result_status <> 'ABSENT')",
+      "aggregation": "COUNT",
+      "unit": "count",
+      "numerator": "count(*)",
+      "denominator": null,
+      "source_objects": [
+        "assessment.v_course_performance"
+      ],
+      "source_columns": [
+        "students_appeared",
+        "course_offering_id",
+        "term_id",
+        "department_id"
+      ],
+      "allowed_dimensions": [
+        "dim.academic_year",
+        "dim.term",
+        "dim.department",
+        "dim.course",
+        "dim.course_offering",
+        "dim.section"
+      ],
+      "allowed_filters": [
+        "term_id",
+        "course_offering_id",
+        "department_id"
+      ],
+      "time_semantics": {
+        "time_dimension": "dim.term",
+        "time_column": "term_id",
+        "period_grain": "term"
+      },
+      "null_handling": {
+        "missing_records": "0 if offering has no records",
+        "zero_denominator": null
+      },
+      "sensitivity": "INTERNAL_INSTITUTIONAL",
+      "status": "APPROVED",
+      "version": "1.0",
+      "provenance": "assessment.v_course_performance view in schema_full.sql",
+      "validation_notes": "Excludes ABSENT candidates."
+    },
+    {
+      "metric_id": "assessment.students_passed",
+      "canonical_name": "students_passed_count",
+      "display_name": "Students Passed Count",
+      "description": "Total number of candidates who secured a PASS result in a course offering.",
+      "domain": "assessment",
+      "category": "academic_performance",
+      "grain": "course_offering",
+      "formula": "count(*) FILTER (WHERE result_status = 'PASS')",
+      "aggregation": "COUNT",
+      "unit": "count",
+      "numerator": "count(*)",
+      "denominator": null,
+      "source_objects": [
+        "assessment.v_course_performance"
+      ],
+      "source_columns": [
+        "passed",
+        "course_offering_id",
+        "term_id",
+        "department_id"
+      ],
+      "allowed_dimensions": [
+        "dim.academic_year",
+        "dim.term",
+        "dim.department",
+        "dim.course",
+        "dim.course_offering",
+        "dim.section"
+      ],
+      "allowed_filters": [
+        "term_id",
+        "course_offering_id",
+        "department_id"
+      ],
+      "time_semantics": {
+        "time_dimension": "dim.term",
+        "time_column": "term_id",
+        "period_grain": "term"
+      },
+      "null_handling": {
+        "missing_records": "0",
+        "zero_denominator": null
+      },
+      "sensitivity": "INTERNAL_INSTITUTIONAL",
+      "status": "APPROVED",
+      "version": "1.0",
+      "provenance": "assessment.v_course_performance view in schema_full.sql",
+      "validation_notes": "Direct pass count."
+    },
+    {
+      "metric_id": "assessment.failure_count",
+      "canonical_name": "students_failed_count",
+      "display_name": "Students Failed Count",
+      "description": "Total number of candidates who appeared but failed to satisfy passing criteria.",
+      "domain": "assessment",
+      "category": "academic_performance",
+      "grain": "course_offering",
+      "formula": "count(*) FILTER (WHERE result_status = 'FAIL')",
+      "aggregation": "COUNT",
+      "unit": "count",
+      "numerator": "count(*)",
+      "denominator": null,
+      "source_objects": [
+        "assessment.course_result"
+      ],
+      "source_columns": [
+        "result_status",
+        "course_offering_id",
+        "term_id"
+      ],
+      "allowed_dimensions": [
+        "dim.academic_year",
+        "dim.term",
+        "dim.department",
+        "dim.course",
+        "dim.course_offering"
+      ],
+      "allowed_filters": [
+        "term_id",
+        "course_offering_id"
+      ],
+      "time_semantics": {
+        "time_dimension": "dim.term",
+        "time_column": "term_id",
+        "period_grain": "term"
+      },
+      "null_handling": {
+        "missing_records": "0",
+        "zero_denominator": null
+      },
+      "sensitivity": "INTERNAL_INSTITUTIONAL",
+      "status": "APPROVED",
+      "version": "1.0",
+      "provenance": "assessment.course_result table in schema_full.sql",
+      "validation_notes": "Sourced from assessment.course_result where result_status = 'FAIL'."
+    },
+    {
+      "metric_id": "assessment.internal_marks_average",
+      "canonical_name": "internal_marks_average",
+      "display_name": "Average Internal Assessment Marks",
+      "description": "Mean continuous internal assessment (CIA) marks computed across enrolled students in a course offering.",
+      "domain": "assessment",
+      "category": "continuous_assessment",
+      "grain": "course_offering",
+      "formula": "round(avg(computed_marks), 2)",
+      "aggregation": "AVG",
+      "unit": "marks",
+      "numerator": "sum(computed_marks)",
+      "denominator": "count(student_id)",
+      "source_objects": [
+        "assessment.internal_mark"
+      ],
+      "source_columns": [
+        "computed_marks",
+        "course_offering_id",
+        "student_id",
+        "is_provisional"
+      ],
+      "allowed_dimensions": [
+        "dim.academic_year",
+        "dim.term",
+        "dim.department",
+        "dim.course_offering"
+      ],
+      "allowed_filters": [
+        "course_offering_id",
+        "is_provisional"
+      ],
+      "time_semantics": {
+        "time_dimension": "dim.term",
+        "time_column": "course_offering_id",
+        "period_grain": "term"
+      },
+      "null_handling": {
+        "missing_records": "NULL",
+        "zero_denominator": "NULL if no internal marks submitted"
+      },
+      "sensitivity": "INTERNAL_INSTITUTIONAL",
+      "status": "APPROVED",
+      "version": "1.0",
+      "provenance": "assessment.internal_mark table in schema_full.sql",
+      "validation_notes": "CIA continuous evaluation marks before final external exam."
+    },
+    {
+      "metric_id": "attendance.percentage",
+      "canonical_name": "attendance_percentage",
+      "display_name": "Adjusted Attendance Percentage",
+      "description": "Average percentage of attended instructional sessions including approved duty/medical leave adjustments.",
+      "domain": "attendance",
+      "category": "operational_monitoring",
+      "grain": "student_course_offering",
+      "formula": "round(avg(adjusted_pct), 2)",
+      "aggregation": "AVG",
+      "unit": "percentage",
+      "numerator": "classes_attended + approved_leaves",
+      "denominator": "classes_held",
+      "source_objects": [
+        "attendance.v_current_attendance"
+      ],
+      "source_columns": [
+        "adjusted_pct",
+        "student_id",
+        "course_offering_id",
+        "term_id"
+      ],
+      "allowed_dimensions": [
+        "dim.academic_year",
+        "dim.term",
+        "dim.department",
+        "dim.programme",
+        "dim.batch",
+        "dim.section",
+        "dim.course",
+        "dim.course_offering",
+        "dim.student"
+      ],
+      "allowed_filters": [
+        "term_id",
+        "department_id",
+        "programme_id",
+        "batch_id",
+        "section_id",
+        "course_offering_id",
+        "band"
+      ],
+      "time_semantics": {
+        "time_dimension": "dim.term",
+        "time_column": "as_of_date",
+        "period_grain": "term"
+      },
+      "null_handling": {
+        "missing_records": "NULL (never convert missing enrollment or zero-held sessions to 0%)",
+        "zero_denominator": "NULLIF(classes_held, 0) yields NULL"
+      },
+      "sensitivity": "INTERNAL_INSTITUTIONAL",
+      "status": "APPROVED",
+      "version": "1.0",
+      "provenance": "attendance.v_current_attendance view in schema_full.sql",
+      "validation_notes": "Authoritative institutional view calculates adjusted_pct with DISTINCT ON latest as_of_date."
+    },
+    {
+      "metric_id": "attendance.raw_percentage",
+      "canonical_name": "attendance_raw_percentage",
+      "display_name": "Raw Attendance Percentage",
+      "description": "Direct session attendance percentage strictly based on physical classroom presence without leave adjustments.",
+      "domain": "attendance",
+      "category": "operational_monitoring",
+      "grain": "student_course_offering",
+      "formula": "round(avg(raw_pct), 2)",
+      "aggregation": "AVG",
+      "unit": "percentage",
+      "numerator": "classes_attended",
+      "denominator": "classes_held",
+      "source_objects": [
+        "attendance.v_current_attendance"
+      ],
+      "source_columns": [
+        "raw_pct",
+        "student_id",
+        "course_offering_id",
+        "term_id"
+      ],
+      "allowed_dimensions": [
+        "dim.academic_year",
+        "dim.term",
+        "dim.department",
+        "dim.programme",
+        "dim.batch",
+        "dim.section",
+        "dim.course",
+        "dim.course_offering",
+        "dim.student"
+      ],
+      "allowed_filters": [
+        "term_id",
+        "course_offering_id"
+      ],
+      "time_semantics": {
+        "time_dimension": "dim.term",
+        "time_column": "as_of_date",
+        "period_grain": "term"
+      },
+      "null_handling": {
+        "missing_records": "NULL",
+        "zero_denominator": "NULLIF(classes_held, 0) yields NULL"
+      },
+      "sensitivity": "INTERNAL_INSTITUTIONAL",
+      "status": "APPROVED",
+      "version": "1.0",
+      "provenance": "attendance.v_current_attendance view in schema_full.sql",
+      "validation_notes": "Unadjusted presence metric derived from attendance.attendance_summary."
+    },
+    {
+      "metric_id": "attendance.students_below_threshold",
+      "canonical_name": "students_below_attendance_threshold",
+      "display_name": "Students Below Attendance Threshold",
+      "description": "Count of distinct students whose adjusted attendance falls below institutional eligibility threshold (e.g. 75%).",
+      "domain": "attendance",
+      "category": "compliance_and_eligibility",
+      "grain": "course_offering",
+      "formula": "count(DISTINCT student_id) FILTER (WHERE adjusted_pct < :threshold_pct)",
+      "aggregation": "COUNT_DISTINCT",
+      "unit": "count",
+      "numerator": "count(student_id)",
+      "denominator": null,
+      "source_objects": [
+        "attendance.v_current_attendance"
+      ],
+      "source_columns": [
+        "student_id",
+        "adjusted_pct",
+        "course_offering_id",
+        "term_id"
+      ],
+      "allowed_dimensions": [
+        "dim.academic_year",
+        "dim.term",
+        "dim.department",
+        "dim.programme",
+        "dim.batch",
+        "dim.section",
+        "dim.course_offering"
+      ],
+      "allowed_filters": [
+        "term_id",
+        "course_offering_id",
+        "department_id"
+      ],
+      "time_semantics": {
+        "time_dimension": "dim.term",
+        "time_column": "as_of_date",
+        "period_grain": "term"
+      },
+      "null_handling": {
+        "missing_records": "Excluded from count",
+        "zero_denominator": null
+      },
+      "sensitivity": "INTERNAL_INSTITUTIONAL",
+      "status": "REVIEW_REQUIRED",
+      "version": "1.0",
+      "provenance": "Institutional academic regulations (75% statutory norm pending IQAC parameter configuration)",
+      "validation_notes": "Threshold is policy-dependent. Metric kept in REVIEW_REQUIRED status until threshold parameter injection is approved."
+    },
+    {
+      "metric_id": "attendance.course_aggregate",
+      "canonical_name": "course_attendance_aggregate",
+      "display_name": "Course Offering Average Attendance",
+      "description": "Mean attendance percentage achieved across all registered students in a specific course offering.",
+      "domain": "attendance",
+      "category": "operational_monitoring",
+      "grain": "course_offering",
+      "formula": "round(avg(adjusted_pct), 2)",
+      "aggregation": "AVG",
+      "unit": "percentage",
+      "numerator": "sum(adjusted_pct)",
+      "denominator": "count(student_id)",
+      "source_objects": [
+        "attendance.v_current_attendance"
+      ],
+      "source_columns": [
+        "adjusted_pct",
+        "course_offering_id",
+        "term_id"
+      ],
+      "allowed_dimensions": [
+        "dim.academic_year",
+        "dim.term",
+        "dim.department",
+        "dim.programme",
+        "dim.course",
+        "dim.course_offering"
+      ],
+      "allowed_filters": [
+        "term_id",
+        "course_offering_id",
+        "department_id"
+      ],
+      "time_semantics": {
+        "time_dimension": "dim.term",
+        "time_column": "as_of_date",
+        "period_grain": "term"
+      },
+      "null_handling": {
+        "missing_records": "NULL",
+        "zero_denominator": "NULL if no registered students"
+      },
+      "sensitivity": "INTERNAL_INSTITUTIONAL",
+      "status": "APPROVED",
+      "version": "1.0",
+      "provenance": "attendance.v_current_attendance view in schema_full.sql",
+      "validation_notes": "Course-level aggregation."
+    },
+    {
+      "metric_id": "attendance.section_aggregate",
+      "canonical_name": "section_attendance_aggregate",
+      "display_name": "Section Average Attendance",
+      "description": "Mean attendance percentage achieved across students enrolled in a classroom section.",
+      "domain": "attendance",
+      "category": "operational_monitoring",
+      "grain": "section",
+      "formula": "round(avg(adjusted_pct), 2)",
+      "aggregation": "AVG",
+      "unit": "percentage",
+      "numerator": "sum(adjusted_pct)",
+      "denominator": "count(student_id)",
+      "source_objects": [
+        "attendance.v_current_attendance",
+        "academics.course_offering"
+      ],
+      "source_columns": [
+        "adjusted_pct",
+        "course_offering_id",
+        "section_id"
+      ],
+      "allowed_dimensions": [
+        "dim.academic_year",
+        "dim.term",
+        "dim.department",
+        "dim.programme",
+        "dim.batch",
+        "dim.section"
+      ],
+      "allowed_filters": [
+        "section_id",
+        "term_id",
+        "batch_id"
+      ],
+      "time_semantics": {
+        "time_dimension": "dim.term",
+        "time_column": "as_of_date",
+        "period_grain": "term"
+      },
+      "null_handling": {
+        "missing_records": "NULL",
+        "zero_denominator": "NULL"
+      },
+      "sensitivity": "INTERNAL_INSTITUTIONAL",
+      "status": "APPROVED",
+      "version": "1.0",
+      "provenance": "attendance.v_current_attendance joined to academics.course_offering in schema_full.sql",
+      "validation_notes": "Requires verified join path join.section_to_course_offering."
+    },
+    {
+      "metric_id": "attendance.shortage_count",
+      "canonical_name": "attendance_shortage_count",
+      "display_name": "Attendance Shortage Student Count",
+      "description": "Count of students classified in the institutional SHORTAGE band for examination condonation review.",
+      "domain": "attendance",
+      "category": "compliance_and_eligibility",
+      "grain": "course_offering",
+      "formula": "count(DISTINCT student_id) FILTER (WHERE band = 'SHORTAGE')",
+      "aggregation": "COUNT_DISTINCT",
+      "unit": "count",
+      "numerator": "count(student_id)",
+      "denominator": null,
+      "source_objects": [
+        "attendance.v_current_attendance"
+      ],
+      "source_columns": [
+        "student_id",
+        "band",
+        "course_offering_id",
+        "term_id"
+      ],
+      "allowed_dimensions": [
+        "dim.academic_year",
+        "dim.term",
+        "dim.department",
+        "dim.programme",
+        "dim.batch",
+        "dim.section",
+        "dim.course_offering"
+      ],
+      "allowed_filters": [
+        "term_id",
+        "course_offering_id",
+        "department_id"
+      ],
+      "time_semantics": {
+        "time_dimension": "dim.term",
+        "time_column": "as_of_date",
+        "period_grain": "term"
+      },
+      "null_handling": {
+        "missing_records": "0 if no students in shortage",
+        "zero_denominator": null
+      },
+      "sensitivity": "INTERNAL_INSTITUTIONAL",
+      "status": "APPROVED",
+      "version": "1.0",
+      "provenance": "attendance.v_current_attendance view in schema_full.sql",
+      "validation_notes": "Uses schema-defined band = 'SHORTAGE'."
+    },
+    {
+      "metric_id": "outcomes.co_attainment_level",
+      "canonical_name": "co_attainment_level",
+      "display_name": "Course Outcome Attainment Level",
+      "description": "Final evaluated attainment level (typically on a 0-3 scale) achieved for a Course Outcome in a course offering.",
+      "domain": "outcomes",
+      "category": "obe_accreditation",
+      "grain": "course_outcome_offering",
+      "formula": "round(avg(co_level), 2)",
+      "aggregation": "AVG",
+      "unit": "level_scale",
+      "numerator": "sum(co_level)",
+      "denominator": "count(*)",
+      "source_objects": [
+        "outcomes.v_attainment_trace"
+      ],
+      "source_columns": [
+        "co_level",
+        "co_no",
+        "course_offering_id",
+        "course_code",
+        "run_status"
+      ],
+      "allowed_dimensions": [
+        "dim.academic_year",
+        "dim.term",
+        "dim.department",
+        "dim.programme",
+        "dim.course",
+        "dim.course_offering"
+      ],
+      "allowed_filters": [
+        "course_offering_id",
+        "course_code",
+        "co_no",
+        "run_status"
+      ],
+      "time_semantics": {
+        "time_dimension": "dim.term",
+        "time_column": "run_at",
+        "period_grain": "term"
+      },
+      "null_handling": {
+        "missing_records": "NULL",
+        "zero_denominator": "NULL"
+      },
+      "sensitivity": "INTERNAL_INSTITUTIONAL",
+      "status": "APPROVED",
+      "version": "1.0",
+      "provenance": "outcomes.v_attainment_trace view in schema_full.sql",
+      "validation_notes": "Authoritative final_level calculation blending direct and indirect attainment assessments."
+    },
+    {
+      "metric_id": "outcomes.po_attainment_level",
+      "canonical_name": "po_attainment_level",
+      "display_name": "Programme Outcome Attainment Level",
+      "description": "Weighted attainment level evaluated for an NBA/ABET Programme Outcome (PO) across contributing courses.",
+      "domain": "outcomes",
+      "category": "obe_accreditation",
+      "grain": "programme_outcome_batch",
+      "formula": "round(avg(po_level), 2)",
+      "aggregation": "AVG",
+      "unit": "level_scale",
+      "numerator": "sum(po_level)",
+      "denominator": "count(*)",
+      "source_objects": [
+        "outcomes.v_attainment_trace"
+      ],
+      "source_columns": [
+        "po_level",
+        "po_target",
+        "outcome_type",
+        "outcome_no"
+      ],
+      "allowed_dimensions": [
+        "dim.academic_year",
+        "dim.department",
+        "dim.programme",
+        "dim.batch"
+      ],
+      "allowed_filters": [
+        "outcome_type",
+        "outcome_no"
+      ],
+      "time_semantics": {
+        "time_dimension": "dim.academic_year",
+        "time_column": "run_at",
+        "period_grain": "academic_year"
+      },
+      "null_handling": {
+        "missing_records": "NULL",
+        "zero_denominator": "NULL"
+      },
+      "sensitivity": "INTERNAL_INSTITUTIONAL",
+      "status": "APPROVED",
+      "version": "1.0",
+      "provenance": "outcomes.v_attainment_trace view in schema_full.sql",
+      "validation_notes": "Programme-level aggregation for NBA accreditation compliance."
+    },
+    {
+      "metric_id": "outcomes.co_attaining_percentage",
+      "canonical_name": "co_attaining_percentage",
+      "display_name": "CO Target Attaining Students Percentage",
+      "description": "Percentage of evaluated students who satisfied the threshold rubric score for a specific Course Outcome.",
+      "domain": "outcomes",
+      "category": "obe_accreditation",
+      "grain": "course_outcome_offering",
+      "formula": "round(avg(attaining_pct), 2)",
+      "aggregation": "AVG",
+      "unit": "percentage",
+      "numerator": "students_attaining",
+      "denominator": "students_evaluated",
+      "source_objects": [
+        "outcomes.v_attainment_trace"
+      ],
+      "source_columns": [
+        "attaining_pct",
+        "students_evaluated",
+        "co_no",
+        "course_offering_id"
+      ],
+      "allowed_dimensions": [
+        "dim.academic_year",
+        "dim.term",
+        "dim.department",
+        "dim.programme",
+        "dim.course",
+        "dim.course_offering"
+      ],
+      "allowed_filters": [
+        "course_offering_id",
+        "co_no"
+      ],
+      "time_semantics": {
+        "time_dimension": "dim.term",
+        "time_column": "run_at",
+        "period_grain": "term"
+      },
+      "null_handling": {
+        "missing_records": "NULL",
+        "zero_denominator": "NULL if no students evaluated"
+      },
+      "sensitivity": "INTERNAL_INSTITUTIONAL",
+      "status": "APPROVED",
+      "version": "1.0",
+      "provenance": "outcomes.v_attainment_trace view in schema_full.sql",
+      "validation_notes": "Sourced from outcomes.co_attainment.attaining_pct."
+    },
+    {
+      "metric_id": "outcomes.co_po_mapping_strength",
+      "canonical_name": "co_po_mapping_strength",
+      "display_name": "CO-PO Articulation Matrix Strength",
+      "description": "Correlation weight (1: Low, 2: Moderate, 3: High) between Course Outcome and Programme Outcome in curricular matrix.",
+      "domain": "outcomes",
+      "category": "curriculum_design",
+      "grain": "co_po_mapping",
+      "formula": "avg(strength)",
+      "aggregation": "AVG",
+      "unit": "scale_1_to_3",
+      "numerator": "sum(strength)",
+      "denominator": "count(*)",
+      "source_objects": [
+        "curriculum.co_po_map"
+      ],
+      "source_columns": [
+        "course_outcome_id",
+        "programme_outcome_id",
+        "strength"
+      ],
+      "allowed_dimensions": [
+        "dim.programme",
+        "dim.course"
+      ],
+      "allowed_filters": [
+        "course_outcome_id",
+        "programme_outcome_id"
+      ],
+      "time_semantics": {
+        "time_dimension": null,
+        "time_column": null,
+        "period_grain": "static_regulation"
+      },
+      "null_handling": {
+        "missing_records": "0 (unmapped CO-PO pair)",
+        "zero_denominator": "NULL"
+      },
+      "sensitivity": "PUBLIC_INSTITUTIONAL",
+      "status": "APPROVED",
+      "version": "1.0",
+      "provenance": "curriculum.co_po_map table in schema_full.sql",
+      "validation_notes": "Integer rating 1-3 defining articulation strength."
+    },
+    {
+      "metric_id": "placement.placed_students_count",
+      "canonical_name": "placed_students_count",
+      "display_name": "Placed Students Count",
+      "description": "Count of unique graduating students who have received and accepted at least one verified employment offer.",
+      "domain": "placement",
+      "category": "career_outcomes",
+      "grain": "batch",
+      "formula": "count(DISTINCT student_id) FILTER (WHERE status IN ('ACCEPTED', 'JOINED', 'OFFERED'))",
+      "aggregation": "COUNT_DISTINCT",
+      "unit": "count",
+      "numerator": "count(DISTINCT student_id)",
+      "denominator": null,
+      "source_objects": [
+        "placement.offer"
+      ],
+      "source_columns": [
+        "student_id",
+        "status",
+        "offer_date"
+      ],
+      "allowed_dimensions": [
+        "dim.academic_year",
+        "dim.department",
+        "dim.programme",
+        "dim.batch"
+      ],
+      "allowed_filters": [
+        "status"
+      ],
+      "time_semantics": {
+        "time_dimension": "dim.academic_year",
+        "time_column": "offer_date",
+        "period_grain": "academic_year"
+      },
+      "null_handling": {
+        "missing_records": "0",
+        "zero_denominator": null
+      },
+      "sensitivity": "INTERNAL_INSTITUTIONAL",
+      "status": "APPROVED",
+      "version": "1.0",
+      "provenance": "placement.offer table in schema_full.sql",
+      "validation_notes": "Distinguishes distinct placed students from total offer count to account for multi-offer recipients."
+    },
+    {
+      "metric_id": "placement.total_offers_count",
+      "canonical_name": "total_offers_count",
+      "display_name": "Total Employment Offers Count",
+      "description": "Aggregate count of all verified employment offers issued across participating recruitment companies.",
+      "domain": "placement",
+      "category": "career_outcomes",
+      "grain": "batch",
+      "formula": "count(offer_id)",
+      "aggregation": "COUNT",
+      "unit": "count",
+      "numerator": "count(offer_id)",
+      "denominator": null,
+      "source_objects": [
+        "placement.offer"
+      ],
+      "source_columns": [
+        "offer_id",
+        "status",
+        "offer_date"
+      ],
+      "allowed_dimensions": [
+        "dim.academic_year",
+        "dim.department",
+        "dim.programme",
+        "dim.batch"
+      ],
+      "allowed_filters": [
+        "status"
+      ],
+      "time_semantics": {
+        "time_dimension": "dim.academic_year",
+        "time_column": "offer_date",
+        "period_grain": "academic_year"
+      },
+      "null_handling": {
+        "missing_records": "0",
+        "zero_denominator": null
+      },
+      "sensitivity": "INTERNAL_INSTITUTIONAL",
+      "status": "APPROVED",
+      "version": "1.0",
+      "provenance": "placement.offer table in schema_full.sql",
+      "validation_notes": "Includes single and multi-offers."
+    },
+    {
+      "metric_id": "placement.average_ctc",
+      "canonical_name": "average_ctc",
+      "display_name": "Average Placement CTC (Annual)",
+      "description": "Mean annual Cost to Company (CTC) compensation package for verified placement offers.",
+      "domain": "placement",
+      "category": "compensation_analytics",
+      "grain": "batch",
+      "formula": "round(avg(ctc), 2)",
+      "aggregation": "AVG",
+      "unit": "inr_lakhs_per_annum",
+      "numerator": "sum(ctc)",
+      "denominator": "count(offer_id)",
+      "source_objects": [
+        "placement.offer"
+      ],
+      "source_columns": [
+        "ctc",
+        "status",
+        "offer_date"
+      ],
+      "allowed_dimensions": [
+        "dim.academic_year",
+        "dim.department",
+        "dim.programme",
+        "dim.batch"
+      ],
+      "allowed_filters": [
+        "status"
+      ],
+      "time_semantics": {
+        "time_dimension": "dim.academic_year",
+        "time_column": "offer_date",
+        "period_grain": "academic_year"
+      },
+      "null_handling": {
+        "missing_records": "NULL",
+        "zero_denominator": "NULL if no offers"
+      },
+      "sensitivity": "INTERNAL_INSTITUTIONAL",
+      "status": "APPROVED",
+      "version": "1.0",
+      "provenance": "placement.offer.ctc in schema_full.sql",
+      "validation_notes": "Compensation metric derived from placement.offer."
+    },
+    {
+      "metric_id": "placement.highest_ctc",
+      "canonical_name": "highest_ctc",
+      "display_name": "Highest Placement CTC (Annual)",
+      "description": "Maximum annual CTC compensation offer secured by any student in the cohort.",
+      "domain": "placement",
+      "category": "compensation_analytics",
+      "grain": "batch",
+      "formula": "max(ctc)",
+      "aggregation": "MAX",
+      "unit": "inr_lakhs_per_annum",
+      "numerator": "max(ctc)",
+      "denominator": null,
+      "source_objects": [
+        "placement.offer"
+      ],
+      "source_columns": [
+        "ctc",
+        "status",
+        "offer_date"
+      ],
+      "allowed_dimensions": [
+        "dim.academic_year",
+        "dim.department",
+        "dim.programme",
+        "dim.batch"
+      ],
+      "allowed_filters": [
+        "status"
+      ],
+      "time_semantics": {
+        "time_dimension": "dim.academic_year",
+        "time_column": "offer_date",
+        "period_grain": "academic_year"
+      },
+      "null_handling": {
+        "missing_records": "NULL",
+        "zero_denominator": null
+      },
+      "sensitivity": "INTERNAL_INSTITUTIONAL",
+      "status": "APPROVED",
+      "version": "1.0",
+      "provenance": "placement.offer.ctc in schema_full.sql",
+      "validation_notes": "Identifies top institutional placement package."
+    },
+    {
+      "metric_id": "placement.placement_rate",
+      "canonical_name": "placement_rate_percentage",
+      "display_name": "Institutional Placement Rate",
+      "description": "Proportion of graduating eligible students who secured verified placement.",
+      "domain": "placement",
+      "category": "career_outcomes",
+      "grain": "batch",
+      "formula": "round(100.0 * count(DISTINCT o.student_id) / nullif(count(DISTINCT s.student_id), 0), 2)",
+      "aggregation": "RATIO",
+      "unit": "percentage",
+      "numerator": "placed_students_count",
+      "denominator": "eligible_graduating_students_count",
+      "source_objects": [
+        "placement.offer",
+        "people.student"
+      ],
+      "source_columns": [
+        "student_id",
+        "status"
+      ],
+      "allowed_dimensions": [
+        "dim.academic_year",
+        "dim.department",
+        "dim.programme",
+        "dim.batch"
+      ],
+      "allowed_filters": [
+        "batch_id"
+      ],
+      "time_semantics": {
+        "time_dimension": "dim.academic_year",
+        "time_column": "offer_date",
+        "period_grain": "academic_year"
+      },
+      "null_handling": {
+        "missing_records": "NULL",
+        "zero_denominator": "NULLIF(eligible_students, 0) yields NULL"
+      },
+      "sensitivity": "INTERNAL_INSTITUTIONAL",
+      "status": "REVIEW_REQUIRED",
+      "version": "1.0",
+      "provenance": "Institutional placement cell policy & NIRF guidelines",
+      "validation_notes": "Denominator cohort selection requires resolution: whether opted-out, higher-education, or backlog-restricted students are included in denominator."
+    },
+    {
+      "metric_id": "placement.readiness_average_score",
+      "canonical_name": "placement_readiness_average_score",
+      "display_name": "Average Placement Readiness Quotient",
+      "description": "Mean overall placement readiness assessment score (0-100) evaluated across students preparing for campus recruitment.",
+      "domain": "placement",
+      "category": "career_preparedness",
+      "grain": "batch",
+      "formula": "round(avg(overall_score), 2)",
+      "aggregation": "AVG",
+      "unit": "score_0_to_100",
+      "numerator": "sum(overall_score)",
+      "denominator": "count(student_id)",
+      "source_objects": [
+        "placement.readiness_summary"
+      ],
+      "source_columns": [
+        "overall_score",
+        "student_id",
+        "readiness_band"
+      ],
+      "allowed_dimensions": [
+        "dim.department",
+        "dim.programme",
+        "dim.batch"
+      ],
+      "allowed_filters": [
+        "readiness_band"
+      ],
+      "time_semantics": {
+        "time_dimension": null,
+        "time_column": "assessed_on",
+        "period_grain": "assessment_date"
+      },
+      "null_handling": {
+        "missing_records": "NULL",
+        "zero_denominator": "NULL if unassessed"
+      },
+      "sensitivity": "INTERNAL_INSTITUTIONAL",
+      "status": "APPROVED",
+      "version": "1.0",
+      "provenance": "placement.readiness_summary table in schema_full.sql",
+      "validation_notes": "Composite readiness score evaluated across technical, soft skills, and aptitude."
+    },
+    {
+      "metric_id": "quality.kpi_latest_value",
+      "canonical_name": "kpi_latest_value",
+      "display_name": "Official IQAC KPI Latest Measured Value",
+      "description": "Latest periodic value measured for an officially approved institutional KPI definition.",
+      "domain": "quality",
+      "category": "accreditation_kpi",
+      "grain": "kpi_scope_period",
+      "formula": "value",
+      "aggregation": "LATEST",
+      "unit": "kpi_unit",
+      "numerator": "value",
+      "denominator": null,
+      "source_objects": [
+        "quality.v_kpi_latest"
+      ],
+      "source_columns": [
+        "code",
+        "name",
+        "value",
+        "target_value",
+        "unit",
+        "variance_pct",
+        "status",
+        "is_validated"
+      ],
+      "allowed_dimensions": [
+        "dim.academic_year",
+        "dim.department"
+      ],
+      "allowed_filters": [
+        "code",
+        "domain",
+        "is_validated"
+      ],
+      "time_semantics": {
+        "time_dimension": null,
+        "time_column": "period_end",
+        "period_grain": "kpi_period"
+      },
+      "null_handling": {
+        "missing_records": "NULL (do not substitute 0 for unmeasured KPI)",
+        "zero_denominator": null
+      },
+      "sensitivity": "PUBLIC_INSTITUTIONAL",
+      "status": "APPROVED",
+      "version": "1.0",
+      "provenance": "quality.v_kpi_latest view & quality.kpi_definition table in schema_full.sql",
+      "validation_notes": "Preserves official IQAC institutional KPI definitions without conflicting mathematical reinterpretation."
+    },
+    {
+      "metric_id": "quality.kpi_target_variance",
+      "canonical_name": "kpi_target_variance_percentage",
+      "display_name": "KPI Target Variance Percentage",
+      "description": "Percentage variance of latest measured KPI value against the institutional target benchmark.",
+      "domain": "quality",
+      "category": "accreditation_kpi",
+      "grain": "kpi_scope_period",
+      "formula": "variance_pct",
+      "aggregation": "LATEST",
+      "unit": "percentage",
+      "numerator": "value - target_value",
+      "denominator": "target_value",
+      "source_objects": [
+        "quality.v_kpi_latest"
+      ],
+      "source_columns": [
+        "code",
+        "variance_pct",
+        "direction",
+        "trend",
+        "status"
+      ],
+      "allowed_dimensions": [
+        "dim.academic_year",
+        "dim.department"
+      ],
+      "allowed_filters": [
+        "code",
+        "trend"
+      ],
+      "time_semantics": {
+        "time_dimension": null,
+        "time_column": "period_end",
+        "period_grain": "kpi_period"
+      },
+      "null_handling": {
+        "missing_records": "NULL",
+        "zero_denominator": "NULL if target_value is 0 or undefined"
+      },
+      "sensitivity": "PUBLIC_INSTITUTIONAL",
+      "status": "APPROVED",
+      "version": "1.0",
+      "provenance": "quality.v_kpi_latest view in schema_full.sql",
+      "validation_notes": "Sourced from quality.kpi_value.variance_pct."
+    }
+  ]
+}

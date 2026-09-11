@@ -1,0 +1,36 @@
+{
+  "dimension_id": "dim.student",
+  "canonical_name": "student",
+  "display_name": "Enrolled Student",
+  "description": "Enrolled student entity identified by institutional roll number and assigned cohort.",
+  "source_object": "people.student",
+  "key_column": "student_id",
+  "display_column": "roll_no",
+  "code_column": "roll_no",
+  "attributes": [
+    "student_id",
+    "person_id",
+    "admission_no",
+    "roll_no",
+    "register_no",
+    "batch_id",
+    "admission_date",
+    "admission_category",
+    "entry_qualification",
+    "current_section_id",
+    "current_year_of_study",
+    "status",
+    "graduation_date"
+  ],
+  "hierarchies": [
+    {
+      "hierarchy_name": "student_cohort",
+      "parent_dimension": "dim.section",
+      "child_dimension": null
+    }
+  ],
+  "sensitivity": "SENSITIVE",
+  "status": "APPROVED",
+  "version": "1.0",
+  "provenance": "people.student table in schema_full.sql"
+}

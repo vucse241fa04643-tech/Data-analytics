@@ -63,6 +63,16 @@ class SchemaRegistryError(AppException):
         )
 
 
+class SemanticRegistryError(AppException):
+    def __init__(self, message: str = "Semantic registry failure.", details: Optional[Dict[str, Any]] = None):
+        super().__init__(
+            code="SEMANTIC_REGISTRY_ERROR",
+            message=message,
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            details=details,
+        )
+
+
 class ServiceUnavailableError(AppException):
     def __init__(self, message: str = "Service unavailable.", details: Optional[Dict[str, Any]] = None):
         super().__init__(

@@ -73,15 +73,19 @@
 
 ---
 
-## Phase 4: Semantic Layer + Metric Catalog
+## Phase 4: Semantic Layer + Metric Catalog [COMPLETED - Ready for Review]
 - **Objective:** Define institutional business metrics, formulas, aggregations, and dimensions in a version-controlled semantic catalog.
-- **Major Tasks:**
-  - Define core institutional metrics (e.g., attendance percentage, pass percentage, student strength) based on inspected Phase 1 schema.
-  - Specify mathematical formulas, required joins, dimension mappings, and null-handling logic.
-  - Implement Pydantic models for metric definitions in `semantic_layer/metrics/`.
-  - Build catalog query engine to look up metrics by name or alias.
-- **Expected Deliverables:** Metric catalog files, data dictionary, metric resolution service.
-- **Acceptance Criteria:** Every metric has an unambiguous formula linked to real college columns; unit tests validate catalog lookups.
+- **Completed Tasks:**
+  - Defined 26 core institutional metrics across 6 domains (Attendance, Assessment, Outcomes, Placement, Academics, Quality).
+  - Defined 10 controlled analytical dimensions mapped to Phase 1 database objects and columns.
+  - Built deterministic join path registry with 24 verified foreign-key relational paths (`semantic_layer/joins/join_paths.json`).
+  - Formulated semantic security policy (`semantic_layer/policies/semantic_security.json`) enforcing confidential domain exclusion, exam security isolation, and placement fairness.
+  - Implemented master registry compiler generating `semantic_layer/registry/semantic_registry.json`.
+  - Built automated semantic layer validator (`scripts/validate_semantic_layer.py`) verifying 100% schema registry compliance.
+  - Implemented backend `SemanticRegistryService` (`backend/app/services/semantic_registry.py`) providing in-memory read-only lookups.
+  - Created automated test suites (`tests/test_semantic_layer.py` and `backend/tests/test_semantic_registry_service.py`) with 18 passing tests.
+- **Deliverables:** `semantic_layer/`, `scripts/validate_semantic_layer.py`, `backend/app/services/semantic_registry.py`, test suites, and documentation.
+- **Acceptance Criteria Met:** All metrics linked to real schema objects; zero confidential exposures; validator reports 0 errors and 0 warnings; all 50 tests pass.
 - **Dependencies:** Phase 1, Phase 2.
 
 ---

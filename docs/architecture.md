@@ -89,17 +89,19 @@ USER
 ```
 Frontend [IMPLEMENTED - Phase 3]
    ↓
-FastAPI Backend [IMPLEMENTED - Phase 2]
+FastAPI Backend Gateway [IMPLEMENTED - Phase 2]
    ↓
 API Router [IMPLEMENTED - Phase 2]
    ↓
 Application Services [IMPLEMENTED - Phase 2]
    ↓
-[Future Authentication / RBAC - Phase 4/5]
+[Future Authentication / RBAC - Phase 5]
    ↓
-[Future Semantic Layer - Phase 6]
+Semantic Layer & Metric Catalog [IMPLEMENTED - Phase 4]
    ↓
 Schema Registry Service [IMPLEMENTED - Phase 1 & 2]
+   ↓
+[Future Structured Intent Parser / Gemini - Phase 6]
    ↓
 [Future Safe SQL Builder & AST Validator - Phase 7]
    ↓
@@ -118,20 +120,19 @@ Schema Registry Service [IMPLEMENTED - Phase 1 & 2]
 - **Status:** IMPLEMENTED (*Phase 2*)
 - **Responsibility:** Serves as the secure foundational API gateway, providing modular routing (`/api/v1`), request correlation IDs (`X-Request-ID`), structured logging with credential scrubbing, centralized error sanitization, CORS restriction, schema registry in-memory service, and safe database abstraction.
 - **Inputs:** HTTP JSON requests.
-- **Outputs:** Serialized API responses with correlation tracking, health/readiness telemetry.
-- **Security Boundary:** Primary outer perimeter. Enforces CORS, correlation tracing, error redaction, and strict absence of arbitrary SQL or schema modification endpoints.
-- **Dependencies:** FastAPI, Pydantic Settings, Uvicorn, Starlette.
-- **Dependencies:** Python 3.11+, FastAPI, Uvicorn, Pydantic v2.
+- **Outputs:** Sanitized JSON API responses with correlation tracking.
+- **Security Boundary:** First backend perimeter. Strips unsafe inputs and sanitizes error payloads.
+- **Dependencies:** FastAPI, Uvicorn, Pydantic v2, Python 3.14+.
 
 ### [3] Authentication Service
 - **Status:** PLANNED (*Phase 5*)
-- **Responsibility:** Authenticate institutional users and issue cryptographically signed JWT tokens.
-- **Inputs:** User credentials (email/username, password, institutional SSO credentials).
-- **Outputs:** Signed JWT containing user identity and assigned role claims.
-- **Security Boundary:** Validates identity before allowing access to any downstream analytics service.
-- **Dependencies:** PyJWT, Passlib (bcrypt).
+- **Responsibility:** Verify institutional user identities via secure JWT tokens, API keys, or LDAP/OAuth provider.
+- **Inputs:** Credentials from UI login dialog.
+- **Outputs:** Verified user profile containing institutional role and department assignment.
+- **Security Boundary:** Gatekeeper. Blocks unauthenticated traffic from analytical pipeline.
+- **Dependencies:** Python-JOSE / PyJWT, Passlib/Bcrypt.
 
-### [4] RBAC & Scope Authorization Engine
+### [4] Role-Based Access Control (RBAC) & Scoping Engine
 - **Status:** PLANNED (*Phase 5*)
 - **Responsibility:** Evaluate user roles (`MANAGEMENT`, `PRINCIPAL`, `DEAN`, `HOD`, `IQAC`) against requested metrics and data dimensions (e.g., restricting an HOD to their own department).
 - **Inputs:** Authenticated user claims, requested metric ID, requested filters.
@@ -148,12 +149,12 @@ Schema Registry Service [IMPLEMENTED - Phase 1 & 2]
 - **Dependencies:** FastAPI backend service layer.
 
 ### [6] Semantic Layer & Metric Catalog
-- **Status:** PLANNED (*Phase 4*)
-- **Responsibility:** Single source of truth for metric definitions, mathematical formulas, aggregation rules, dimensions, and null handling.
-- **Inputs:** Metric identifiers requested by intent parser.
-- **Outputs:** Formal metric specifications (source tables, required joins, formulas, filter constraints).
-- **Security Boundary:** Eliminates metric hallucination; LLM cannot invent non-existent metrics.
-- **Dependencies:** YAML/JSON catalog definitions.
+- **Status:** IMPLEMENTED (*Phase 4*)
+- **Responsibility:** Single authoritative source of truth for institutional metric definitions, mathematical formulas, aggregation rules, dimensions, controlled foreign-key join paths, and null handling.
+- **Inputs:** Metric identifiers requested by intent parser or backend services.
+- **Outputs:** Formal machine-readable metric specifications (source tables, verified join paths, formulas, allowed dimensions, sensitivity tiers).
+- **Security Boundary:** Eliminates metric hallucination; the LLM is strictly prohibited from inventing formulas or joins. Excludes `confidential.*` and enforces placement fairness.
+- **Dependencies:** `semantic_layer/registry/semantic_registry.json`, `backend/app/services/semantic_registry.py`, `scripts/validate_semantic_layer.py`.
 
 ### [7] Structured Intent Parser
 - **Status:** PLANNED (*Phase 6*)

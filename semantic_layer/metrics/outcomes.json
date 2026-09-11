@@ -1,0 +1,199 @@
+{
+  "domain": "outcomes",
+  "version": "1.0",
+  "description": "Outcome-Based Education (OBE) accreditation metrics covering Course Outcomes (CO), Programme Outcomes (PO), and matrix mapping strength.",
+  "metrics": [
+    {
+      "metric_id": "outcomes.co_attainment_level",
+      "canonical_name": "co_attainment_level",
+      "display_name": "Course Outcome Attainment Level",
+      "description": "Final evaluated attainment level (typically on a 0-3 scale) achieved for a Course Outcome in a course offering.",
+      "domain": "outcomes",
+      "category": "obe_accreditation",
+      "grain": "course_outcome_offering",
+      "formula": "round(avg(co_level), 2)",
+      "aggregation": "AVG",
+      "unit": "level_scale",
+      "numerator": "sum(co_level)",
+      "denominator": "count(*)",
+      "source_objects": [
+        "outcomes.v_attainment_trace"
+      ],
+      "source_columns": [
+        "co_level",
+        "co_no",
+        "course_offering_id",
+        "course_code",
+        "run_status"
+      ],
+      "allowed_dimensions": [
+        "dim.academic_year",
+        "dim.term",
+        "dim.department",
+        "dim.programme",
+        "dim.course",
+        "dim.course_offering"
+      ],
+      "allowed_filters": [
+        "course_offering_id",
+        "course_code",
+        "co_no",
+        "run_status"
+      ],
+      "time_semantics": {
+        "time_dimension": "dim.term",
+        "time_column": "run_at",
+        "period_grain": "term"
+      },
+      "null_handling": {
+        "missing_records": "NULL",
+        "zero_denominator": "NULL"
+      },
+      "sensitivity": "INTERNAL_INSTITUTIONAL",
+      "status": "APPROVED",
+      "version": "1.0",
+      "provenance": "outcomes.v_attainment_trace view in schema_full.sql",
+      "validation_notes": "Authoritative final_level calculation blending direct and indirect attainment assessments."
+    },
+    {
+      "metric_id": "outcomes.po_attainment_level",
+      "canonical_name": "po_attainment_level",
+      "display_name": "Programme Outcome Attainment Level",
+      "description": "Weighted attainment level evaluated for an NBA/ABET Programme Outcome (PO) across contributing courses.",
+      "domain": "outcomes",
+      "category": "obe_accreditation",
+      "grain": "programme_outcome_batch",
+      "formula": "round(avg(po_level), 2)",
+      "aggregation": "AVG",
+      "unit": "level_scale",
+      "numerator": "sum(po_level)",
+      "denominator": "count(*)",
+      "source_objects": [
+        "outcomes.v_attainment_trace"
+      ],
+      "source_columns": [
+        "po_level",
+        "po_target",
+        "outcome_type",
+        "outcome_no"
+      ],
+      "allowed_dimensions": [
+        "dim.academic_year",
+        "dim.department",
+        "dim.programme",
+        "dim.batch"
+      ],
+      "allowed_filters": [
+        "outcome_type",
+        "outcome_no"
+      ],
+      "time_semantics": {
+        "time_dimension": "dim.academic_year",
+        "time_column": "run_at",
+        "period_grain": "academic_year"
+      },
+      "null_handling": {
+        "missing_records": "NULL",
+        "zero_denominator": "NULL"
+      },
+      "sensitivity": "INTERNAL_INSTITUTIONAL",
+      "status": "APPROVED",
+      "version": "1.0",
+      "provenance": "outcomes.v_attainment_trace view in schema_full.sql",
+      "validation_notes": "Programme-level aggregation for NBA accreditation compliance."
+    },
+    {
+      "metric_id": "outcomes.co_attaining_percentage",
+      "canonical_name": "co_attaining_percentage",
+      "display_name": "CO Target Attaining Students Percentage",
+      "description": "Percentage of evaluated students who satisfied the threshold rubric score for a specific Course Outcome.",
+      "domain": "outcomes",
+      "category": "obe_accreditation",
+      "grain": "course_outcome_offering",
+      "formula": "round(avg(attaining_pct), 2)",
+      "aggregation": "AVG",
+      "unit": "percentage",
+      "numerator": "students_attaining",
+      "denominator": "students_evaluated",
+      "source_objects": [
+        "outcomes.v_attainment_trace"
+      ],
+      "source_columns": [
+        "attaining_pct",
+        "students_evaluated",
+        "co_no",
+        "course_offering_id"
+      ],
+      "allowed_dimensions": [
+        "dim.academic_year",
+        "dim.term",
+        "dim.department",
+        "dim.programme",
+        "dim.course",
+        "dim.course_offering"
+      ],
+      "allowed_filters": [
+        "course_offering_id",
+        "co_no"
+      ],
+      "time_semantics": {
+        "time_dimension": "dim.term",
+        "time_column": "run_at",
+        "period_grain": "term"
+      },
+      "null_handling": {
+        "missing_records": "NULL",
+        "zero_denominator": "NULL if no students evaluated"
+      },
+      "sensitivity": "INTERNAL_INSTITUTIONAL",
+      "status": "APPROVED",
+      "version": "1.0",
+      "provenance": "outcomes.v_attainment_trace view in schema_full.sql",
+      "validation_notes": "Sourced from outcomes.co_attainment.attaining_pct."
+    },
+    {
+      "metric_id": "outcomes.co_po_mapping_strength",
+      "canonical_name": "co_po_mapping_strength",
+      "display_name": "CO-PO Articulation Matrix Strength",
+      "description": "Correlation weight (1: Low, 2: Moderate, 3: High) between Course Outcome and Programme Outcome in curricular matrix.",
+      "domain": "outcomes",
+      "category": "curriculum_design",
+      "grain": "co_po_mapping",
+      "formula": "avg(strength)",
+      "aggregation": "AVG",
+      "unit": "scale_1_to_3",
+      "numerator": "sum(strength)",
+      "denominator": "count(*)",
+      "source_objects": [
+        "curriculum.co_po_map"
+      ],
+      "source_columns": [
+        "course_outcome_id",
+        "programme_outcome_id",
+        "strength"
+      ],
+      "allowed_dimensions": [
+        "dim.programme",
+        "dim.course"
+      ],
+      "allowed_filters": [
+        "course_outcome_id",
+        "programme_outcome_id"
+      ],
+      "time_semantics": {
+        "time_dimension": null,
+        "time_column": null,
+        "period_grain": "static_regulation"
+      },
+      "null_handling": {
+        "missing_records": "0 (unmapped CO-PO pair)",
+        "zero_denominator": "NULL"
+      },
+      "sensitivity": "PUBLIC_INSTITUTIONAL",
+      "status": "APPROVED",
+      "version": "1.0",
+      "provenance": "curriculum.co_po_map table in schema_full.sql",
+      "validation_notes": "Integer rating 1-3 defining articulation strength."
+    }
+  ]
+}

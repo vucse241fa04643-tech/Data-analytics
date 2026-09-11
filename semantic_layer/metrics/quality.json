@@ -1,0 +1,103 @@
+{
+  "domain": "quality",
+  "version": "1.0",
+  "description": "Institutional IQAC quality assurance KPIs, NAAC/NBA framework metrics, and target variances.",
+  "metrics": [
+    {
+      "metric_id": "quality.kpi_latest_value",
+      "canonical_name": "kpi_latest_value",
+      "display_name": "Official IQAC KPI Latest Measured Value",
+      "description": "Latest periodic value measured for an officially approved institutional KPI definition.",
+      "domain": "quality",
+      "category": "accreditation_kpi",
+      "grain": "kpi_scope_period",
+      "formula": "value",
+      "aggregation": "LATEST",
+      "unit": "kpi_unit",
+      "numerator": "value",
+      "denominator": null,
+      "source_objects": [
+        "quality.v_kpi_latest"
+      ],
+      "source_columns": [
+        "code",
+        "name",
+        "value",
+        "target_value",
+        "unit",
+        "variance_pct",
+        "status",
+        "is_validated"
+      ],
+      "allowed_dimensions": [
+        "dim.academic_year",
+        "dim.department"
+      ],
+      "allowed_filters": [
+        "code",
+        "domain",
+        "is_validated"
+      ],
+      "time_semantics": {
+        "time_dimension": null,
+        "time_column": "period_end",
+        "period_grain": "kpi_period"
+      },
+      "null_handling": {
+        "missing_records": "NULL (do not substitute 0 for unmeasured KPI)",
+        "zero_denominator": null
+      },
+      "sensitivity": "PUBLIC_INSTITUTIONAL",
+      "status": "APPROVED",
+      "version": "1.0",
+      "provenance": "quality.v_kpi_latest view & quality.kpi_definition table in schema_full.sql",
+      "validation_notes": "Preserves official IQAC institutional KPI definitions without conflicting mathematical reinterpretation."
+    },
+    {
+      "metric_id": "quality.kpi_target_variance",
+      "canonical_name": "kpi_target_variance_percentage",
+      "display_name": "KPI Target Variance Percentage",
+      "description": "Percentage variance of latest measured KPI value against the institutional target benchmark.",
+      "domain": "quality",
+      "category": "accreditation_kpi",
+      "grain": "kpi_scope_period",
+      "formula": "variance_pct",
+      "aggregation": "LATEST",
+      "unit": "percentage",
+      "numerator": "value - target_value",
+      "denominator": "target_value",
+      "source_objects": [
+        "quality.v_kpi_latest"
+      ],
+      "source_columns": [
+        "code",
+        "variance_pct",
+        "direction",
+        "trend",
+        "status"
+      ],
+      "allowed_dimensions": [
+        "dim.academic_year",
+        "dim.department"
+      ],
+      "allowed_filters": [
+        "code",
+        "trend"
+      ],
+      "time_semantics": {
+        "time_dimension": null,
+        "time_column": "period_end",
+        "period_grain": "kpi_period"
+      },
+      "null_handling": {
+        "missing_records": "NULL",
+        "zero_denominator": "NULL if target_value is 0 or undefined"
+      },
+      "sensitivity": "PUBLIC_INSTITUTIONAL",
+      "status": "APPROVED",
+      "version": "1.0",
+      "provenance": "quality.v_kpi_latest view in schema_full.sql",
+      "validation_notes": "Sourced from quality.kpi_value.variance_pct."
+    }
+  ]
+}

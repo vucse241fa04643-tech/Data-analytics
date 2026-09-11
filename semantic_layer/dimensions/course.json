@@ -1,0 +1,39 @@
+{
+  "dimension_id": "dim.course",
+  "canonical_name": "course",
+  "display_name": "Curricular Course",
+  "description": "Specific course version offering syllabus credits, lecture/practical hours, and passing norms.",
+  "source_object": "curriculum.course_version",
+  "key_column": "course_version_id",
+  "display_column": "course_code",
+  "code_column": "course_code",
+  "attributes": [
+    "course_version_id",
+    "course_id",
+    "regulation_id",
+    "programme_id",
+    "course_code",
+    "term_no",
+    "year_of_study",
+    "course_category",
+    "course_type",
+    "is_elective",
+    "credits",
+    "lecture_hours",
+    "tutorial_hours",
+    "practical_hours",
+    "total_contact_hours",
+    "status"
+  ],
+  "hierarchies": [
+    {
+      "hierarchy_name": "curricular_structure",
+      "parent_dimension": "dim.programme",
+      "child_dimension": "dim.course_offering"
+    }
+  ],
+  "sensitivity": "PUBLIC_INSTITUTIONAL",
+  "status": "APPROVED",
+  "version": "1.0",
+  "provenance": "curriculum.course_version table in schema_full.sql"
+}

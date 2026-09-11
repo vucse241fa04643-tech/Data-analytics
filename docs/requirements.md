@@ -16,18 +16,18 @@
 ---
 
 ## B. Analytics Requirements
-- **AR-01 [Future - Phase 4]:** Analytics calculations must adhere strictly to predefined institutional formulas defined in the Semantic Layer.
+- **AR-01 [IMPLEMENTED - Phase 4]:** Analytics calculations adhere strictly to predefined institutional formulas defined in the Semantic Layer (`semantic_layer/registry/semantic_registry.json`).
 - **AR-02 [Future - Phase 8]:** The system must support fundamental academic aggregations: counts, percentages, averages, medians, year-over-year comparisons, and cohort distributions.
 - **AR-03 [Future - Phase 8]:** Null values, incomplete semester records, and inactive student statuses must be handled deterministically as specified by metric rules.
 - **AR-04 [Future - Phase 8]:** Calculations must prevent division-by-zero errors and flag zero-denominator scenarios gracefully.
 
 ---
 
-## C. Semantic Layer Requirements
-- **SR-01 [Future - Phase 4]:** The Semantic Layer shall act as the single authoritative source of truth for metric definitions, dimensions, filters, and join paths.
-- **SR-02 [Future - Phase 4]:** Each metric must define: Unique Metric ID, Formal Name, Description, Calculation Formula, Required Tables, Filter Clauses, Supported Time Granularities, and Allowed Dimensions.
-- **SR-03 [Future - Phase 4]:** The semantic model must be version-controlled and human-auditable.
-- **SR-04 [Future - Phase 4]:** An LLM must never be allowed to formulate or alter a metric definition at runtime.
+## C. Semantic Layer Requirements (Phase 4 - Implemented)
+- **SR-01 [IMPLEMENTED - Phase 4]:** The Semantic Layer acts as the single authoritative source of truth for metric definitions, dimensions, filters, and join paths (`semantic_layer/`).
+- **SR-02 [IMPLEMENTED - Phase 4]:** Each metric defines: Unique Metric ID, Canonical Name, Description, Domain, Calculation Formula, Aggregation, Source Tables, Source Columns, Time Semantics, Null Handling, Sensitivity, Status, and Provenance.
+- **SR-03 [IMPLEMENTED - Phase 4]:** The semantic model is version-controlled and human-auditable in JSON format with an automated validator (`scripts/validate_semantic_layer.py`).
+- **SR-04 [IMPLEMENTED - Phase 4]:** An LLM is strictly forbidden from formulating or altering a metric definition or join at runtime; queries must resolve to registered metric IDs.
 
 ---
 

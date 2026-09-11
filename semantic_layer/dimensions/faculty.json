@@ -1,0 +1,33 @@
+{
+  "dimension_id": "dim.faculty",
+  "canonical_name": "faculty",
+  "display_name": "Instructional Faculty",
+  "description": "Teaching and instructional faculty member identified by employee number and departmental affiliation.",
+  "source_object": "people.faculty",
+  "key_column": "faculty_id",
+  "display_column": "employee_no",
+  "code_column": "employee_no",
+  "attributes": [
+    "faculty_id",
+    "person_id",
+    "employee_no",
+    "department_id",
+    "designation",
+    "cadre",
+    "employment_type",
+    "highest_qualification",
+    "is_phd_holder",
+    "status"
+  ],
+  "hierarchies": [
+    {
+      "hierarchy_name": "faculty_structure",
+      "parent_dimension": "dim.department",
+      "child_dimension": null
+    }
+  ],
+  "sensitivity": "INTERNAL_INSTITUTIONAL",
+  "status": "APPROVED",
+  "version": "1.0",
+  "provenance": "people.faculty table in schema_full.sql"
+}

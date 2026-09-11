@@ -1,0 +1,29 @@
+{
+  "dimension_id": "dim.academic_year",
+  "canonical_name": "academic_year",
+  "display_name": "Academic Year",
+  "description": "Institutional academic calendar cycle spanning instructional terms (e.g., 2024-2025).",
+  "source_object": "core.academic_year",
+  "key_column": "academic_year_id",
+  "display_column": "label",
+  "code_column": "label",
+  "attributes": [
+    "academic_year_id",
+    "institution_id",
+    "label",
+    "start_date",
+    "end_date",
+    "is_current"
+  ],
+  "hierarchies": [
+    {
+      "hierarchy_name": "academic_calendar",
+      "parent_dimension": null,
+      "child_dimension": "dim.term"
+    }
+  ],
+  "sensitivity": "PUBLIC_INSTITUTIONAL",
+  "status": "APPROVED",
+  "version": "1.0",
+  "provenance": "core.academic_year table in schema_full.sql"
+}

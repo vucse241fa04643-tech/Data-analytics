@@ -46,6 +46,9 @@ class Settings(BaseSettings):
     # Schema Registry Path
     SCHEMA_REGISTRY_PATH: Optional[str] = None
 
+    # Semantic Registry Path
+    SEMANTIC_REGISTRY_PATH: Optional[str] = None
+
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",

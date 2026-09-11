@@ -1,0 +1,30 @@
+{
+  "dimension_id": "dim.batch",
+  "canonical_name": "batch",
+  "display_name": "Student Batch / Cohort",
+  "description": "Admission cohort of students pursuing a specific programme (e.g., 2022-2026 Batch).",
+  "source_object": "curriculum.batch",
+  "key_column": "batch_id",
+  "display_column": "label",
+  "code_column": "label",
+  "attributes": [
+    "batch_id",
+    "programme_id",
+    "regulation_id",
+    "admission_year",
+    "label",
+    "expected_graduation_year",
+    "status"
+  ],
+  "hierarchies": [
+    {
+      "hierarchy_name": "academic_structure",
+      "parent_dimension": "dim.programme",
+      "child_dimension": "dim.section"
+    }
+  ],
+  "sensitivity": "PUBLIC_INSTITUTIONAL",
+  "status": "APPROVED",
+  "version": "1.0",
+  "provenance": "curriculum.batch table in schema_full.sql"
+}

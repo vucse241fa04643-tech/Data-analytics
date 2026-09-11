@@ -1,0 +1,304 @@
+{
+  "domain": "assessment",
+  "version": "1.0",
+  "description": "Academic performance metrics covering course examination pass rates, mark averages, appeared candidates, and CIA scores.",
+  "metrics": [
+    {
+      "metric_id": "assessment.course_pass_percentage",
+      "canonical_name": "course_pass_percentage",
+      "display_name": "Course Pass Percentage",
+      "description": "Percentage of examined students who passed the course examination offering.",
+      "domain": "assessment",
+      "category": "academic_performance",
+      "grain": "course_offering",
+      "formula": "round(100.0 * count(*) FILTER (WHERE result_status = 'PASS') / nullif(count(*) FILTER (WHERE result_status <> 'ABSENT'), 0), 2)",
+      "aggregation": "RATIO",
+      "unit": "percentage",
+      "numerator": "passed",
+      "denominator": "students_appeared",
+      "source_objects": [
+        "assessment.v_course_performance"
+      ],
+      "source_columns": [
+        "pass_pct",
+        "passed",
+        "students_appeared",
+        "course_offering_id",
+        "term_id",
+        "department_id"
+      ],
+      "allowed_dimensions": [
+        "dim.academic_year",
+        "dim.term",
+        "dim.department",
+        "dim.course",
+        "dim.course_offering",
+        "dim.section"
+      ],
+      "allowed_filters": [
+        "term_id",
+        "course_offering_id",
+        "department_id",
+        "section_id"
+      ],
+      "time_semantics": {
+        "time_dimension": "dim.term",
+        "time_column": "term_id",
+        "period_grain": "term"
+      },
+      "null_handling": {
+        "missing_records": "NULL",
+        "zero_denominator": "NULLIF(students_appeared, 0) yields NULL (prevents divide by zero when 0 students appeared)"
+      },
+      "sensitivity": "INTERNAL_INSTITUTIONAL",
+      "status": "APPROVED",
+      "version": "1.0",
+      "provenance": "assessment.v_course_performance view in schema_full.sql",
+      "validation_notes": "Directly matches authoritative institutional view calculation."
+    },
+    {
+      "metric_id": "assessment.average_total_marks",
+      "canonical_name": "average_total_marks",
+      "display_name": "Average Course Marks",
+      "description": "Arithmetic mean of total marks scored by examined students in a course offering.",
+      "domain": "assessment",
+      "category": "academic_performance",
+      "grain": "course_offering",
+      "formula": "round(avg(total_marks), 2)",
+      "aggregation": "AVG",
+      "unit": "marks",
+      "numerator": "sum(total_marks)",
+      "denominator": "count(student_id)",
+      "source_objects": [
+        "assessment.v_course_performance"
+      ],
+      "source_columns": [
+        "avg_total_marks",
+        "course_offering_id",
+        "term_id",
+        "department_id"
+      ],
+      "allowed_dimensions": [
+        "dim.academic_year",
+        "dim.term",
+        "dim.department",
+        "dim.course",
+        "dim.course_offering",
+        "dim.section"
+      ],
+      "allowed_filters": [
+        "term_id",
+        "course_offering_id",
+        "department_id"
+      ],
+      "time_semantics": {
+        "time_dimension": "dim.term",
+        "time_column": "term_id",
+        "period_grain": "term"
+      },
+      "null_handling": {
+        "missing_records": "NULL",
+        "zero_denominator": "NULL if no students appeared"
+      },
+      "sensitivity": "INTERNAL_INSTITUTIONAL",
+      "status": "APPROVED",
+      "version": "1.0",
+      "provenance": "assessment.v_course_performance view in schema_full.sql",
+      "validation_notes": "Derived from assessment.course_result.total_marks."
+    },
+    {
+      "metric_id": "assessment.students_appeared",
+      "canonical_name": "students_appeared_count",
+      "display_name": "Students Appeared Count",
+      "description": "Total number of registered candidates who appeared for examination in a course offering.",
+      "domain": "assessment",
+      "category": "examination_administration",
+      "grain": "course_offering",
+      "formula": "count(*) FILTER (WHERE result_status <> 'ABSENT')",
+      "aggregation": "COUNT",
+      "unit": "count",
+      "numerator": "count(*)",
+      "denominator": null,
+      "source_objects": [
+        "assessment.v_course_performance"
+      ],
+      "source_columns": [
+        "students_appeared",
+        "course_offering_id",
+        "term_id",
+        "department_id"
+      ],
+      "allowed_dimensions": [
+        "dim.academic_year",
+        "dim.term",
+        "dim.department",
+        "dim.course",
+        "dim.course_offering",
+        "dim.section"
+      ],
+      "allowed_filters": [
+        "term_id",
+        "course_offering_id",
+        "department_id"
+      ],
+      "time_semantics": {
+        "time_dimension": "dim.term",
+        "time_column": "term_id",
+        "period_grain": "term"
+      },
+      "null_handling": {
+        "missing_records": "0 if offering has no records",
+        "zero_denominator": null
+      },
+      "sensitivity": "INTERNAL_INSTITUTIONAL",
+      "status": "APPROVED",
+      "version": "1.0",
+      "provenance": "assessment.v_course_performance view in schema_full.sql",
+      "validation_notes": "Excludes ABSENT candidates."
+    },
+    {
+      "metric_id": "assessment.students_passed",
+      "canonical_name": "students_passed_count",
+      "display_name": "Students Passed Count",
+      "description": "Total number of candidates who secured a PASS result in a course offering.",
+      "domain": "assessment",
+      "category": "academic_performance",
+      "grain": "course_offering",
+      "formula": "count(*) FILTER (WHERE result_status = 'PASS')",
+      "aggregation": "COUNT",
+      "unit": "count",
+      "numerator": "count(*)",
+      "denominator": null,
+      "source_objects": [
+        "assessment.v_course_performance"
+      ],
+      "source_columns": [
+        "passed",
+        "course_offering_id",
+        "term_id",
+        "department_id"
+      ],
+      "allowed_dimensions": [
+        "dim.academic_year",
+        "dim.term",
+        "dim.department",
+        "dim.course",
+        "dim.course_offering",
+        "dim.section"
+      ],
+      "allowed_filters": [
+        "term_id",
+        "course_offering_id",
+        "department_id"
+      ],
+      "time_semantics": {
+        "time_dimension": "dim.term",
+        "time_column": "term_id",
+        "period_grain": "term"
+      },
+      "null_handling": {
+        "missing_records": "0",
+        "zero_denominator": null
+      },
+      "sensitivity": "INTERNAL_INSTITUTIONAL",
+      "status": "APPROVED",
+      "version": "1.0",
+      "provenance": "assessment.v_course_performance view in schema_full.sql",
+      "validation_notes": "Direct pass count."
+    },
+    {
+      "metric_id": "assessment.failure_count",
+      "canonical_name": "students_failed_count",
+      "display_name": "Students Failed Count",
+      "description": "Total number of candidates who appeared but failed to satisfy passing criteria.",
+      "domain": "assessment",
+      "category": "academic_performance",
+      "grain": "course_offering",
+      "formula": "count(*) FILTER (WHERE result_status = 'FAIL')",
+      "aggregation": "COUNT",
+      "unit": "count",
+      "numerator": "count(*)",
+      "denominator": null,
+      "source_objects": [
+        "assessment.course_result"
+      ],
+      "source_columns": [
+        "result_status",
+        "course_offering_id",
+        "term_id"
+      ],
+      "allowed_dimensions": [
+        "dim.academic_year",
+        "dim.term",
+        "dim.department",
+        "dim.course",
+        "dim.course_offering"
+      ],
+      "allowed_filters": [
+        "term_id",
+        "course_offering_id"
+      ],
+      "time_semantics": {
+        "time_dimension": "dim.term",
+        "time_column": "term_id",
+        "period_grain": "term"
+      },
+      "null_handling": {
+        "missing_records": "0",
+        "zero_denominator": null
+      },
+      "sensitivity": "INTERNAL_INSTITUTIONAL",
+      "status": "APPROVED",
+      "version": "1.0",
+      "provenance": "assessment.course_result table in schema_full.sql",
+      "validation_notes": "Sourced from assessment.course_result where result_status = 'FAIL'."
+    },
+    {
+      "metric_id": "assessment.internal_marks_average",
+      "canonical_name": "internal_marks_average",
+      "display_name": "Average Internal Assessment Marks",
+      "description": "Mean continuous internal assessment (CIA) marks computed across enrolled students in a course offering.",
+      "domain": "assessment",
+      "category": "continuous_assessment",
+      "grain": "course_offering",
+      "formula": "round(avg(computed_marks), 2)",
+      "aggregation": "AVG",
+      "unit": "marks",
+      "numerator": "sum(computed_marks)",
+      "denominator": "count(student_id)",
+      "source_objects": [
+        "assessment.internal_mark"
+      ],
+      "source_columns": [
+        "computed_marks",
+        "course_offering_id",
+        "student_id",
+        "is_provisional"
+      ],
+      "allowed_dimensions": [
+        "dim.academic_year",
+        "dim.term",
+        "dim.department",
+        "dim.course_offering"
+      ],
+      "allowed_filters": [
+        "course_offering_id",
+        "is_provisional"
+      ],
+      "time_semantics": {
+        "time_dimension": "dim.term",
+        "time_column": "course_offering_id",
+        "period_grain": "term"
+      },
+      "null_handling": {
+        "missing_records": "NULL",
+        "zero_denominator": "NULL if no internal marks submitted"
+      },
+      "sensitivity": "INTERNAL_INSTITUTIONAL",
+      "status": "APPROVED",
+      "version": "1.0",
+      "provenance": "assessment.internal_mark table in schema_full.sql",
+      "validation_notes": "CIA continuous evaluation marks before final external exam."
+    }
+  ]
+}

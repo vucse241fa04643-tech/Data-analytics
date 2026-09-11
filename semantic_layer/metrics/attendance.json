@@ -1,0 +1,317 @@
+{
+  "domain": "attendance",
+  "version": "1.0",
+  "description": "Institutional attendance metrics covering session attendance rates, shortage bands, and aggregates.",
+  "metrics": [
+    {
+      "metric_id": "attendance.percentage",
+      "canonical_name": "attendance_percentage",
+      "display_name": "Adjusted Attendance Percentage",
+      "description": "Average percentage of attended instructional sessions including approved duty/medical leave adjustments.",
+      "domain": "attendance",
+      "category": "operational_monitoring",
+      "grain": "student_course_offering",
+      "formula": "round(avg(adjusted_pct), 2)",
+      "aggregation": "AVG",
+      "unit": "percentage",
+      "numerator": "classes_attended + approved_leaves",
+      "denominator": "classes_held",
+      "source_objects": [
+        "attendance.v_current_attendance"
+      ],
+      "source_columns": [
+        "adjusted_pct",
+        "student_id",
+        "course_offering_id",
+        "term_id"
+      ],
+      "allowed_dimensions": [
+        "dim.academic_year",
+        "dim.term",
+        "dim.department",
+        "dim.programme",
+        "dim.batch",
+        "dim.section",
+        "dim.course",
+        "dim.course_offering",
+        "dim.student"
+      ],
+      "allowed_filters": [
+        "term_id",
+        "department_id",
+        "programme_id",
+        "batch_id",
+        "section_id",
+        "course_offering_id",
+        "band"
+      ],
+      "time_semantics": {
+        "time_dimension": "dim.term",
+        "time_column": "as_of_date",
+        "period_grain": "term"
+      },
+      "null_handling": {
+        "missing_records": "NULL (never convert missing enrollment or zero-held sessions to 0%)",
+        "zero_denominator": "NULLIF(classes_held, 0) yields NULL"
+      },
+      "sensitivity": "INTERNAL_INSTITUTIONAL",
+      "status": "APPROVED",
+      "version": "1.0",
+      "provenance": "attendance.v_current_attendance view in schema_full.sql",
+      "validation_notes": "Authoritative institutional view calculates adjusted_pct with DISTINCT ON latest as_of_date."
+    },
+    {
+      "metric_id": "attendance.raw_percentage",
+      "canonical_name": "attendance_raw_percentage",
+      "display_name": "Raw Attendance Percentage",
+      "description": "Direct session attendance percentage strictly based on physical classroom presence without leave adjustments.",
+      "domain": "attendance",
+      "category": "operational_monitoring",
+      "grain": "student_course_offering",
+      "formula": "round(avg(raw_pct), 2)",
+      "aggregation": "AVG",
+      "unit": "percentage",
+      "numerator": "classes_attended",
+      "denominator": "classes_held",
+      "source_objects": [
+        "attendance.v_current_attendance"
+      ],
+      "source_columns": [
+        "raw_pct",
+        "student_id",
+        "course_offering_id",
+        "term_id"
+      ],
+      "allowed_dimensions": [
+        "dim.academic_year",
+        "dim.term",
+        "dim.department",
+        "dim.programme",
+        "dim.batch",
+        "dim.section",
+        "dim.course",
+        "dim.course_offering",
+        "dim.student"
+      ],
+      "allowed_filters": [
+        "term_id",
+        "course_offering_id"
+      ],
+      "time_semantics": {
+        "time_dimension": "dim.term",
+        "time_column": "as_of_date",
+        "period_grain": "term"
+      },
+      "null_handling": {
+        "missing_records": "NULL",
+        "zero_denominator": "NULLIF(classes_held, 0) yields NULL"
+      },
+      "sensitivity": "INTERNAL_INSTITUTIONAL",
+      "status": "APPROVED",
+      "version": "1.0",
+      "provenance": "attendance.v_current_attendance view in schema_full.sql",
+      "validation_notes": "Unadjusted presence metric derived from attendance.attendance_summary."
+    },
+    {
+      "metric_id": "attendance.students_below_threshold",
+      "canonical_name": "students_below_attendance_threshold",
+      "display_name": "Students Below Attendance Threshold",
+      "description": "Count of distinct students whose adjusted attendance falls below institutional eligibility threshold (e.g. 75%).",
+      "domain": "attendance",
+      "category": "compliance_and_eligibility",
+      "grain": "course_offering",
+      "formula": "count(DISTINCT student_id) FILTER (WHERE adjusted_pct < :threshold_pct)",
+      "aggregation": "COUNT_DISTINCT",
+      "unit": "count",
+      "numerator": "count(student_id)",
+      "denominator": null,
+      "source_objects": [
+        "attendance.v_current_attendance"
+      ],
+      "source_columns": [
+        "student_id",
+        "adjusted_pct",
+        "course_offering_id",
+        "term_id"
+      ],
+      "allowed_dimensions": [
+        "dim.academic_year",
+        "dim.term",
+        "dim.department",
+        "dim.programme",
+        "dim.batch",
+        "dim.section",
+        "dim.course_offering"
+      ],
+      "allowed_filters": [
+        "term_id",
+        "course_offering_id",
+        "department_id"
+      ],
+      "time_semantics": {
+        "time_dimension": "dim.term",
+        "time_column": "as_of_date",
+        "period_grain": "term"
+      },
+      "null_handling": {
+        "missing_records": "Excluded from count",
+        "zero_denominator": null
+      },
+      "sensitivity": "INTERNAL_INSTITUTIONAL",
+      "status": "REVIEW_REQUIRED",
+      "version": "1.0",
+      "provenance": "Institutional academic regulations (75% statutory norm pending IQAC parameter configuration)",
+      "validation_notes": "Threshold is policy-dependent. Metric kept in REVIEW_REQUIRED status until threshold parameter injection is approved."
+    },
+    {
+      "metric_id": "attendance.course_aggregate",
+      "canonical_name": "course_attendance_aggregate",
+      "display_name": "Course Offering Average Attendance",
+      "description": "Mean attendance percentage achieved across all registered students in a specific course offering.",
+      "domain": "attendance",
+      "category": "operational_monitoring",
+      "grain": "course_offering",
+      "formula": "round(avg(adjusted_pct), 2)",
+      "aggregation": "AVG",
+      "unit": "percentage",
+      "numerator": "sum(adjusted_pct)",
+      "denominator": "count(student_id)",
+      "source_objects": [
+        "attendance.v_current_attendance"
+      ],
+      "source_columns": [
+        "adjusted_pct",
+        "course_offering_id",
+        "term_id"
+      ],
+      "allowed_dimensions": [
+        "dim.academic_year",
+        "dim.term",
+        "dim.department",
+        "dim.programme",
+        "dim.course",
+        "dim.course_offering"
+      ],
+      "allowed_filters": [
+        "term_id",
+        "course_offering_id",
+        "department_id"
+      ],
+      "time_semantics": {
+        "time_dimension": "dim.term",
+        "time_column": "as_of_date",
+        "period_grain": "term"
+      },
+      "null_handling": {
+        "missing_records": "NULL",
+        "zero_denominator": "NULL if no registered students"
+      },
+      "sensitivity": "INTERNAL_INSTITUTIONAL",
+      "status": "APPROVED",
+      "version": "1.0",
+      "provenance": "attendance.v_current_attendance view in schema_full.sql",
+      "validation_notes": "Course-level aggregation."
+    },
+    {
+      "metric_id": "attendance.section_aggregate",
+      "canonical_name": "section_attendance_aggregate",
+      "display_name": "Section Average Attendance",
+      "description": "Mean attendance percentage achieved across students enrolled in a classroom section.",
+      "domain": "attendance",
+      "category": "operational_monitoring",
+      "grain": "section",
+      "formula": "round(avg(adjusted_pct), 2)",
+      "aggregation": "AVG",
+      "unit": "percentage",
+      "numerator": "sum(adjusted_pct)",
+      "denominator": "count(student_id)",
+      "source_objects": [
+        "attendance.v_current_attendance",
+        "academics.course_offering"
+      ],
+      "source_columns": [
+        "adjusted_pct",
+        "course_offering_id",
+        "section_id"
+      ],
+      "allowed_dimensions": [
+        "dim.academic_year",
+        "dim.term",
+        "dim.department",
+        "dim.programme",
+        "dim.batch",
+        "dim.section"
+      ],
+      "allowed_filters": [
+        "section_id",
+        "term_id",
+        "batch_id"
+      ],
+      "time_semantics": {
+        "time_dimension": "dim.term",
+        "time_column": "as_of_date",
+        "period_grain": "term"
+      },
+      "null_handling": {
+        "missing_records": "NULL",
+        "zero_denominator": "NULL"
+      },
+      "sensitivity": "INTERNAL_INSTITUTIONAL",
+      "status": "APPROVED",
+      "version": "1.0",
+      "provenance": "attendance.v_current_attendance joined to academics.course_offering in schema_full.sql",
+      "validation_notes": "Requires verified join path join.section_to_course_offering."
+    },
+    {
+      "metric_id": "attendance.shortage_count",
+      "canonical_name": "attendance_shortage_count",
+      "display_name": "Attendance Shortage Student Count",
+      "description": "Count of students classified in the institutional SHORTAGE band for examination condonation review.",
+      "domain": "attendance",
+      "category": "compliance_and_eligibility",
+      "grain": "course_offering",
+      "formula": "count(DISTINCT student_id) FILTER (WHERE band = 'SHORTAGE')",
+      "aggregation": "COUNT_DISTINCT",
+      "unit": "count",
+      "numerator": "count(student_id)",
+      "denominator": null,
+      "source_objects": [
+        "attendance.v_current_attendance"
+      ],
+      "source_columns": [
+        "student_id",
+        "band",
+        "course_offering_id",
+        "term_id"
+      ],
+      "allowed_dimensions": [
+        "dim.academic_year",
+        "dim.term",
+        "dim.department",
+        "dim.programme",
+        "dim.batch",
+        "dim.section",
+        "dim.course_offering"
+      ],
+      "allowed_filters": [
+        "term_id",
+        "course_offering_id",
+        "department_id"
+      ],
+      "time_semantics": {
+        "time_dimension": "dim.term",
+        "time_column": "as_of_date",
+        "period_grain": "term"
+      },
+      "null_handling": {
+        "missing_records": "0 if no students in shortage",
+        "zero_denominator": null
+      },
+      "sensitivity": "INTERNAL_INSTITUTIONAL",
+      "status": "APPROVED",
+      "version": "1.0",
+      "provenance": "attendance.v_current_attendance view in schema_full.sql",
+      "validation_notes": "Uses schema-defined band = 'SHORTAGE'."
+    }
+  ]
+}

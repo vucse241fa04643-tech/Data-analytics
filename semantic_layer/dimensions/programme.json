@@ -1,0 +1,35 @@
+{
+  "dimension_id": "dim.programme",
+  "canonical_name": "programme",
+  "display_name": "Academic Programme",
+  "description": "Degree program offered by a department (e.g., B.Tech Computer Science and Engineering).",
+  "source_object": "curriculum.programme",
+  "key_column": "programme_id",
+  "display_column": "name",
+  "code_column": "code",
+  "attributes": [
+    "programme_id",
+    "institution_id",
+    "department_id",
+    "code",
+    "name",
+    "level",
+    "degree",
+    "specialisation",
+    "duration_years",
+    "total_terms",
+    "sanctioned_intake",
+    "is_active"
+  ],
+  "hierarchies": [
+    {
+      "hierarchy_name": "academic_structure",
+      "parent_dimension": "dim.department",
+      "child_dimension": "dim.batch"
+    }
+  ],
+  "sensitivity": "PUBLIC_INSTITUTIONAL",
+  "status": "APPROVED",
+  "version": "1.0",
+  "provenance": "curriculum.programme table in schema_full.sql"
+}

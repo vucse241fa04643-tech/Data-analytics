@@ -91,12 +91,18 @@
 
 ---
 
-## Phase 4: Semantic Layer + Metric Catalog
-- [ ] Catalog institutional metrics based on Phase 1 real schema
-- [ ] Define mathematical formulas, dimensions, aggregations, and null rules
-- [ ] Implement Pydantic models for metric definitions in `semantic_layer/metrics/`
-- [ ] Build metric lookup and resolution service
-- [ ] Write unit tests for semantic formula definitions and dimension rules
+## Phase 4: Semantic Layer + Metric Catalog [COMPLETED - Ready for Review]
+- [x] Cataloged 26 institutional metrics across 6 operational domains based on Phase 1 schema
+- [x] Defined unambiguous mathematical formulas, grains, aggregations, time semantics, and null rules
+- [x] Defined 10 controlled analytical dimensions mapped to Phase 1 database objects
+- [x] Established deterministic join path registry with 24 verified foreign-key relational paths
+- [x] Defined semantic security policy isolating `confidential.*` and enforcing placement fairness
+- [x] Compiled machine-readable master registry (`semantic_layer/registry/semantic_registry.json`)
+- [x] Implemented automated semantic layer validator (`scripts/validate_semantic_layer.py`)
+- [x] Implemented in-memory backend service (`backend/app/services/semantic_registry.py`)
+- [x] Wrote 18 unit and security tests covering semantic integrity and service lookups (50 total passing)
+- [x] Documented semantic architecture and governance in `semantic_layer/README.md`
+- [x] Confirmed zero live PostgreSQL installation, zero arbitrary SQL, zero LLM integration, and zero synthetic data
 
 ---
 

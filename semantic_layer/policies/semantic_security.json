@@ -1,0 +1,65 @@
+{
+  "version": "1.0",
+  "policy_name": "Agent 63 Semantic Security & Data Governance Policy",
+  "description": "Defines access tiers, strict confidentiality boundaries, protected demographic restrictions, and lifecycle governance for all institutional semantic models.",
+  "sensitivity_tiers": [
+    {
+      "tier": "PUBLIC_INSTITUTIONAL",
+      "description": "Public or general institutional metadata (e.g., campus details, department names, course catalogs, academic calendar).",
+      "allowed_in_unscoped_analytics": true
+    },
+    {
+      "tier": "INTERNAL_INSTITUTIONAL",
+      "description": "Standard institutional operational metrics (e.g., aggregate attendance, course pass rates, grade distributions, CO/PO attainment, placement statistics).",
+      "allowed_in_unscoped_analytics": false,
+      "requires_institutional_auth": true
+    },
+    {
+      "tier": "SENSITIVE",
+      "description": "Individual student marks, individual attendance records, placement CTC packages, faculty workload details. Must be role-scoped and aggregated where appropriate.",
+      "requires_role_scoping": true
+    },
+    {
+      "tier": "RESTRICTED",
+      "description": "Disciplinary records, grievances, confidential exam preparation, identity authentication credentials. Strictly excluded from general institutional analytics.",
+      "general_analytics_allowed": false
+    }
+  ],
+  "strictly_denied_prefixes": [
+    "confidential.",
+    "assessment.question_paper",
+    "exams.question_paper_delivery",
+    "exams.malpractice_incident",
+    "identity.credential",
+    "identity.auth_token"
+  ],
+  "confidential_domain_isolation": {
+    "schema": "confidential",
+    "rule": "TOTAL_EXCLUSION",
+    "rationale": "Medical notes, psychological counselling records, accommodation requests, and crisis escalation logs must never be mapped or queryable in Agent 63 under any circumstance."
+  },
+  "placement_fairness_constraints": {
+    "protected_attributes": [
+      "gender",
+      "caste",
+      "religion",
+      "nationality",
+      "disability_status",
+      "region",
+      "socioeconomic_category"
+    ],
+    "rule": "PROHIBIT_FILTER_AND_GROUPING",
+    "rationale": "Constitutional and institutional placement fairness prohibits filtering, ranking, or discriminating candidates based on protected demographic traits."
+  },
+  "lifecycle_rules": {
+    "allowed_production_statuses": ["APPROVED"],
+    "non_production_statuses": ["DRAFT", "REVIEW_REQUIRED", "DEPRECATED"],
+    "approval_criteria": [
+      "Verified against Phase 1 agent63_schema_registry.json",
+      "Mathematical formula unambiguously documented",
+      "Grain and aggregation behavior explicitly defined",
+      "Null and zero division handling specified",
+      "Provenance and authoritative source cited"
+    ]
+  }
+}

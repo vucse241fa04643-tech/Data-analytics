@@ -1,0 +1,32 @@
+{
+  "dimension_id": "dim.department",
+  "canonical_name": "department",
+  "display_name": "Academic Department",
+  "description": "Operating academic department (e.g., Computer Science & Engineering, Electronics & Communication).",
+  "source_object": "core.department",
+  "key_column": "department_id",
+  "display_column": "name",
+  "code_column": "code",
+  "attributes": [
+    "department_id",
+    "institution_id",
+    "code",
+    "name",
+    "short_name",
+    "type",
+    "hod_faculty_id",
+    "established_on",
+    "is_active"
+  ],
+  "hierarchies": [
+    {
+      "hierarchy_name": "academic_structure",
+      "parent_dimension": null,
+      "child_dimension": "dim.programme"
+    }
+  ],
+  "sensitivity": "PUBLIC_INSTITUTIONAL",
+  "status": "APPROVED",
+  "version": "1.0",
+  "provenance": "core.department table in schema_full.sql"
+}

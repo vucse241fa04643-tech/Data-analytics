@@ -1,0 +1,30 @@
+{
+  "dimension_id": "dim.section",
+  "canonical_name": "section",
+  "display_name": "Class Section",
+  "description": "Instructional classroom cohort division within a batch (e.g., Section A, Section B).",
+  "source_object": "curriculum.section",
+  "key_column": "section_id",
+  "display_column": "code",
+  "code_column": "code",
+  "attributes": [
+    "section_id",
+    "batch_id",
+    "code",
+    "year_of_study",
+    "strength",
+    "class_advisor_faculty_id",
+    "is_active"
+  ],
+  "hierarchies": [
+    {
+      "hierarchy_name": "academic_structure",
+      "parent_dimension": "dim.batch",
+      "child_dimension": "dim.student"
+    }
+  ],
+  "sensitivity": "PUBLIC_INSTITUTIONAL",
+  "status": "APPROVED",
+  "version": "1.0",
+  "provenance": "curriculum.section table in schema_full.sql"
+}
