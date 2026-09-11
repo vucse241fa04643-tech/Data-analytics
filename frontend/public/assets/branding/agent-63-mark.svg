@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="48" height="48" fill="none">
+  <rect width="48" height="48" rx="10" fill="#1E3A8A" />
+  <rect x="3" y="3" width="42" height="42" rx="8" stroke="#3B82F6" stroke-width="1.5" stroke-opacity="0.4" />
+  <!-- Academic Analytics Compass / Shield Icon -->
+  <path d="M24 10L36 16V26C36 33.5 24 38 24 38C24 38 12 33.5 12 26V16L24 10Z" fill="#2563EB" fill-opacity="0.35" stroke="#93C5FD" stroke-width="2" stroke-linejoin="round"/>
+  <!-- Numeric "63" Identity -->
+  <text x="24" y="28" font-family="'Inter', -apple-system, sans-serif" font-size="12" font-weight="700" fill="#FFFFFF" text-anchor="middle" letter-spacing="-0.5">63</text>
+</svg>

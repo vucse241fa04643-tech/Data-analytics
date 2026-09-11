@@ -1,0 +1,48 @@
+.statusBar {
+  height: var(--statusbar-height);
+  background-color: var(--color-bg-surface);
+  border-top: 1px solid var(--color-border-subtle);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 var(--spacing-md);
+  font-size: 11px;
+  color: var(--color-text-muted);
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 50;
+}
+
+.leftGroup, .rightGroup {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+}
+
+.item {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+}
+
+.statusDot {
+  width: 6px;
+  height: 6px;
+  border-radius: var(--radius-pill);
+}
+
+.ready { background-color: var(--color-success); }
+.degraded { background-color: var(--color-warning); }
+.offline { background-color: var(--color-danger); }
+
+.separator {
+  color: var(--color-border-strong);
+}
+
+@media (max-width: 768px) {
+  .rightGroup {
+    display: none;
+  }
+}

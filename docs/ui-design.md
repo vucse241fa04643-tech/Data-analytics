@@ -16,9 +16,9 @@ The Agent 63 interface is crafted specifically for college leadership, departmen
 
 ---
 
-## 2. Centralized Design Tokens (Planned Implementation: Phase 3)
+## 2. Centralized Design Tokens [IMPLEMENTED - Phase 3]
 
-The styling architecture is governed by a centralized CSS variable design token system. Components will consume tokens rather than hard-coded inline values.
+The styling architecture is governed by a centralized CSS variable design token system implemented in `frontend/src/styles/tokens.css`. Components consume tokens rather than hard-coded inline values.
 
 ```css
 :root {
