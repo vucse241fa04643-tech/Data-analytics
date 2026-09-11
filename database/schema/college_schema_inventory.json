@@ -1,0 +1,4058 @@
+{
+  "database": {
+    "name": "academic_agent_platform",
+    "target_database": "college_provided",
+    "engine": "postgresql",
+    "version_target": "14+",
+    "source": "college_supplied_schema",
+    "schema_file": "01_foundation.sql / schema_full.sql"
+  },
+  "statistics": {
+    "schema_count": 21,
+    "table_count": 225,
+    "view_count": 11,
+    "function_count": 10,
+    "rls_enabled_tables": 7,
+    "policies_count": 19
+  },
+  "schemas": [
+    {
+      "schema_name": "core",
+      "description": "Institutional profile, campuses, departments, academic calendar, terms, and physical room assets.",
+      "classification": "INTERNAL_ANALYTICS"
+    },
+    {
+      "schema_name": "people",
+      "description": "Supertype person registry, student profiles, faculty records, and staff master data.",
+      "classification": "INTERNAL_ANALYTICS"
+    },
+    {
+      "schema_name": "identity",
+      "description": "Application users, roles, permissions, audit trails, data requests, and session tokens.",
+      "classification": "ROLE_RESTRICTED"
+    },
+    {
+      "schema_name": "curriculum",
+      "description": "Academic programmes, regulations, batches, sections, courses, units, topics, and outcomes (CO/PO).",
+      "classification": "INTERNAL_ANALYTICS"
+    },
+    {
+      "schema_name": "academics",
+      "description": "Course offerings, student registrations, faculty allocations, timetables, lesson plans, class sessions, and syllabus coverage.",
+      "classification": "INTERNAL_ANALYTICS"
+    },
+    {
+      "schema_name": "attendance",
+      "description": "Class session attendance records, leave applications, daily tracking, and aggregated attendance summaries.",
+      "classification": "INTERNAL_ANALYTICS"
+    },
+    {
+      "schema_name": "assessment",
+      "description": "Assessment definitions, student question marks, component marks, internal marks, course results, term results, backlogs, and question papers.",
+      "classification": "INTERNAL_ANALYTICS"
+    },
+    {
+      "schema_name": "exams",
+      "description": "Examination sessions, candidate seat allocations, invigilation duties, paper delivery tracking, and malpractice incidents.",
+      "classification": "ROLE_RESTRICTED"
+    },
+    {
+      "schema_name": "outcomes",
+      "description": "Outcome-based education (OBE) attainment rubrics, calculation runs, CO attainment, and PO attainment traces.",
+      "classification": "INTERNAL_ANALYTICS"
+    },
+    {
+      "schema_name": "research",
+      "description": "Faculty and student publications, research grants, patents, citations, thesis tracking, and project supervision.",
+      "classification": "ROLE_RESTRICTED"
+    },
+    {
+      "schema_name": "engagement",
+      "description": "Institutional events, industry collaborations, MOUs, community outreach, and guest lectures.",
+      "classification": "ROLE_RESTRICTED"
+    },
+    {
+      "schema_name": "admissions",
+      "description": "Application intake, entrance rank verification, quota allocations, document verifications, and enrollment conversions.",
+      "classification": "ROLE_RESTRICTED"
+    },
+    {
+      "schema_name": "finance",
+      "description": "Student fee structures, fee payments, dues tracking, scholarships, fee waivers, and institutional ledger heads.",
+      "classification": "SENSITIVE"
+    },
+    {
+      "schema_name": "studentlife",
+      "description": "Mentoring relationships, student grievances, clubs, sports achievements, and disciplinary cases.",
+      "classification": "SENSITIVE"
+    },
+    {
+      "schema_name": "placement",
+      "description": "Corporate partners, job openings, placement drive registrations, student offers, internship tracking, and alumni career paths.",
+      "classification": "INTERNAL_ANALYTICS"
+    },
+    {
+      "schema_name": "hr",
+      "description": "Faculty workload allocations, performance appraisals, leave balances, professional development records, and payroll profiles.",
+      "classification": "SENSITIVE"
+    },
+    {
+      "schema_name": "governance",
+      "description": "Statutory bodies (BoS, Academic Council, Governing Body), policies, meeting minutes, and compliance circulars.",
+      "classification": "ROLE_RESTRICTED"
+    },
+    {
+      "schema_name": "quality",
+      "description": "Internal Quality Assurance Cell (IQAC) KPI definitions, periodic measurements, accreditation metrics (NAAC/NBA/NIRF), and feedback surveys.",
+      "classification": "INTERNAL_ANALYTICS"
+    },
+    {
+      "schema_name": "knowledge",
+      "description": "Institutional documentation, policy PDF chunking, embedding vectors, and RAG knowledge extraction.",
+      "classification": "ROLE_RESTRICTED"
+    },
+    {
+      "schema_name": "agentops",
+      "description": "Agent registry, tool definitions, execution runs, human reviews, safety flags, and fairness monitoring.",
+      "classification": "ROLE_RESTRICTED"
+    },
+    {
+      "schema_name": "confidential",
+      "description": "Medical accommodations, psychological counselling notes, and crisis escalation data. Strictly isolated.",
+      "classification": "DENY_GENERAL_ANALYTICS"
+    }
+  ],
+  "tables": [
+    {
+      "full_name": "core.institution",
+      "schema": "core",
+      "table_name": "institution",
+      "is_partition": false,
+      "parent_table": null,
+      "column_count": 8,
+      "primary_key": [
+        "institution_id"
+      ],
+      "foreign_key_count": 0,
+      "is_rls_enabled": false,
+      "access_classification": "ALLOW",
+      "sensitivity": "PUBLIC_ANALYTICS"
+    },
+    {
+      "full_name": "core.campus",
+      "schema": "core",
+      "table_name": "campus",
+      "is_partition": false,
+      "parent_table": null,
+      "column_count": 5,
+      "primary_key": [
+        "campus_id"
+      ],
+      "foreign_key_count": 1,
+      "is_rls_enabled": false,
+      "access_classification": "ALLOW",
+      "sensitivity": "PUBLIC_ANALYTICS"
+    },
+    {
+      "full_name": "core.department",
+      "schema": "core",
+      "table_name": "department",
+      "is_partition": false,
+      "parent_table": null,
+      "column_count": 9,
+      "primary_key": [
+        "department_id"
+      ],
+      "foreign_key_count": 1,
+      "is_rls_enabled": false,
+      "access_classification": "ALLOW",
+      "sensitivity": "PUBLIC_ANALYTICS"
+    },
+    {
+      "full_name": "core.academic_year",
+      "schema": "core",
+      "table_name": "academic_year",
+      "is_partition": false,
+      "parent_table": null,
+      "column_count": 6,
+      "primary_key": [
+        "academic_year_id"
+      ],
+      "foreign_key_count": 1,
+      "is_rls_enabled": false,
+      "access_classification": "ALLOW",
+      "sensitivity": "PUBLIC_ANALYTICS"
+    },
+    {
+      "full_name": "core.term",
+      "schema": "core",
+      "table_name": "term",
+      "is_partition": false,
+      "parent_table": null,
+      "column_count": 9,
+      "primary_key": [
+        "term_id"
+      ],
+      "foreign_key_count": 1,
+      "is_rls_enabled": false,
+      "access_classification": "ALLOW",
+      "sensitivity": "PUBLIC_ANALYTICS"
+    },
+    {
+      "full_name": "core.calendar_event",
+      "schema": "core",
+      "table_name": "calendar_event",
+      "is_partition": false,
+      "parent_table": null,
+      "column_count": 8,
+      "primary_key": [
+        "calendar_event_id"
+      ],
+      "foreign_key_count": 2,
+      "is_rls_enabled": false,
+      "access_classification": "ROLE_RESTRICTED",
+      "sensitivity": "INTERNAL_ANALYTICS"
+    },
+    {
+      "full_name": "core.building",
+      "schema": "core",
+      "table_name": "building",
+      "is_partition": false,
+      "parent_table": null,
+      "column_count": 4,
+      "primary_key": [
+        "building_id"
+      ],
+      "foreign_key_count": 1,
+      "is_rls_enabled": false,
+      "access_classification": "ROLE_RESTRICTED",
+      "sensitivity": "INTERNAL_ANALYTICS"
+    },
+    {
+      "full_name": "core.room",
+      "schema": "core",
+      "table_name": "room",
+      "is_partition": false,
+      "parent_table": null,
+      "column_count": 10,
+      "primary_key": [
+        "room_id"
+      ],
+      "foreign_key_count": 2,
+      "is_rls_enabled": false,
+      "access_classification": "ROLE_RESTRICTED",
+      "sensitivity": "INTERNAL_ANALYTICS"
+    },
+    {
+      "full_name": "core.code_list",
+      "schema": "core",
+      "table_name": "code_list",
+      "is_partition": false,
+      "parent_table": null,
+      "column_count": 4,
+      "primary_key": [
+        "code_list_id"
+      ],
+      "foreign_key_count": 0,
+      "is_rls_enabled": false,
+      "access_classification": "ROLE_RESTRICTED",
+      "sensitivity": "INTERNAL_ANALYTICS"
+    },
+    {
+      "full_name": "core.code_value",
+      "schema": "core",
+      "table_name": "code_value",
+      "is_partition": false,
+      "parent_table": null,
+      "column_count": 7,
+      "primary_key": [
+        "code_value_id"
+      ],
+      "foreign_key_count": 1,
+      "is_rls_enabled": false,
+      "access_classification": "ROLE_RESTRICTED",
+      "sensitivity": "INTERNAL_ANALYTICS"
+    },
+    {
+      "full_name": "people.person",
+      "schema": "people",
+      "table_name": "person",
+      "is_partition": false,
+      "parent_table": null,
+      "column_count": 17,
+      "primary_key": [
+        "person_id"
+      ],
+      "foreign_key_count": 2,
+      "is_rls_enabled": false,
+      "access_classification": "ALLOW_WITH_ROLE_SCOPE",
+      "sensitivity": "INTERNAL_ANALYTICS"
+    },
+    {
+      "full_name": "people.person_identifier",
+      "schema": "people",
+      "table_name": "person_identifier",
+      "is_partition": false,
+      "parent_table": null,
+      "column_count": 5,
+      "primary_key": [
+        "person_identifier_id"
+      ],
+      "foreign_key_count": 1,
+      "is_rls_enabled": false,
+      "access_classification": "ALLOW_WITH_ROLE_SCOPE",
+      "sensitivity": "INTERNAL_ANALYTICS"
+    },
+    {
+      "full_name": "people.student",
+      "schema": "people",
+      "table_name": "student",
+      "is_partition": false,
+      "parent_table": null,
+      "column_count": 14,
+      "primary_key": [
+        "student_id"
+      ],
+      "foreign_key_count": 1,
+      "is_rls_enabled": false,
+      "access_classification": "ALLOW_WITH_ROLE_SCOPE",
+      "sensitivity": "INTERNAL_ANALYTICS"
+    },
+    {
+      "full_name": "people.guardian",
+      "schema": "people",
+      "table_name": "guardian",
+      "is_partition": false,
+      "parent_table": null,
+      "column_count": 10,
+      "primary_key": [
+        "guardian_id"
+      ],
+      "foreign_key_count": 1,
+      "is_rls_enabled": false,
+      "access_classification": "ALLOW_WITH_ROLE_SCOPE",
+      "sensitivity": "INTERNAL_ANALYTICS"
+    },
+    {
+      "full_name": "people.faculty",
+      "schema": "people",
+      "table_name": "faculty",
+      "is_partition": false,
+      "parent_table": null,
+      "column_count": 14,
+      "primary_key": [
+        "faculty_id"
+      ],
+      "foreign_key_count": 2,
+      "is_rls_enabled": false,
+      "access_classification": "ALLOW_WITH_ROLE_SCOPE",
+      "sensitivity": "INTERNAL_ANALYTICS"
+    },
+    {
+      "full_name": "people.faculty_expertise",
+      "schema": "people",
+      "table_name": "faculty_expertise",
+      "is_partition": false,
+      "parent_table": null,
+      "column_count": 5,
+      "primary_key": [
+        "faculty_expertise_id"
+      ],
+      "foreign_key_count": 1,
+      "is_rls_enabled": false,
+      "access_classification": "ALLOW_WITH_ROLE_SCOPE",
+      "sensitivity": "INTERNAL_ANALYTICS"
+    },
+    {
+      "full_name": "people.staff",
+      "schema": "people",
+      "table_name": "staff",
+      "is_partition": false,
+      "parent_table": null,
+      "column_count": 8,
+      "primary_key": [
+        "staff_id"
+      ],
+      "foreign_key_count": 2,
+      "is_rls_enabled": false,
+      "access_classification": "ALLOW_WITH_ROLE_SCOPE",
+      "sensitivity": "INTERNAL_ANALYTICS"
+    },
+    {
+      "full_name": "identity.app_user",
+      "schema": "identity",
+      "table_name": "app_user",
+      "is_partition": false,
+      "parent_table": null,
+      "column_count": 8,
+      "primary_key": [
+        "user_id"
+      ],
+      "foreign_key_count": 1,
+      "is_rls_enabled": false,
+      "access_classification": "RESTRICTED",
+      "sensitivity": "HIGHLY_SENSITIVE"
+    },
+    {
+      "full_name": "identity.role",
+      "schema": "identity",
+      "table_name": "role",
+      "is_partition": false,
+      "parent_table": null,
+      "column_count": 5,
+      "primary_key": [
+        "role_id"
+      ],
+      "foreign_key_count": 0,
+      "is_rls_enabled": false,
+      "access_classification": "ROLE_RESTRICTED",
+      "sensitivity": "INTERNAL_ANALYTICS"
+    },
+    {
+      "full_name": "identity.permission",
+      "schema": "identity",
+      "table_name": "permission",
+      "is_partition": false,
+      "parent_table": null,
+      "column_count": 5,
+      "primary_key": [
+        "permission_id"
+      ],
+      "foreign_key_count": 0,
+      "is_rls_enabled": false,
+      "access_classification": "ROLE_RESTRICTED",
+      "sensitivity": "INTERNAL_ANALYTICS"
+    },
+    {
+      "full_name": "identity.role_permission",
+      "schema": "identity",
+      "table_name": "role_permission",
+      "is_partition": false,
+      "parent_table": null,
+      "column_count": 2,
+      "primary_key": [
+        "role_id",
+        "permission_id"
+      ],
+      "foreign_key_count": 2,
+      "is_rls_enabled": false,
+      "access_classification": "ROLE_RESTRICTED",
+      "sensitivity": "INTERNAL_ANALYTICS"
+    },
+    {
+      "full_name": "identity.user_role",
+      "schema": "identity",
+      "table_name": "user_role",
+      "is_partition": false,
+      "parent_table": null,
+      "column_count": 8,
+      "primary_key": [
+        "user_role_id"
+      ],
+      "foreign_key_count": 3,
+      "is_rls_enabled": false,
+      "access_classification": "ROLE_RESTRICTED",
+      "sensitivity": "INTERNAL_ANALYTICS"
+    },
+    {
+      "full_name": "identity.delegation",
+      "schema": "identity",
+      "table_name": "delegation",
+      "is_partition": false,
+      "parent_table": null,
+      "column_count": 7,
+      "primary_key": [
+        "delegation_id"
+      ],
+      "foreign_key_count": 3,
+      "is_rls_enabled": false,
+      "access_classification": "ROLE_RESTRICTED",
+      "sensitivity": "INTERNAL_ANALYTICS"
+    },
+    {
+      "full_name": "identity.audit_log",
+      "schema": "identity",
+      "table_name": "audit_log",
+      "is_partition": false,
+      "parent_table": null,
+      "column_count": 15,
+      "primary_key": [
+        "occurred_at",
+        "audit_id"
+      ],
+      "foreign_key_count": 0,
+      "is_rls_enabled": false,
+      "access_classification": "ROLE_RESTRICTED",
+      "sensitivity": "INTERNAL_ANALYTICS"
+    },
+    {
+      "full_name": "identity.audit_log_2026",
+      "schema": "identity",
+      "table_name": "audit_log_2026",
+      "is_partition": true,
+      "parent_table": "identity.audit_log",
+      "column_count": 0,
+      "primary_key": [],
+      "foreign_key_count": 0,
+      "is_rls_enabled": false,
+      "access_classification": "ROLE_RESTRICTED",
+      "sensitivity": "INTERNAL_ANALYTICS"
+    },
+    {
+      "full_name": "identity.audit_log_2027",
+      "schema": "identity",
+      "table_name": "audit_log_2027",
+      "is_partition": true,
+      "parent_table": "identity.audit_log",
+      "column_count": 0,
+      "primary_key": [],
+      "foreign_key_count": 0,
+      "is_rls_enabled": false,
+      "access_classification": "ROLE_RESTRICTED",
+      "sensitivity": "INTERNAL_ANALYTICS"
+    },
+    {
+      "full_name": "identity.data_request",
+      "schema": "identity",
+      "table_name": "data_request",
+      "is_partition": false,
+      "parent_table": null,
+      "column_count": 9,
+      "primary_key": [
+        "data_request_id"
+      ],
+      "foreign_key_count": 1,
+      "is_rls_enabled": false,
+      "access_classification": "ROLE_RESTRICTED",
+      "sensitivity": "INTERNAL_ANALYTICS"
+    },
+    {
+      "full_name": "identity.consent",
+      "schema": "identity",
+      "table_name": "consent",
+      "is_partition": false,
+      "parent_table": null,
+      "column_count": 7,
+      "primary_key": [
+        "consent_id"
+      ],
+      "foreign_key_count": 1,
+      "is_rls_enabled": false,
+      "access_classification": "ROLE_RESTRICTED",
+      "sensitivity": "INTERNAL_ANALYTICS"
+    },
+    {
+      "full_name": "curriculum.programme",
+      "schema": "curriculum",
+      "table_name": "programme",
+      "is_partition": false,
+      "parent_table": null,
+      "column_count": 12,
+      "primary_key": [
+        "programme_id"
+      ],
+      "foreign_key_count": 2,
+      "is_rls_enabled": false,
+      "access_classification": "ALLOW",
+      "sensitivity": "PUBLIC_ANALYTICS"
+    },
+    {
+      "full_name": "curriculum.regulation",
+      "schema": "curriculum",
+      "table_name": "regulation",
+      "is_partition": false,
+      "parent_table": null,
+      "column_count": 11,
+      "primary_key": [
+        "regulation_id"
+      ],
+      "foreign_key_count": 2,
+      "is_rls_enabled": false,
+      "access_classification": "ALLOW",
+      "sensitivity": "PUBLIC_ANALYTICS"
+    },
+    {
+      "full_name": "curriculum.regulation_norm",
+      "schema": "curriculum",
+      "table_name": "regulation_norm",
+      "is_partition": false,
+      "parent_table": null,
+      "column_count": 6,
+      "primary_key": [
+        "regulation_norm_id"
+      ],
+      "foreign_key_count": 2,
+      "is_rls_enabled": false,
+      "access_classification": "ALLOW_WITH_ROLE_SCOPE",
+      "sensitivity": "INTERNAL_ANALYTICS"
+    },
+    {
+      "full_name": "curriculum.batch",
+      "schema": "curriculum",
+      "table_name": "batch",
+      "is_partition": false,
+      "parent_table": null,
+      "column_count": 7,
+      "primary_key": [
+        "batch_id"
+      ],
+      "foreign_key_count": 2,
+      "is_rls_enabled": false,
+      "access_classification": "ALLOW_WITH_ROLE_SCOPE",
+      "sensitivity": "INTERNAL_ANALYTICS"
+    },
+    {
+      "full_name": "curriculum.section",
+      "schema": "curriculum",
+      "table_name": "section",
+      "is_partition": false,
+      "parent_table": null,
+      "column_count": 7,
+      "primary_key": [
+        "section_id"
+      ],
+      "foreign_key_count": 2,
+      "is_rls_enabled": false,
+      "access_classification": "ALLOW_WITH_ROLE_SCOPE",
+      "sensitivity": "INTERNAL_ANALYTICS"
+    },
+    {
+      "full_name": "curriculum.lab_batch",
+      "schema": "curriculum",
+      "table_name": "lab_batch",
+      "is_partition": false,
+      "parent_table": null,
+      "column_count": 4,
+      "primary_key": [
+        "lab_batch_id"
+      ],
+      "foreign_key_count": 1,
+      "is_rls_enabled": false,
+      "access_classification": "ALLOW_WITH_ROLE_SCOPE",
+      "sensitivity": "INTERNAL_ANALYTICS"
+    },
+    {
+      "full_name": "people.student_lab_batch",
+      "schema": "people",
+      "table_name": "student_lab_batch",
+      "is_partition": false,
+      "parent_table": null,
+      "column_count": 2,
+      "primary_key": [
+        "student_id",
+        "lab_batch_id"
+      ],
+      "foreign_key_count": 2,
+      "is_rls_enabled": false,
+      "access_classification": "ALLOW_WITH_ROLE_SCOPE",
+      "sensitivity": "INTERNAL_ANALYTICS"
+    },
+    {
+      "full_name": "curriculum.course",
+      "schema": "curriculum",
+      "table_name": "course",
+      "is_partition": false,
+      "parent_table": null,
+      "column_count": 6,
+      "primary_key": [
+        "course_id"
+      ],
+      "foreign_key_count": 2,
+      "is_rls_enabled": false,
+      "access_classification": "ALLOW",
+      "sensitivity": "PUBLIC_ANALYTICS"
+    },
+    {
+      "full_name": "curriculum.course_version",
+      "schema": "curriculum",
+      "table_name": "course_version",
+      "is_partition": false,
+      "parent_table": null,
+      "column_count": 23,
+      "primary_key": [
+        "course_version_id"
+      ],
+      "foreign_key_count": 3,
+      "is_rls_enabled": false,
+      "access_classification": "ALLOW_WITH_ROLE_SCOPE",
+      "sensitivity": "INTERNAL_ANALYTICS"
+    },
+    {
+      "full_name": "curriculum.course_prerequisite",
+      "schema": "curriculum",
+      "table_name": "course_prerequisite",
+      "is_partition": false,
+      "parent_table": null,
+      "column_count": 3,
+      "primary_key": [
+        "course_version_id",
+        "prerequisite_course_version_id"
+      ],
+      "foreign_key_count": 2,
+      "is_rls_enabled": false,
+      "access_classification": "ALLOW_WITH_ROLE_SCOPE",
+      "sensitivity": "INTERNAL_ANALYTICS"
+    },
+    {
+      "full_name": "curriculum.course_unit",
+      "schema": "curriculum",
+      "table_name": "course_unit",
+      "is_partition": false,
+      "parent_table": null,
+      "column_count": 6,
+      "primary_key": [
+        "course_unit_id"
+      ],
+      "foreign_key_count": 1,
+      "is_rls_enabled": false,
+      "access_classification": "ALLOW_WITH_ROLE_SCOPE",
+      "sensitivity": "INTERNAL_ANALYTICS"
+    },
+    {
+      "full_name": "curriculum.course_topic",
+      "schema": "curriculum",
+      "table_name": "course_topic",
+      "is_partition": false,
+      "parent_table": null,
+      "column_count": 6,
+      "primary_key": [
+        "course_topic_id"
+      ],
+      "foreign_key_count": 2,
+      "is_rls_enabled": false,
+      "access_classification": "ALLOW_WITH_ROLE_SCOPE",
+      "sensitivity": "INTERNAL_ANALYTICS"
+    },
+    {
+      "full_name": "curriculum.course_outcome",
+      "schema": "curriculum",
+      "table_name": "course_outcome",
+      "is_partition": false,
+      "parent_table": null,
+      "column_count": 6,
+      "primary_key": [
+        "course_outcome_id"
+      ],
+      "foreign_key_count": 1,
+      "is_rls_enabled": false,
+      "access_classification": "ALLOW_WITH_ROLE_SCOPE",
+      "sensitivity": "INTERNAL_ANALYTICS"
+    },
+    {
+      "full_name": "curriculum.unit_outcome_map",
+      "schema": "curriculum",
+      "table_name": "unit_outcome_map",
+      "is_partition": false,
+      "parent_table": null,
+      "column_count": 2,
+      "primary_key": [
+        "course_outcome_id",
+        "course_unit_id"
+      ],
+      "foreign_key_count": 2,
+      "is_rls_enabled": false,
+      "access_classification": "ALLOW_WITH_ROLE_SCOPE",
+      "sensitivity": "INTERNAL_ANALYTICS"
+    },
+    {
+      "full_name": "curriculum.programme_outcome",
+      "schema": "curriculum",
+      "table_name": "programme_outcome",
+      "is_partition": false,
+      "parent_table": null,
+      "column_count": 7,
+      "primary_key": [
+        "programme_outcome_id"
+      ],
+      "foreign_key_count": 2,
+      "is_rls_enabled": false,
+      "access_classification": "ALLOW_WITH_ROLE_SCOPE",
+      "sensitivity": "INTERNAL_ANALYTICS"
+    },
+    {
+      "full_name": "curriculum.co_po_map",
+      "schema": "curriculum",
+      "table_name": "co_po_map",
+      "is_partition": false,
+      "parent_table": null,
+      "column_count": 4,
+      "primary_key": [
+        "programme_outcome_id",
+        "course_outcome_id"
+      ],
+      "foreign_key_count": 2,
+      "is_rls_enabled": false,
+      "access_classification": "ALLOW_WITH_ROLE_SCOPE",
+      "sensitivity": "INTERNAL_ANALYTICS"
+    },
+    {
+      "full_name": "curriculum.course_book",
+      "schema": "curriculum",
+      "table_name": "course_book",
+      "is_partition": false,
+      "parent_table": null,
+      "column_count": 11,
+      "primary_key": [
+        "course_book_id"
+      ],
+      "foreign_key_count": 1,
+      "is_rls_enabled": false,
+      "access_classification": "ALLOW_WITH_ROLE_SCOPE",
+      "sensitivity": "INTERNAL_ANALYTICS"
+    },
+    {
+      "full_name": "academics.course_offering",
+      "schema": "academics",
+      "table_name": "course_offering",
+      "is_partition": false,
+      "parent_table": null,
+      "column_count": 8,
+      "primary_key": [
+        "course_offering_id"
+      ],
+      "foreign_key_count": 4,
+      "is_rls_enabled": false,
+      "access_classification": "ALLOW_WITH_ROLE_SCOPE",
+      "sensitivity": "INTERNAL_ANALYTICS"
+    },
+    {
+      "full_name": "academics.student_registration",
+      "schema": "academics",
+      "table_name": "student_registration",
+      "is_partition": false,
+      "parent_table": null,
+      "column_count": 7,
+      "primary_key": [
+        "student_registration_id"
+      ],
+      "foreign_key_count": 2,
+      "is_rls_enabled": false,
+      "access_classification": "ALLOW_WITH_ROLE_SCOPE",
+      "sensitivity": "INTERNAL_ANALYTICS"
+    },
+    {
+      "full_name": "academics.faculty_allocation",
+      "schema": "academics",
+      "table_name": "faculty_allocation",
+      "is_partition": false,
+      "parent_table": null,
+      "column_count": 14,
+      "primary_key": [
+        "faculty_allocation_id"
+      ],
+      "foreign_key_count": 4,
+      "is_rls_enabled": false,
+      "access_classification": "ALLOW_WITH_ROLE_SCOPE",
+      "sensitivity": "INTERNAL_ANALYTICS"
+    },
+    {
+      "full_name": "academics.time_slot",
+      "schema": "academics",
+      "table_name": "time_slot",
+      "is_partition": false,
+      "parent_table": null,
+      "column_count": 7,
+      "primary_key": [
+        "time_slot_id"
+      ],
+      "foreign_key_count": 1,
+      "is_rls_enabled": false,
+      "access_classification": "ALLOW_WITH_ROLE_SCOPE",
+      "sensitivity": "INTERNAL_ANALYTICS"
+    },
+    {
+      "full_name": "academics.timetable_version",
+      "schema": "academics",
+      "table_name": "timetable_version",
+      "is_partition": false,
+      "parent_table": null,
+      "column_count": 10,
+      "primary_key": [
+        "timetable_version_id"
+      ],
+      "foreign_key_count": 3,
+      "is_rls_enabled": false,
+      "access_classification": "ALLOW_WITH_ROLE_SCOPE",
+      "sensitivity": "INTERNAL_ANALYTICS"
+    },
+    {
+      "full_name": "academics.timetable_entry",
+      "schema": "academics",
+      "table_name": "timetable_entry",
+      "is_partition": false,
+      "parent_table": null,
+      "column_count": 8,
+      "primary_key": [
+        "timetable_entry_id"
+      ],
+      "foreign_key_count": 6,
+      "is_rls_enabled": false,
+      "access_classification": "ALLOW_WITH_ROLE_SCOPE",
+      "sensitivity": "INTERNAL_ANALYTICS"
+    },
+    {
+      "full_name": "academics.timetable_clash",
+      "schema": "academics",
+      "table_name": "timetable_clash",
+      "is_partition": false,
+      "parent_table": null,
+      "column_count": 7,
+      "primary_key": [
+        "timetable_clash_id"
+      ],
+      "foreign_key_count": 1,
+      "is_rls_enabled": false,
+      "access_classification": "ALLOW_WITH_ROLE_SCOPE",
+      "sensitivity": "INTERNAL_ANALYTICS"
+    },
+    {
+      "full_name": "academics.lesson_plan",
+      "schema": "academics",
+      "table_name": "lesson_plan",
+      "is_partition": false,
+      "parent_table": null,
+      "column_count": 8,
+      "primary_key": [
+        "lesson_plan_id"
+      ],
+      "foreign_key_count": 3,
+      "is_rls_enabled": false,
+      "access_classification": "ALLOW_WITH_ROLE_SCOPE",
+      "sensitivity": "INTERNAL_ANALYTICS"
+    },
+    {
+      "full_name": "academics.lesson_plan_session",
+      "schema": "academics",
+      "table_name": "lesson_plan_session",
+      "is_partition": false,
+      "parent_table": null,
+      "column_count": 9,
+      "primary_key": [
+        "lesson_plan_session_id"
+      ],
+      "foreign_key_count": 4,
+      "is_rls_enabled": false,
+      "access_classification": "ALLOW_WITH_ROLE_SCOPE",
+      "sensitivity": "INTERNAL_ANALYTICS"
+    },
+    {
+      "full_name": "academics.class_session",
+      "schema": "academics",
+      "table_name": "class_session",
+      "is_partition": false,
+      "parent_table": null,
+      "column_count": 13,
+      "primary_key": [
+        "class_session_id"
+      ],
+      "foreign_key_count": 7,
+      "is_rls_enabled": false,
+      "access_classification": "ALLOW_WITH_ROLE_SCOPE",
+      "sensitivity": "INTERNAL_ANALYTICS"
+    },
+    {
+      "full_name": "academics.topic_progress",
+      "schema": "academics",
+      "table_name": "topic_progress",
+      "is_partition": false,
+      "parent_table": null,
+      "column_count": 7,
+      "primary_key": [
+        "topic_progress_id"
+      ],
+      "foreign_key_count": 3,
+      "is_rls_enabled": false,
+      "access_classification": "ALLOW_WITH_ROLE_SCOPE",
+      "sensitivity": "INTERNAL_ANALYTICS"
+    },
+    {
+      "full_name": "academics.coverage_snapshot",
+      "schema": "academics",
+      "table_name": "coverage_snapshot",
+      "is_partition": false,
+      "parent_table": null,
+      "column_count": 12,
+      "primary_key": [
+        "coverage_snapshot_id"
+      ],
+      "foreign_key_count": 1,
+      "is_rls_enabled": false,
+      "access_classification": "ALLOW_WITH_ROLE_SCOPE",
+      "sensitivity": "INTERNAL_ANALYTICS"
+    },
+    {
+      "full_name": "attendance.attendance_record",
+      "schema": "attendance",
+      "table_name": "attendance_record",
+      "is_partition": false,
+      "parent_table": null,
+      "column_count": 10,
+      "primary_key": [
+        "session_date",
+        "attendance_record_id"
+      ],
+      "foreign_key_count": 0,
+      "is_rls_enabled": false,
+      "access_classification": "ALLOW_WITH_ROLE_SCOPE",
+      "sensitivity": "INTERNAL_ANALYTICS"
+    },
+    {
+      "full_name": "attendance.attendance_record_2026",
+      "schema": "attendance",
+      "table_name": "attendance_record_2026",
+      "is_partition": true,
+      "parent_table": "attendance.attendance_record",
+      "column_count": 0,
+      "primary_key": [],
+      "foreign_key_count": 0,
+      "is_rls_enabled": false,
+      "access_classification": "ALLOW_WITH_ROLE_SCOPE",
+      "sensitivity": "INTERNAL_ANALYTICS"
+    },
+    {
+      "full_name": "attendance.attendance_record_2027",
+      "schema": "attendance",
+      "table_name": "attendance_record_2027",
+      "is_partition": true,
+      "parent_table": "attendance.attendance_record",
+      "column_count": 0,
+      "primary_key": [],
+      "foreign_key_count": 0,
+      "is_rls_enabled": false,
+      "access_classification": "ALLOW_WITH_ROLE_SCOPE",
+      "sensitivity": "INTERNAL_ANALYTICS"
+    },
+    {
+      "full_name": "attendance.student_leave",
+      "schema": "attendance",
+      "table_name": "student_leave",
+      "is_partition": false,
+      "parent_table": null,
+      "column_count": 10,
+      "primary_key": [
+        "student_leave_id"
+      ],
+      "foreign_key_count": 2,
+      "is_rls_enabled": false,
+      "access_classification": "ALLOW_WITH_ROLE_SCOPE",
+      "sensitivity": "INTERNAL_ANALYTICS"
+    },
+    {
+      "full_name": "attendance.attendance_summary",
+      "schema": "attendance",
+      "table_name": "attendance_summary",
+      "is_partition": false,
+      "parent_table": null,
+      "column_count": 17,
+      "primary_key": [
+        "attendance_summary_id"
+      ],
+      "foreign_key_count": 3,
+      "is_rls_enabled": true,
+      "access_classification": "ALLOW_WITH_ROLE_SCOPE",
+      "sensitivity": "INTERNAL_ANALYTICS"
+    },
+    {
+      "full_name": "attendance.condonation",
+      "schema": "attendance",
+      "table_name": "condonation",
+      "is_partition": false,
+      "parent_table": null,
+      "column_count": 9,
+      "primary_key": [
+        "condonation_id"
+      ],
+      "foreign_key_count": 3,
+      "is_rls_enabled": false,
+      "access_classification": "ALLOW_WITH_ROLE_SCOPE",
+      "sensitivity": "INTERNAL_ANALYTICS"
+    },
+    {
+      "full_name": "attendance.ingestion_batch",
+      "schema": "attendance",
+      "table_name": "ingestion_batch",
+      "is_partition": false,
+      "parent_table": null,
+      "column_count": 12,
+      "primary_key": [
+        "ingestion_batch_id"
+      ],
+      "foreign_key_count": 2,
+      "is_rls_enabled": false,
+      "access_classification": "ALLOW_WITH_ROLE_SCOPE",
+      "sensitivity": "INTERNAL_ANALYTICS"
+    },
+    {
+      "full_name": "assessment.assessment_type",
+      "schema": "assessment",
+      "table_name": "assessment_type",
+      "is_partition": false,
+      "parent_table": null,
+      "column_count": 7,
+      "primary_key": [
+        "assessment_type_id"
+      ],
+      "foreign_key_count": 1,
+      "is_rls_enabled": false,
+      "access_classification": "ALLOW_WITH_ROLE_SCOPE",
+      "sensitivity": "INTERNAL_ANALYTICS"
+    },
+    {
+      "full_name": "assessment.assessment",
+      "schema": "assessment",
+      "table_name": "assessment",
+      "is_partition": false,
+      "parent_table": null,
+      "column_count": 11,
+      "primary_key": [
+        "assessment_id"
+      ],
+      "foreign_key_count": 2,
+      "is_rls_enabled": false,
+      "access_classification": "ALLOW_WITH_ROLE_SCOPE",
+      "sensitivity": "INTERNAL_ANALYTICS"
+    },
+    {
+      "full_name": "assessment.question_bank_item",
+      "schema": "assessment",
+      "table_name": "question_bank_item",
+      "is_partition": false,
+      "parent_table": null,
+      "column_count": 17,
+      "primary_key": [
+        "question_bank_item_id"
+      ],
+      "foreign_key_count": 5,
+      "is_rls_enabled": false,
+      "access_classification": "ALLOW_WITH_ROLE_SCOPE",
+      "sensitivity": "INTERNAL_ANALYTICS"
+    },
+    {
+      "full_name": "assessment.paper_blueprint",
+      "schema": "assessment",
+      "table_name": "paper_blueprint",
+      "is_partition": false,
+      "parent_table": null,
+      "column_count": 12,
+      "primary_key": [
+        "paper_blueprint_id"
+      ],
+      "foreign_key_count": 2,
+      "is_rls_enabled": false,
+      "access_classification": "ALLOW_WITH_ROLE_SCOPE",
+      "sensitivity": "INTERNAL_ANALYTICS"
+    },
+    {
+      "full_name": "assessment.question_paper",
+      "schema": "assessment",
+      "table_name": "question_paper",
+      "is_partition": false,
+      "parent_table": null,
+      "column_count": 16,
+      "primary_key": [
+        "question_paper_id"
+      ],
+      "foreign_key_count": 6,
+      "is_rls_enabled": true,
+      "access_classification": "DENY_GENERAL_ANALYTICS",
+      "sensitivity": "HIGHLY_SENSITIVE"
+    },
+    {
+      "full_name": "assessment.paper_question",
+      "schema": "assessment",
+      "table_name": "paper_question",
+      "is_partition": false,
+      "parent_table": null,
+      "column_count": 13,
+      "primary_key": [
+        "paper_question_id"
+      ],
+      "foreign_key_count": 5,
+      "is_rls_enabled": false,
+      "access_classification": "ALLOW_WITH_ROLE_SCOPE",
+      "sensitivity": "INTERNAL_ANALYTICS"
+    },
+    {
+      "full_name": "assessment.paper_quality_review",
+      "schema": "assessment",
+      "table_name": "paper_quality_review",
+      "is_partition": false,
+      "parent_table": null,
+      "column_count": 9,
+      "primary_key": [
+        "paper_quality_review_id"
+      ],
+      "foreign_key_count": 1,
+      "is_rls_enabled": false,
+      "access_classification": "ALLOW_WITH_ROLE_SCOPE",
+      "sensitivity": "INTERNAL_ANALYTICS"
+    },
+    {
+      "full_name": "assessment.student_assessment_mark",
+      "schema": "assessment",
+      "table_name": "student_assessment_mark",
+      "is_partition": false,
+      "parent_table": null,
+      "column_count": 9,
+      "primary_key": [
+        "student_assessment_mark_id"
+      ],
+      "foreign_key_count": 3,
+      "is_rls_enabled": false,
+      "access_classification": "ALLOW_WITH_ROLE_SCOPE",
+      "sensitivity": "INTERNAL_ANALYTICS"
+    },
+    {
+      "full_name": "assessment.student_question_mark",
+      "schema": "assessment",
+      "table_name": "student_question_mark",
+      "is_partition": false,
+      "parent_table": null,
+      "column_count": 5,
+      "primary_key": [
+        "student_question_mark_id"
+      ],
+      "foreign_key_count": 2,
+      "is_rls_enabled": false,
+      "access_classification": "ALLOW_WITH_ROLE_SCOPE",
+      "sensitivity": "INTERNAL_ANALYTICS"
+    },
+    {
+      "full_name": "assessment.mark_change_log",
+      "schema": "assessment",
+      "table_name": "mark_change_log",
+      "is_partition": false,
+      "parent_table": null,
+      "column_count": 9,
+      "primary_key": [
+        "mark_change_log_id"
+      ],
+      "foreign_key_count": 0,
+      "is_rls_enabled": false,
+      "access_classification": "ALLOW_WITH_ROLE_SCOPE",
+      "sensitivity": "INTERNAL_ANALYTICS"
+    },
+    {
+      "full_name": "assessment.internal_mark",
+      "schema": "assessment",
+      "table_name": "internal_mark",
+      "is_partition": false,
+      "parent_table": null,
+      "column_count": 11,
+      "primary_key": [
+        "internal_mark_id"
+      ],
+      "foreign_key_count": 3,
+      "is_rls_enabled": true,
+      "access_classification": "ALLOW_WITH_ROLE_SCOPE",
+      "sensitivity": "INTERNAL_ANALYTICS"
+    },
+    {
+      "full_name": "assessment.mark_anomaly",
+      "schema": "assessment",
+      "table_name": "mark_anomaly",
+      "is_partition": false,
+      "parent_table": null,
+      "column_count": 10,
+      "primary_key": [
+        "mark_anomaly_id"
+      ],
+      "foreign_key_count": 2,
+      "is_rls_enabled": false,
+      "access_classification": "ALLOW_WITH_ROLE_SCOPE",
+      "sensitivity": "INTERNAL_ANALYTICS"
+    },
+    {
+      "full_name": "assessment.course_result",
+      "schema": "assessment",
+      "table_name": "course_result",
+      "is_partition": false,
+      "parent_table": null,
+      "column_count": 16,
+      "primary_key": [
+        "course_result_id"
+      ],
+      "foreign_key_count": 4,
+      "is_rls_enabled": false,
+      "access_classification": "ALLOW_WITH_ROLE_SCOPE",
+      "sensitivity": "INTERNAL_ANALYTICS"
+    },
+    {
+      "full_name": "assessment.term_result",
+      "schema": "assessment",
+      "table_name": "term_result",
+      "is_partition": false,
+      "parent_table": null,
+      "column_count": 10,
+      "primary_key": [
+        "term_result_id"
+      ],
+      "foreign_key_count": 2,
+      "is_rls_enabled": false,
+      "access_classification": "ALLOW_WITH_ROLE_SCOPE",
+      "sensitivity": "INTERNAL_ANALYTICS"
+    },
+    {
+      "full_name": "assessment.backlog",
+      "schema": "assessment",
+      "table_name": "backlog",
+      "is_partition": false,
+      "parent_table": null,
+      "column_count": 9,
+      "primary_key": [
+        "backlog_id"
+      ],
+      "foreign_key_count": 4,
+      "is_rls_enabled": false,
+      "access_classification": "ALLOW_WITH_ROLE_SCOPE",
+      "sensitivity": "INTERNAL_ANALYTICS"
+    },
+    {
+      "full_name": "exams.exam_event",
+      "schema": "exams",
+      "table_name": "exam_event",
+      "is_partition": false,
+      "parent_table": null,
+      "column_count": 7,
+      "primary_key": [
+        "exam_event_id"
+      ],
+      "foreign_key_count": 1,
+      "is_rls_enabled": false,
+      "access_classification": "ROLE_RESTRICTED",
+      "sensitivity": "INTERNAL_ANALYTICS"
+    },
+    {
+      "full_name": "exams.exam_schedule",
+      "schema": "exams",
+      "table_name": "exam_schedule",
+      "is_partition": false,
+      "parent_table": null,
+      "column_count": 8,
+      "primary_key": [
+        "exam_schedule_id"
+      ],
+      "foreign_key_count": 2,
+      "is_rls_enabled": false,
+      "access_classification": "ROLE_RESTRICTED",
+      "sensitivity": "INTERNAL_ANALYTICS"
+    },
+    {
+      "full_name": "exams.exam_registration",
+      "schema": "exams",
+      "table_name": "exam_registration",
+      "is_partition": false,
+      "parent_table": null,
+      "column_count": 9,
+      "primary_key": [
+        "exam_registration_id"
+      ],
+      "foreign_key_count": 2,
+      "is_rls_enabled": false,
+      "access_classification": "ROLE_RESTRICTED",
+      "sensitivity": "INTERNAL_ANALYTICS"
+    },
+    {
+      "full_name": "exams.exam_room_allocation",
+      "schema": "exams",
+      "table_name": "exam_room_allocation",
+      "is_partition": false,
+      "parent_table": null,
+      "column_count": 6,
+      "primary_key": [
+        "exam_room_allocation_id"
+      ],
+      "foreign_key_count": 2,
+      "is_rls_enabled": false,
+      "access_classification": "ROLE_RESTRICTED",
+      "sensitivity": "INTERNAL_ANALYTICS"
+    },
+    {
+      "full_name": "exams.seating_allocation",
+      "schema": "exams",
+      "table_name": "seating_allocation",
+      "is_partition": false,
+      "parent_table": null,
+      "column_count": 5,
+      "primary_key": [
+        "seating_allocation_id"
+      ],
+      "foreign_key_count": 3,
+      "is_rls_enabled": false,
+      "access_classification": "ROLE_RESTRICTED",
+      "sensitivity": "INTERNAL_ANALYTICS"
+    },
+    {
+      "full_name": "exams.invigilation_duty",
+      "schema": "exams",
+      "table_name": "invigilation_duty",
+      "is_partition": false,
+      "parent_table": null,
+      "column_count": 5,
+      "primary_key": [
+        "invigilation_duty_id"
+      ],
+      "foreign_key_count": 2,
+      "is_rls_enabled": false,
+      "access_classification": "ROLE_RESTRICTED",
+      "sensitivity": "INTERNAL_ANALYTICS"
+    },
+    {
+      "full_name": "exams.answer_script",
+      "schema": "exams",
+      "table_name": "answer_script",
+      "is_partition": false,
+      "parent_table": null,
+      "column_count": 6,
+      "primary_key": [
+        "answer_script_id"
+      ],
+      "foreign_key_count": 2,
+      "is_rls_enabled": false,
+      "access_classification": "ROLE_RESTRICTED",
+      "sensitivity": "INTERNAL_ANALYTICS"
+    },
+    {
+      "full_name": "exams.evaluation",
+      "schema": "exams",
+      "table_name": "evaluation",
+      "is_partition": false,
+      "parent_table": null,
+      "column_count": 6,
+      "primary_key": [
+        "evaluation_id"
+      ],
+      "foreign_key_count": 2,
+      "is_rls_enabled": false,
+      "access_classification": "ROLE_RESTRICTED",
+      "sensitivity": "INTERNAL_ANALYTICS"
+    },
+    {
+      "full_name": "exams.revaluation_request",
+      "schema": "exams",
+      "table_name": "revaluation_request",
+      "is_partition": false,
+      "parent_table": null,
+      "column_count": 10,
+      "primary_key": [
+        "revaluation_request_id"
+      ],
+      "foreign_key_count": 2,
+      "is_rls_enabled": false,
+      "access_classification": "ROLE_RESTRICTED",
+      "sensitivity": "INTERNAL_ANALYTICS"
+    },
+    {
+      "full_name": "exams.malpractice_case",
+      "schema": "exams",
+      "table_name": "malpractice_case",
+      "is_partition": false,
+      "parent_table": null,
+      "column_count": 10,
+      "primary_key": [
+        "malpractice_case_id"
+      ],
+      "foreign_key_count": 3,
+      "is_rls_enabled": false,
+      "access_classification": "ROLE_RESTRICTED",
+      "sensitivity": "INTERNAL_ANALYTICS"
+    },
+    {
+      "full_name": "outcomes.attainment_rubric",
+      "schema": "outcomes",
+      "table_name": "attainment_rubric",
+      "is_partition": false,
+      "parent_table": null,
+      "column_count": 11,
+      "primary_key": [
+        "attainment_rubric_id"
+      ],
+      "foreign_key_count": 2,
+      "is_rls_enabled": false,
+      "access_classification": "ALLOW_WITH_ROLE_SCOPE",
+      "sensitivity": "INTERNAL_ANALYTICS"
+    },
+    {
+      "full_name": "outcomes.attainment_run",
+      "schema": "outcomes",
+      "table_name": "attainment_run",
+      "is_partition": false,
+      "parent_table": null,
+      "column_count": 10,
+      "primary_key": [
+        "attainment_run_id"
+      ],
+      "foreign_key_count": 3,
+      "is_rls_enabled": false,
+      "access_classification": "ALLOW_WITH_ROLE_SCOPE",
+      "sensitivity": "INTERNAL_ANALYTICS"
+    },
+    {
+      "full_name": "outcomes.co_attainment",
+      "schema": "outcomes",
+      "table_name": "co_attainment",
+      "is_partition": false,
+      "parent_table": null,
+      "column_count": 12,
+      "primary_key": [
+        "co_attainment_id"
+      ],
+      "foreign_key_count": 2,
+      "is_rls_enabled": false,
+      "access_classification": "ALLOW_WITH_ROLE_SCOPE",
+      "sensitivity": "INTERNAL_ANALYTICS"
+    },
+    {
+      "full_name": "outcomes.po_attainment",
+      "schema": "outcomes",
+      "table_name": "po_attainment",
+      "is_partition": false,
+      "parent_table": null,
+      "column_count": 11,
+      "primary_key": [
+        "po_attainment_id"
+      ],
+      "foreign_key_count": 4,
+      "is_rls_enabled": false,
+      "access_classification": "ALLOW_WITH_ROLE_SCOPE",
+      "sensitivity": "INTERNAL_ANALYTICS"
+    },
+    {
+      "full_name": "outcomes.indirect_feedback",
+      "schema": "outcomes",
+      "table_name": "indirect_feedback",
+      "is_partition": false,
+      "parent_table": null,
+      "column_count": 6,
+      "primary_key": [
+        "indirect_feedback_id"
+      ],
+      "foreign_key_count": 3,
+      "is_rls_enabled": false,
+      "access_classification": "ALLOW_WITH_ROLE_SCOPE",
+      "sensitivity": "INTERNAL_ANALYTICS"
+    },
+    {
+      "full_name": "outcomes.attainment_action",
+      "schema": "outcomes",
+      "table_name": "attainment_action",
+      "is_partition": false,
+      "parent_table": null,
+      "column_count": 9,
+      "primary_key": [
+        "attainment_action_id"
+      ],
+      "foreign_key_count": 3,
+      "is_rls_enabled": false,
+      "access_classification": "ALLOW_WITH_ROLE_SCOPE",
+      "sensitivity": "INTERNAL_ANALYTICS"
+    },
+    {
+      "full_name": "research.venue",
+      "schema": "research",
+      "table_name": "venue",
+      "is_partition": false,
+      "parent_table": null,
+      "column_count": 11,
+      "primary_key": [
+        "venue_id"
+      ],
+      "foreign_key_count": 0,
+      "is_rls_enabled": false,
+      "access_classification": "ROLE_RESTRICTED",
+      "sensitivity": "INTERNAL_ANALYTICS"
+    },
+    {
+      "full_name": "research.venue_metric",
+      "schema": "research",
+      "table_name": "venue_metric",
+      "is_partition": false,
+      "parent_table": null,
+      "column_count": 12,
+      "primary_key": [
+        "venue_metric_id"
+      ],
+      "foreign_key_count": 1,
+      "is_rls_enabled": false,
+      "access_classification": "ROLE_RESTRICTED",
+      "sensitivity": "INTERNAL_ANALYTICS"
+    },
+    {
+      "full_name": "research.publication",
+      "schema": "research",
+      "table_name": "publication",
+      "is_partition": false,
+      "parent_table": null,
+      "column_count": 16,
+      "primary_key": [
+        "publication_id"
+      ],
+      "foreign_key_count": 2,
+      "is_rls_enabled": false,
+      "access_classification": "ROLE_RESTRICTED",
+      "sensitivity": "INTERNAL_ANALYTICS"
+    },
+    {
+      "full_name": "research.publication_source",
+      "schema": "research",
+      "table_name": "publication_source",
+      "is_partition": false,
+      "parent_table": null,
+      "column_count": 8,
+      "primary_key": [
+        "publication_source_id"
+      ],
+      "foreign_key_count": 1,
+      "is_rls_enabled": false,
+      "access_classification": "ROLE_RESTRICTED",
+      "sensitivity": "INTERNAL_ANALYTICS"
+    },
+    {
+      "full_name": "research.publication_author",
+      "schema": "research",
+      "table_name": "publication_author",
+      "is_partition": false,
+      "parent_table": null,
+      "column_count": 9,
+      "primary_key": [
+        "publication_author_id"
+      ],
+      "foreign_key_count": 3,
+      "is_rls_enabled": false,
+      "access_classification": "ROLE_RESTRICTED",
+      "sensitivity": "INTERNAL_ANALYTICS"
+    },
+    {
+      "full_name": "research.citation_snapshot",
+      "schema": "research",
+      "table_name": "citation_snapshot",
+      "is_partition": false,
+      "parent_table": null,
+      "column_count": 9,
+      "primary_key": [
+        "citation_snapshot_id"
+      ],
+      "foreign_key_count": 2,
+      "is_rls_enabled": false,
+      "access_classification": "ROLE_RESTRICTED",
+      "sensitivity": "INTERNAL_ANALYTICS"
+    },
+    {
+      "full_name": "research.researcher_profile",
+      "schema": "research",
+      "table_name": "researcher_profile",
+      "is_partition": false,
+      "parent_table": null,
+      "column_count": 8,
+      "primary_key": [
+        "researcher_profile_id"
+      ],
+      "foreign_key_count": 1,
+      "is_rls_enabled": false,
+      "access_classification": "ROLE_RESTRICTED",
+      "sensitivity": "INTERNAL_ANALYTICS"
+    },
+    {
+      "full_name": "research.affiliation_variant",
+      "schema": "research",
+      "table_name": "affiliation_variant",
+      "is_partition": false,
+      "parent_table": null,
+      "column_count": 4,
+      "primary_key": [
+        "affiliation_variant_id"
+      ],
+      "foreign_key_count": 1,
+      "is_rls_enabled": false,
+      "access_classification": "ROLE_RESTRICTED",
+      "sensitivity": "INTERNAL_ANALYTICS"
+    },
+    {
+      "full_name": "research.patent",
+      "schema": "research",
+      "table_name": "patent",
+      "is_partition": false,
+      "parent_table": null,
+      "column_count": 14,
+      "primary_key": [
+        "patent_id"
+      ],
+      "foreign_key_count": 1,
+      "is_rls_enabled": false,
+      "access_classification": "ROLE_RESTRICTED",
+      "sensitivity": "INTERNAL_ANALYTICS"
+    },
+    {
+      "full_name": "research.patent_inventor",
+      "schema": "research",
+      "table_name": "patent_inventor",
+      "is_partition": false,
+      "parent_table": null,
+      "column_count": 6,
+      "primary_key": [
+        "inventor_order",
+        "patent_id"
+      ],
+      "foreign_key_count": 3,
+      "is_rls_enabled": false,
+      "access_classification": "ROLE_RESTRICTED",
+      "sensitivity": "INTERNAL_ANALYTICS"
+    },
+    {
+      "full_name": "research.patent_deadline",
+      "schema": "research",
+      "table_name": "patent_deadline",
+      "is_partition": false,
+      "parent_table": null,
+      "column_count": 7,
+      "primary_key": [
+        "patent_deadline_id"
+      ],
+      "foreign_key_count": 1,
+      "is_rls_enabled": false,
+      "access_classification": "ROLE_RESTRICTED",
+      "sensitivity": "INTERNAL_ANALYTICS"
+    },
+    {
+      "full_name": "research.funding_agency",
+      "schema": "research",
+      "table_name": "funding_agency",
+      "is_partition": false,
+      "parent_table": null,
+      "column_count": 5,
+      "primary_key": [
+        "funding_agency_id"
+      ],
+      "foreign_key_count": 0,
+      "is_rls_enabled": false,
+      "access_classification": "ROLE_RESTRICTED",
+      "sensitivity": "INTERNAL_ANALYTICS"
+    },
+    {
+      "full_name": "research.funding_call",
+      "schema": "research",
+      "table_name": "funding_call",
+      "is_partition": false,
+      "parent_table": null,
+      "column_count": 13,
+      "primary_key": [
+        "funding_call_id"
+      ],
+      "foreign_key_count": 1,
+      "is_rls_enabled": false,
+      "access_classification": "ROLE_RESTRICTED",
+      "sensitivity": "INTERNAL_ANALYTICS"
+    },
+    {
+      "full_name": "research.call_faculty_match",
+      "schema": "research",
+      "table_name": "call_faculty_match",
+      "is_partition": false,
+      "parent_table": null,
+      "column_count": 7,
+      "primary_key": [
+        "call_faculty_match_id"
+      ],
+      "foreign_key_count": 2,
+      "is_rls_enabled": false,
+      "access_classification": "ROLE_RESTRICTED",
+      "sensitivity": "INTERNAL_ANALYTICS"
+    },
+    {
+      "full_name": "research.proposal",
+      "schema": "research",
+      "table_name": "proposal",
+      "is_partition": false,
+      "parent_table": null,
+      "column_count": 10,
+      "primary_key": [
+        "proposal_id"
+      ],
+      "foreign_key_count": 2,
+      "is_rls_enabled": false,
+      "access_classification": "ROLE_RESTRICTED",
+      "sensitivity": "INTERNAL_ANALYTICS"
+    },
+    {
+      "full_name": "research.project",
+      "schema": "research",
+      "table_name": "project",
+      "is_partition": false,
+      "parent_table": null,
+      "column_count": 12,
+      "primary_key": [
+        "project_id"
+      ],
+      "foreign_key_count": 3,
+      "is_rls_enabled": false,
+      "access_classification": "ROLE_RESTRICTED",
+      "sensitivity": "INTERNAL_ANALYTICS"
+    },
+    {
+      "full_name": "research.project_member",
+      "schema": "research",
+      "table_name": "project_member",
+      "is_partition": false,
+      "parent_table": null,
+      "column_count": 6,
+      "primary_key": [
+        "faculty_id",
+        "student_id",
+        "role",
+        "project_id"
+      ],
+      "foreign_key_count": 3,
+      "is_rls_enabled": false,
+      "access_classification": "ROLE_RESTRICTED",
+      "sensitivity": "INTERNAL_ANALYTICS"
+    },
+    {
+      "full_name": "research.phd_scholar",
+      "schema": "research",
+      "table_name": "phd_scholar",
+      "is_partition": false,
+      "parent_table": null,
+      "column_count": 14,
+      "primary_key": [
+        "phd_scholar_id"
+      ],
+      "foreign_key_count": 4,
+      "is_rls_enabled": false,
+      "access_classification": "ROLE_RESTRICTED",
+      "sensitivity": "INTERNAL_ANALYTICS"
+    },
+    {
+      "full_name": "research.phd_milestone",
+      "schema": "research",
+      "table_name": "phd_milestone",
+      "is_partition": false,
+      "parent_table": null,
+      "column_count": 9,
+      "primary_key": [
+        "phd_milestone_id"
+      ],
+      "foreign_key_count": 1,
+      "is_rls_enabled": false,
+      "access_classification": "ROLE_RESTRICTED",
+      "sensitivity": "INTERNAL_ANALYTICS"
+    },
+    {
+      "full_name": "research.collaboration",
+      "schema": "research",
+      "table_name": "collaboration",
+      "is_partition": false,
+      "parent_table": null,
+      "column_count": 11,
+      "primary_key": [
+        "collaboration_id"
+      ],
+      "foreign_key_count": 2,
+      "is_rls_enabled": false,
+      "access_classification": "ROLE_RESTRICTED",
+      "sensitivity": "INTERNAL_ANALYTICS"
+    },
+    {
+      "full_name": "engagement.event",
+      "schema": "engagement",
+      "table_name": "event",
+      "is_partition": false,
+      "parent_table": null,
+      "column_count": 15,
+      "primary_key": [
+        "event_id"
+      ],
+      "foreign_key_count": 3,
+      "is_rls_enabled": false,
+      "access_classification": "ROLE_RESTRICTED",
+      "sensitivity": "INTERNAL_ANALYTICS"
+    },
+    {
+      "full_name": "engagement.event_participant",
+      "schema": "engagement",
+      "table_name": "event_participant",
+      "is_partition": false,
+      "parent_table": null,
+      "column_count": 15,
+      "primary_key": [
+        "event_participant_id"
+      ],
+      "foreign_key_count": 2,
+      "is_rls_enabled": false,
+      "access_classification": "ROLE_RESTRICTED",
+      "sensitivity": "INTERNAL_ANALYTICS"
+    },
+    {
+      "full_name": "engagement.event_submission",
+      "schema": "engagement",
+      "table_name": "event_submission",
+      "is_partition": false,
+      "parent_table": null,
+      "column_count": 9,
+      "primary_key": [
+        "event_submission_id"
+      ],
+      "foreign_key_count": 1,
+      "is_rls_enabled": false,
+      "access_classification": "ROLE_RESTRICTED",
+      "sensitivity": "INTERNAL_ANALYTICS"
+    },
+    {
+      "full_name": "engagement.review_assignment",
+      "schema": "engagement",
+      "table_name": "review_assignment",
+      "is_partition": false,
+      "parent_table": null,
+      "column_count": 11,
+      "primary_key": [
+        "review_assignment_id"
+      ],
+      "foreign_key_count": 2,
+      "is_rls_enabled": false,
+      "access_classification": "ROLE_RESTRICTED",
+      "sensitivity": "INTERNAL_ANALYTICS"
+    },
+    {
+      "full_name": "engagement.industry_partner",
+      "schema": "engagement",
+      "table_name": "industry_partner",
+      "is_partition": false,
+      "parent_table": null,
+      "column_count": 12,
+      "primary_key": [
+        "industry_partner_id"
+      ],
+      "foreign_key_count": 2,
+      "is_rls_enabled": false,
+      "access_classification": "ROLE_RESTRICTED",
+      "sensitivity": "INTERNAL_ANALYTICS"
+    },
+    {
+      "full_name": "engagement.mou",
+      "schema": "engagement",
+      "table_name": "mou",
+      "is_partition": false,
+      "parent_table": null,
+      "column_count": 13,
+      "primary_key": [
+        "mou_id"
+      ],
+      "foreign_key_count": 2,
+      "is_rls_enabled": false,
+      "access_classification": "ROLE_RESTRICTED",
+      "sensitivity": "INTERNAL_ANALYTICS"
+    },
+    {
+      "full_name": "engagement.mou_deliverable",
+      "schema": "engagement",
+      "table_name": "mou_deliverable",
+      "is_partition": false,
+      "parent_table": null,
+      "column_count": 8,
+      "primary_key": [
+        "mou_deliverable_id"
+      ],
+      "foreign_key_count": 1,
+      "is_rls_enabled": false,
+      "access_classification": "ROLE_RESTRICTED",
+      "sensitivity": "INTERNAL_ANALYTICS"
+    },
+    {
+      "full_name": "engagement.industry_activity",
+      "schema": "engagement",
+      "table_name": "industry_activity",
+      "is_partition": false,
+      "parent_table": null,
+      "column_count": 11,
+      "primary_key": [
+        "industry_activity_id"
+      ],
+      "foreign_key_count": 4,
+      "is_rls_enabled": false,
+      "access_classification": "ROLE_RESTRICTED",
+      "sensitivity": "INTERNAL_ANALYTICS"
+    },
+    {
+      "full_name": "engagement.outreach_activity",
+      "schema": "engagement",
+      "table_name": "outreach_activity",
+      "is_partition": false,
+      "parent_table": null,
+      "column_count": 16,
+      "primary_key": [
+        "outreach_activity_id"
+      ],
+      "foreign_key_count": 3,
+      "is_rls_enabled": false,
+      "access_classification": "ROLE_RESTRICTED",
+      "sensitivity": "INTERNAL_ANALYTICS"
+    },
+    {
+      "full_name": "engagement.outreach_participant",
+      "schema": "engagement",
+      "table_name": "outreach_participant",
+      "is_partition": false,
+      "parent_table": null,
+      "column_count": 4,
+      "primary_key": [
+        "outreach_activity_id",
+        "person_id"
+      ],
+      "foreign_key_count": 2,
+      "is_rls_enabled": false,
+      "access_classification": "ROLE_RESTRICTED",
+      "sensitivity": "INTERNAL_ANALYTICS"
+    },
+    {
+      "full_name": "admissions.enquiry",
+      "schema": "admissions",
+      "table_name": "enquiry",
+      "is_partition": false,
+      "parent_table": null,
+      "column_count": 17,
+      "primary_key": [
+        "enquiry_id"
+      ],
+      "foreign_key_count": 3,
+      "is_rls_enabled": false,
+      "access_classification": "ROLE_RESTRICTED",
+      "sensitivity": "INTERNAL_ANALYTICS"
+    },
+    {
+      "full_name": "admissions.enquiry_interaction",
+      "schema": "admissions",
+      "table_name": "enquiry_interaction",
+      "is_partition": false,
+      "parent_table": null,
+      "column_count": 8,
+      "primary_key": [
+        "enquiry_interaction_id"
+      ],
+      "foreign_key_count": 1,
+      "is_rls_enabled": false,
+      "access_classification": "ROLE_RESTRICTED",
+      "sensitivity": "INTERNAL_ANALYTICS"
+    },
+    {
+      "full_name": "admissions.cutoff_history",
+      "schema": "admissions",
+      "table_name": "cutoff_history",
+      "is_partition": false,
+      "parent_table": null,
+      "column_count": 10,
+      "primary_key": [
+        "cutoff_history_id"
+      ],
+      "foreign_key_count": 1,
+      "is_rls_enabled": false,
+      "access_classification": "ROLE_RESTRICTED",
+      "sensitivity": "INTERNAL_ANALYTICS"
+    },
+    {
+      "full_name": "admissions.application",
+      "schema": "admissions",
+      "table_name": "application",
+      "is_partition": false,
+      "parent_table": null,
+      "column_count": 21,
+      "primary_key": [
+        "application_id"
+      ],
+      "foreign_key_count": 4,
+      "is_rls_enabled": false,
+      "access_classification": "ROLE_RESTRICTED",
+      "sensitivity": "INTERNAL_ANALYTICS"
+    },
+    {
+      "full_name": "admissions.application_document",
+      "schema": "admissions",
+      "table_name": "application_document",
+      "is_partition": false,
+      "parent_table": null,
+      "column_count": 13,
+      "primary_key": [
+        "application_document_id"
+      ],
+      "foreign_key_count": 2,
+      "is_rls_enabled": false,
+      "access_classification": "ROLE_RESTRICTED",
+      "sensitivity": "INTERNAL_ANALYTICS"
+    },
+    {
+      "full_name": "admissions.counselling_session",
+      "schema": "admissions",
+      "table_name": "counselling_session",
+      "is_partition": false,
+      "parent_table": null,
+      "column_count": 9,
+      "primary_key": [
+        "counselling_session_id"
+      ],
+      "foreign_key_count": 2,
+      "is_rls_enabled": false,
+      "access_classification": "ROLE_RESTRICTED",
+      "sensitivity": "INTERNAL_ANALYTICS"
+    },
+    {
+      "full_name": "admissions.seat_allotment",
+      "schema": "admissions",
+      "table_name": "seat_allotment",
+      "is_partition": false,
+      "parent_table": null,
+      "column_count": 6,
+      "primary_key": [
+        "seat_allotment_id"
+      ],
+      "foreign_key_count": 2,
+      "is_rls_enabled": false,
+      "access_classification": "ROLE_RESTRICTED",
+      "sensitivity": "INTERNAL_ANALYTICS"
+    },
+    {
+      "full_name": "admissions.enrolment",
+      "schema": "admissions",
+      "table_name": "enrolment",
+      "is_partition": false,
+      "parent_table": null,
+      "column_count": 5,
+      "primary_key": [
+        "enrolment_id"
+      ],
+      "foreign_key_count": 2,
+      "is_rls_enabled": false,
+      "access_classification": "ROLE_RESTRICTED",
+      "sensitivity": "INTERNAL_ANALYTICS"
+    },
+    {
+      "full_name": "finance.fee_head",
+      "schema": "finance",
+      "table_name": "fee_head",
+      "is_partition": false,
+      "parent_table": null,
+      "column_count": 7,
+      "primary_key": [
+        "fee_head_id"
+      ],
+      "foreign_key_count": 1,
+      "is_rls_enabled": false,
+      "access_classification": "ROLE_RESTRICTED",
+      "sensitivity": "SENSITIVE"
+    },
+    {
+      "full_name": "finance.fee_structure",
+      "schema": "finance",
+      "table_name": "fee_structure",
+      "is_partition": false,
+      "parent_table": null,
+      "column_count": 10,
+      "primary_key": [
+        "fee_structure_id"
+      ],
+      "foreign_key_count": 3,
+      "is_rls_enabled": false,
+      "access_classification": "ROLE_RESTRICTED",
+      "sensitivity": "SENSITIVE"
+    },
+    {
+      "full_name": "finance.fee_structure_line",
+      "schema": "finance",
+      "table_name": "fee_structure_line",
+      "is_partition": false,
+      "parent_table": null,
+      "column_count": 3,
+      "primary_key": [
+        "fee_head_id",
+        "fee_structure_id"
+      ],
+      "foreign_key_count": 2,
+      "is_rls_enabled": false,
+      "access_classification": "ROLE_RESTRICTED",
+      "sensitivity": "SENSITIVE"
+    },
+    {
+      "full_name": "finance.fee_demand",
+      "schema": "finance",
+      "table_name": "fee_demand",
+      "is_partition": false,
+      "parent_table": null,
+      "column_count": 12,
+      "primary_key": [
+        "fee_demand_id"
+      ],
+      "foreign_key_count": 3,
+      "is_rls_enabled": false,
+      "access_classification": "ROLE_RESTRICTED",
+      "sensitivity": "SENSITIVE"
+    },
+    {
+      "full_name": "finance.fee_demand_line",
+      "schema": "finance",
+      "table_name": "fee_demand_line",
+      "is_partition": false,
+      "parent_table": null,
+      "column_count": 7,
+      "primary_key": [
+        "fee_demand_line_id"
+      ],
+      "foreign_key_count": 2,
+      "is_rls_enabled": false,
+      "access_classification": "ROLE_RESTRICTED",
+      "sensitivity": "SENSITIVE"
+    },
+    {
+      "full_name": "finance.installment_plan",
+      "schema": "finance",
+      "table_name": "installment_plan",
+      "is_partition": false,
+      "parent_table": null,
+      "column_count": 7,
+      "primary_key": [
+        "installment_plan_id"
+      ],
+      "foreign_key_count": 2,
+      "is_rls_enabled": false,
+      "access_classification": "ROLE_RESTRICTED",
+      "sensitivity": "SENSITIVE"
+    },
+    {
+      "full_name": "finance.payment",
+      "schema": "finance",
+      "table_name": "payment",
+      "is_partition": false,
+      "parent_table": null,
+      "column_count": 11,
+      "primary_key": [
+        "payment_id"
+      ],
+      "foreign_key_count": 1,
+      "is_rls_enabled": false,
+      "access_classification": "ROLE_RESTRICTED",
+      "sensitivity": "SENSITIVE"
+    },
+    {
+      "full_name": "finance.payment_allocation",
+      "schema": "finance",
+      "table_name": "payment_allocation",
+      "is_partition": false,
+      "parent_table": null,
+      "column_count": 3,
+      "primary_key": [
+        "fee_demand_line_id",
+        "payment_id"
+      ],
+      "foreign_key_count": 2,
+      "is_rls_enabled": false,
+      "access_classification": "ROLE_RESTRICTED",
+      "sensitivity": "SENSITIVE"
+    },
+    {
+      "full_name": "finance.refund",
+      "schema": "finance",
+      "table_name": "refund",
+      "is_partition": false,
+      "parent_table": null,
+      "column_count": 10,
+      "primary_key": [
+        "refund_id"
+      ],
+      "foreign_key_count": 2,
+      "is_rls_enabled": false,
+      "access_classification": "ROLE_RESTRICTED",
+      "sensitivity": "SENSITIVE"
+    },
+    {
+      "full_name": "finance.reminder_dispatch",
+      "schema": "finance",
+      "table_name": "reminder_dispatch",
+      "is_partition": false,
+      "parent_table": null,
+      "column_count": 12,
+      "primary_key": [
+        "reminder_dispatch_id"
+      ],
+      "foreign_key_count": 2,
+      "is_rls_enabled": false,
+      "access_classification": "ROLE_RESTRICTED",
+      "sensitivity": "SENSITIVE"
+    },
+    {
+      "full_name": "finance.scholarship_scheme",
+      "schema": "finance",
+      "table_name": "scholarship_scheme",
+      "is_partition": false,
+      "parent_table": null,
+      "column_count": 15,
+      "primary_key": [
+        "scholarship_scheme_id"
+      ],
+      "foreign_key_count": 1,
+      "is_rls_enabled": false,
+      "access_classification": "ROLE_RESTRICTED",
+      "sensitivity": "SENSITIVE"
+    },
+    {
+      "full_name": "finance.scholarship_eligibility",
+      "schema": "finance",
+      "table_name": "scholarship_eligibility",
+      "is_partition": false,
+      "parent_table": null,
+      "column_count": 7,
+      "primary_key": [
+        "scholarship_eligibility_id"
+      ],
+      "foreign_key_count": 2,
+      "is_rls_enabled": false,
+      "access_classification": "ROLE_RESTRICTED",
+      "sensitivity": "SENSITIVE"
+    },
+    {
+      "full_name": "finance.scholarship_application",
+      "schema": "finance",
+      "table_name": "scholarship_application",
+      "is_partition": false,
+      "parent_table": null,
+      "column_count": 12,
+      "primary_key": [
+        "scholarship_application_id"
+      ],
+      "foreign_key_count": 4,
+      "is_rls_enabled": false,
+      "access_classification": "ROLE_RESTRICTED",
+      "sensitivity": "SENSITIVE"
+    },
+    {
+      "full_name": "finance.scholarship_renewal_risk",
+      "schema": "finance",
+      "table_name": "scholarship_renewal_risk",
+      "is_partition": false,
+      "parent_table": null,
+      "column_count": 8,
+      "primary_key": [
+        "scholarship_renewal_risk_id"
+      ],
+      "foreign_key_count": 1,
+      "is_rls_enabled": false,
+      "access_classification": "ROLE_RESTRICTED",
+      "sensitivity": "SENSITIVE"
+    },
+    {
+      "full_name": "finance.loan_document_request",
+      "schema": "finance",
+      "table_name": "loan_document_request",
+      "is_partition": false,
+      "parent_table": null,
+      "column_count": 11,
+      "primary_key": [
+        "loan_document_request_id"
+      ],
+      "foreign_key_count": 2,
+      "is_rls_enabled": false,
+      "access_classification": "ROLE_RESTRICTED",
+      "sensitivity": "SENSITIVE"
+    },
+    {
+      "full_name": "studentlife.mentorship",
+      "schema": "studentlife",
+      "table_name": "mentorship",
+      "is_partition": false,
+      "parent_table": null,
+      "column_count": 7,
+      "primary_key": [
+        "mentorship_id"
+      ],
+      "foreign_key_count": 2,
+      "is_rls_enabled": false,
+      "access_classification": "ROLE_RESTRICTED",
+      "sensitivity": "INTERNAL_ANALYTICS"
+    },
+    {
+      "full_name": "studentlife.mentor_meeting",
+      "schema": "studentlife",
+      "table_name": "mentor_meeting",
+      "is_partition": false,
+      "parent_table": null,
+      "column_count": 12,
+      "primary_key": [
+        "mentor_meeting_id"
+      ],
+      "foreign_key_count": 1,
+      "is_rls_enabled": false,
+      "access_classification": "ROLE_RESTRICTED",
+      "sensitivity": "INTERNAL_ANALYTICS"
+    },
+    {
+      "full_name": "studentlife.action_item",
+      "schema": "studentlife",
+      "table_name": "action_item",
+      "is_partition": false,
+      "parent_table": null,
+      "column_count": 11,
+      "primary_key": [
+        "action_item_id"
+      ],
+      "foreign_key_count": 1,
+      "is_rls_enabled": false,
+      "access_classification": "ROLE_RESTRICTED",
+      "sensitivity": "INTERNAL_ANALYTICS"
+    },
+    {
+      "full_name": "studentlife.grievance",
+      "schema": "studentlife",
+      "table_name": "grievance",
+      "is_partition": false,
+      "parent_table": null,
+      "column_count": 17,
+      "primary_key": [
+        "grievance_id"
+      ],
+      "foreign_key_count": 2,
+      "is_rls_enabled": false,
+      "access_classification": "ROLE_RESTRICTED",
+      "sensitivity": "SENSITIVE"
+    },
+    {
+      "full_name": "studentlife.grievance_event",
+      "schema": "studentlife",
+      "table_name": "grievance_event",
+      "is_partition": false,
+      "parent_table": null,
+      "column_count": 6,
+      "primary_key": [
+        "grievance_event_id"
+      ],
+      "foreign_key_count": 2,
+      "is_rls_enabled": false,
+      "access_classification": "ROLE_RESTRICTED",
+      "sensitivity": "INTERNAL_ANALYTICS"
+    },
+    {
+      "full_name": "studentlife.disciplinary_case",
+      "schema": "studentlife",
+      "table_name": "disciplinary_case",
+      "is_partition": false,
+      "parent_table": null,
+      "column_count": 15,
+      "primary_key": [
+        "disciplinary_case_id"
+      ],
+      "foreign_key_count": 2,
+      "is_rls_enabled": true,
+      "access_classification": "ROLE_RESTRICTED",
+      "sensitivity": "SENSITIVE"
+    },
+    {
+      "full_name": "studentlife.disciplinary_step",
+      "schema": "studentlife",
+      "table_name": "disciplinary_step",
+      "is_partition": false,
+      "parent_table": null,
+      "column_count": 8,
+      "primary_key": [
+        "disciplinary_step_id"
+      ],
+      "foreign_key_count": 1,
+      "is_rls_enabled": false,
+      "access_classification": "ROLE_RESTRICTED",
+      "sensitivity": "INTERNAL_ANALYTICS"
+    },
+    {
+      "full_name": "studentlife.achievement",
+      "schema": "studentlife",
+      "table_name": "achievement",
+      "is_partition": false,
+      "parent_table": null,
+      "column_count": 14,
+      "primary_key": [
+        "achievement_id"
+      ],
+      "foreign_key_count": 2,
+      "is_rls_enabled": false,
+      "access_classification": "ROLE_RESTRICTED",
+      "sensitivity": "INTERNAL_ANALYTICS"
+    },
+    {
+      "full_name": "studentlife.certification_catalog",
+      "schema": "studentlife",
+      "table_name": "certification_catalog",
+      "is_partition": false,
+      "parent_table": null,
+      "column_count": 11,
+      "primary_key": [
+        "certification_catalog_id"
+      ],
+      "foreign_key_count": 0,
+      "is_rls_enabled": false,
+      "access_classification": "ROLE_RESTRICTED",
+      "sensitivity": "INTERNAL_ANALYTICS"
+    },
+    {
+      "full_name": "studentlife.student_certification",
+      "schema": "studentlife",
+      "table_name": "student_certification",
+      "is_partition": false,
+      "parent_table": null,
+      "column_count": 13,
+      "primary_key": [
+        "student_certification_id"
+      ],
+      "foreign_key_count": 3,
+      "is_rls_enabled": false,
+      "access_classification": "ROLE_RESTRICTED",
+      "sensitivity": "INTERNAL_ANALYTICS"
+    },
+    {
+      "full_name": "confidential.counselling_case",
+      "schema": "confidential",
+      "table_name": "counselling_case",
+      "is_partition": false,
+      "parent_table": null,
+      "column_count": 9,
+      "primary_key": [
+        "counselling_case_id"
+      ],
+      "foreign_key_count": 3,
+      "is_rls_enabled": true,
+      "access_classification": "DENY_GENERAL_ANALYTICS",
+      "sensitivity": "HIGHLY_SENSITIVE"
+    },
+    {
+      "full_name": "confidential.counselling_note",
+      "schema": "confidential",
+      "table_name": "counselling_note",
+      "is_partition": false,
+      "parent_table": null,
+      "column_count": 6,
+      "primary_key": [
+        "counselling_note_id"
+      ],
+      "foreign_key_count": 2,
+      "is_rls_enabled": true,
+      "access_classification": "DENY_GENERAL_ANALYTICS",
+      "sensitivity": "HIGHLY_SENSITIVE"
+    },
+    {
+      "full_name": "confidential.crisis_escalation",
+      "schema": "confidential",
+      "table_name": "crisis_escalation",
+      "is_partition": false,
+      "parent_table": null,
+      "column_count": 10,
+      "primary_key": [
+        "crisis_escalation_id"
+      ],
+      "foreign_key_count": 3,
+      "is_rls_enabled": false,
+      "access_classification": "DENY_GENERAL_ANALYTICS",
+      "sensitivity": "HIGHLY_SENSITIVE"
+    },
+    {
+      "full_name": "confidential.academic_accommodation",
+      "schema": "confidential",
+      "table_name": "academic_accommodation",
+      "is_partition": false,
+      "parent_table": null,
+      "column_count": 8,
+      "primary_key": [
+        "academic_accommodation_id"
+      ],
+      "foreign_key_count": 3,
+      "is_rls_enabled": false,
+      "access_classification": "DENY_GENERAL_ANALYTICS",
+      "sensitivity": "HIGHLY_SENSITIVE"
+    },
+    {
+      "full_name": "placement.company",
+      "schema": "placement",
+      "table_name": "company",
+      "is_partition": false,
+      "parent_table": null,
+      "column_count": 11,
+      "primary_key": [
+        "company_id"
+      ],
+      "foreign_key_count": 3,
+      "is_rls_enabled": false,
+      "access_classification": "ALLOW_WITH_ROLE_SCOPE",
+      "sensitivity": "INTERNAL_ANALYTICS"
+    },
+    {
+      "full_name": "placement.job_opening",
+      "schema": "placement",
+      "table_name": "job_opening",
+      "is_partition": false,
+      "parent_table": null,
+      "column_count": 16,
+      "primary_key": [
+        "job_opening_id"
+      ],
+      "foreign_key_count": 2,
+      "is_rls_enabled": false,
+      "access_classification": "ALLOW_WITH_ROLE_SCOPE",
+      "sensitivity": "INTERNAL_ANALYTICS"
+    },
+    {
+      "full_name": "placement.drive_application",
+      "schema": "placement",
+      "table_name": "drive_application",
+      "is_partition": false,
+      "parent_table": null,
+      "column_count": 8,
+      "primary_key": [
+        "drive_application_id"
+      ],
+      "foreign_key_count": 2,
+      "is_rls_enabled": false,
+      "access_classification": "ALLOW_WITH_ROLE_SCOPE",
+      "sensitivity": "INTERNAL_ANALYTICS"
+    },
+    {
+      "full_name": "placement.offer",
+      "schema": "placement",
+      "table_name": "offer",
+      "is_partition": false,
+      "parent_table": null,
+      "column_count": 11,
+      "primary_key": [
+        "offer_id"
+      ],
+      "foreign_key_count": 3,
+      "is_rls_enabled": false,
+      "access_classification": "ALLOW_WITH_ROLE_SCOPE",
+      "sensitivity": "INTERNAL_ANALYTICS"
+    },
+    {
+      "full_name": "placement.readiness_assessment",
+      "schema": "placement",
+      "table_name": "readiness_assessment",
+      "is_partition": false,
+      "parent_table": null,
+      "column_count": 8,
+      "primary_key": [
+        "readiness_assessment_id"
+      ],
+      "foreign_key_count": 1,
+      "is_rls_enabled": false,
+      "access_classification": "ALLOW_WITH_ROLE_SCOPE",
+      "sensitivity": "INTERNAL_ANALYTICS"
+    },
+    {
+      "full_name": "placement.readiness_summary",
+      "schema": "placement",
+      "table_name": "readiness_summary",
+      "is_partition": false,
+      "parent_table": null,
+      "column_count": 8,
+      "primary_key": [
+        "readiness_summary_id"
+      ],
+      "foreign_key_count": 1,
+      "is_rls_enabled": false,
+      "access_classification": "ALLOW_WITH_ROLE_SCOPE",
+      "sensitivity": "INTERNAL_ANALYTICS"
+    },
+    {
+      "full_name": "placement.internship",
+      "schema": "placement",
+      "table_name": "internship",
+      "is_partition": false,
+      "parent_table": null,
+      "column_count": 19,
+      "primary_key": [
+        "internship_id"
+      ],
+      "foreign_key_count": 5,
+      "is_rls_enabled": false,
+      "access_classification": "ALLOW_WITH_ROLE_SCOPE",
+      "sensitivity": "INTERNAL_ANALYTICS"
+    },
+    {
+      "full_name": "placement.internship_evaluation",
+      "schema": "placement",
+      "table_name": "internship_evaluation",
+      "is_partition": false,
+      "parent_table": null,
+      "column_count": 9,
+      "primary_key": [
+        "internship_evaluation_id"
+      ],
+      "foreign_key_count": 1,
+      "is_rls_enabled": false,
+      "access_classification": "ALLOW_WITH_ROLE_SCOPE",
+      "sensitivity": "INTERNAL_ANALYTICS"
+    },
+    {
+      "full_name": "placement.alumni",
+      "schema": "placement",
+      "table_name": "alumni",
+      "is_partition": false,
+      "parent_table": null,
+      "column_count": 17,
+      "primary_key": [
+        "alumni_id"
+      ],
+      "foreign_key_count": 3,
+      "is_rls_enabled": false,
+      "access_classification": "ALLOW_WITH_ROLE_SCOPE",
+      "sensitivity": "INTERNAL_ANALYTICS"
+    },
+    {
+      "full_name": "placement.alumni_contribution",
+      "schema": "placement",
+      "table_name": "alumni_contribution",
+      "is_partition": false,
+      "parent_table": null,
+      "column_count": 7,
+      "primary_key": [
+        "alumni_contribution_id"
+      ],
+      "foreign_key_count": 1,
+      "is_rls_enabled": false,
+      "access_classification": "ALLOW_WITH_ROLE_SCOPE",
+      "sensitivity": "INTERNAL_ANALYTICS"
+    },
+    {
+      "full_name": "hr.workload_norm",
+      "schema": "hr",
+      "table_name": "workload_norm",
+      "is_partition": false,
+      "parent_table": null,
+      "column_count": 9,
+      "primary_key": [
+        "workload_norm_id"
+      ],
+      "foreign_key_count": 1,
+      "is_rls_enabled": false,
+      "access_classification": "ROLE_RESTRICTED",
+      "sensitivity": "SENSITIVE"
+    },
+    {
+      "full_name": "hr.admin_role_assignment",
+      "schema": "hr",
+      "table_name": "admin_role_assignment",
+      "is_partition": false,
+      "parent_table": null,
+      "column_count": 7,
+      "primary_key": [
+        "admin_role_assignment_id"
+      ],
+      "foreign_key_count": 1,
+      "is_rls_enabled": false,
+      "access_classification": "ROLE_RESTRICTED",
+      "sensitivity": "SENSITIVE"
+    },
+    {
+      "full_name": "hr.faculty_workload",
+      "schema": "hr",
+      "table_name": "faculty_workload",
+      "is_partition": false,
+      "parent_table": null,
+      "column_count": 14,
+      "primary_key": [
+        "faculty_workload_id"
+      ],
+      "foreign_key_count": 2,
+      "is_rls_enabled": false,
+      "access_classification": "ROLE_RESTRICTED",
+      "sensitivity": "SENSITIVE"
+    },
+    {
+      "full_name": "hr.appraisal_cycle",
+      "schema": "hr",
+      "table_name": "appraisal_cycle",
+      "is_partition": false,
+      "parent_table": null,
+      "column_count": 8,
+      "primary_key": [
+        "appraisal_cycle_id"
+      ],
+      "foreign_key_count": 2,
+      "is_rls_enabled": false,
+      "access_classification": "ROLE_RESTRICTED",
+      "sensitivity": "SENSITIVE"
+    },
+    {
+      "full_name": "hr.appraisal_record",
+      "schema": "hr",
+      "table_name": "appraisal_record",
+      "is_partition": false,
+      "parent_table": null,
+      "column_count": 14,
+      "primary_key": [
+        "appraisal_record_id"
+      ],
+      "foreign_key_count": 2,
+      "is_rls_enabled": false,
+      "access_classification": "ROLE_RESTRICTED",
+      "sensitivity": "SENSITIVE"
+    },
+    {
+      "full_name": "hr.development_plan",
+      "schema": "hr",
+      "table_name": "development_plan",
+      "is_partition": false,
+      "parent_table": null,
+      "column_count": 11,
+      "primary_key": [
+        "development_plan_id"
+      ],
+      "foreign_key_count": 3,
+      "is_rls_enabled": false,
+      "access_classification": "ROLE_RESTRICTED",
+      "sensitivity": "SENSITIVE"
+    },
+    {
+      "full_name": "hr.leave_type",
+      "schema": "hr",
+      "table_name": "leave_type",
+      "is_partition": false,
+      "parent_table": null,
+      "column_count": 8,
+      "primary_key": [
+        "leave_type_id"
+      ],
+      "foreign_key_count": 1,
+      "is_rls_enabled": false,
+      "access_classification": "ROLE_RESTRICTED",
+      "sensitivity": "SENSITIVE"
+    },
+    {
+      "full_name": "hr.leave_balance",
+      "schema": "hr",
+      "table_name": "leave_balance",
+      "is_partition": false,
+      "parent_table": null,
+      "column_count": 6,
+      "primary_key": [
+        "year",
+        "leave_type_id",
+        "faculty_id"
+      ],
+      "foreign_key_count": 2,
+      "is_rls_enabled": false,
+      "access_classification": "ROLE_RESTRICTED",
+      "sensitivity": "SENSITIVE"
+    },
+    {
+      "full_name": "hr.faculty_leave",
+      "schema": "hr",
+      "table_name": "faculty_leave",
+      "is_partition": false,
+      "parent_table": null,
+      "column_count": 13,
+      "primary_key": [
+        "faculty_leave_id"
+      ],
+      "foreign_key_count": 3,
+      "is_rls_enabled": false,
+      "access_classification": "ROLE_RESTRICTED",
+      "sensitivity": "SENSITIVE"
+    },
+    {
+      "full_name": "hr.class_substitution",
+      "schema": "hr",
+      "table_name": "class_substitution",
+      "is_partition": false,
+      "parent_table": null,
+      "column_count": 8,
+      "primary_key": [
+        "class_substitution_id"
+      ],
+      "foreign_key_count": 5,
+      "is_rls_enabled": false,
+      "access_classification": "ROLE_RESTRICTED",
+      "sensitivity": "SENSITIVE"
+    },
+    {
+      "full_name": "hr.faculty_attendance",
+      "schema": "hr",
+      "table_name": "faculty_attendance",
+      "is_partition": false,
+      "parent_table": null,
+      "column_count": 8,
+      "primary_key": [
+        "faculty_attendance_id"
+      ],
+      "foreign_key_count": 1,
+      "is_rls_enabled": false,
+      "access_classification": "ROLE_RESTRICTED",
+      "sensitivity": "SENSITIVE"
+    },
+    {
+      "full_name": "governance.policy_document",
+      "schema": "governance",
+      "table_name": "policy_document",
+      "is_partition": false,
+      "parent_table": null,
+      "column_count": 13,
+      "primary_key": [
+        "policy_document_id"
+      ],
+      "foreign_key_count": 3,
+      "is_rls_enabled": false,
+      "access_classification": "ROLE_RESTRICTED",
+      "sensitivity": "INTERNAL_ANALYTICS"
+    },
+    {
+      "full_name": "governance.policy_clause",
+      "schema": "governance",
+      "table_name": "policy_clause",
+      "is_partition": false,
+      "parent_table": null,
+      "column_count": 7,
+      "primary_key": [
+        "policy_clause_id"
+      ],
+      "foreign_key_count": 1,
+      "is_rls_enabled": false,
+      "access_classification": "ROLE_RESTRICTED",
+      "sensitivity": "INTERNAL_ANALYTICS"
+    },
+    {
+      "full_name": "governance.policy_conflict",
+      "schema": "governance",
+      "table_name": "policy_conflict",
+      "is_partition": false,
+      "parent_table": null,
+      "column_count": 7,
+      "primary_key": [
+        "policy_conflict_id"
+      ],
+      "foreign_key_count": 2,
+      "is_rls_enabled": false,
+      "access_classification": "ROLE_RESTRICTED",
+      "sensitivity": "INTERNAL_ANALYTICS"
+    },
+    {
+      "full_name": "governance.circular",
+      "schema": "governance",
+      "table_name": "circular",
+      "is_partition": false,
+      "parent_table": null,
+      "column_count": 15,
+      "primary_key": [
+        "circular_id"
+      ],
+      "foreign_key_count": 4,
+      "is_rls_enabled": false,
+      "access_classification": "ROLE_RESTRICTED",
+      "sensitivity": "INTERNAL_ANALYTICS"
+    },
+    {
+      "full_name": "governance.circular_recipient",
+      "schema": "governance",
+      "table_name": "circular_recipient",
+      "is_partition": false,
+      "parent_table": null,
+      "column_count": 6,
+      "primary_key": [
+        "circular_recipient_id"
+      ],
+      "foreign_key_count": 2,
+      "is_rls_enabled": false,
+      "access_classification": "ROLE_RESTRICTED",
+      "sensitivity": "INTERNAL_ANALYTICS"
+    },
+    {
+      "full_name": "governance.committee",
+      "schema": "governance",
+      "table_name": "committee",
+      "is_partition": false,
+      "parent_table": null,
+      "column_count": 13,
+      "primary_key": [
+        "committee_id"
+      ],
+      "foreign_key_count": 1,
+      "is_rls_enabled": false,
+      "access_classification": "ROLE_RESTRICTED",
+      "sensitivity": "INTERNAL_ANALYTICS"
+    },
+    {
+      "full_name": "governance.committee_member",
+      "schema": "governance",
+      "table_name": "committee_member",
+      "is_partition": false,
+      "parent_table": null,
+      "column_count": 9,
+      "primary_key": [
+        "committee_member_id"
+      ],
+      "foreign_key_count": 2,
+      "is_rls_enabled": false,
+      "access_classification": "ROLE_RESTRICTED",
+      "sensitivity": "INTERNAL_ANALYTICS"
+    },
+    {
+      "full_name": "governance.committee_compliance",
+      "schema": "governance",
+      "table_name": "committee_compliance",
+      "is_partition": false,
+      "parent_table": null,
+      "column_count": 8,
+      "primary_key": [
+        "committee_compliance_id"
+      ],
+      "foreign_key_count": 1,
+      "is_rls_enabled": false,
+      "access_classification": "ROLE_RESTRICTED",
+      "sensitivity": "INTERNAL_ANALYTICS"
+    },
+    {
+      "full_name": "governance.meeting",
+      "schema": "governance",
+      "table_name": "meeting",
+      "is_partition": false,
+      "parent_table": null,
+      "column_count": 11,
+      "primary_key": [
+        "meeting_id"
+      ],
+      "foreign_key_count": 1,
+      "is_rls_enabled": false,
+      "access_classification": "ROLE_RESTRICTED",
+      "sensitivity": "INTERNAL_ANALYTICS"
+    },
+    {
+      "full_name": "governance.meeting_attendance",
+      "schema": "governance",
+      "table_name": "meeting_attendance",
+      "is_partition": false,
+      "parent_table": null,
+      "column_count": 3,
+      "primary_key": [
+        "meeting_id",
+        "committee_member_id"
+      ],
+      "foreign_key_count": 2,
+      "is_rls_enabled": false,
+      "access_classification": "ROLE_RESTRICTED",
+      "sensitivity": "INTERNAL_ANALYTICS"
+    },
+    {
+      "full_name": "governance.meeting_item",
+      "schema": "governance",
+      "table_name": "meeting_item",
+      "is_partition": false,
+      "parent_table": null,
+      "column_count": 7,
+      "primary_key": [
+        "meeting_item_id"
+      ],
+      "foreign_key_count": 1,
+      "is_rls_enabled": false,
+      "access_classification": "ROLE_RESTRICTED",
+      "sensitivity": "INTERNAL_ANALYTICS"
+    },
+    {
+      "full_name": "governance.compliance_framework",
+      "schema": "governance",
+      "table_name": "compliance_framework",
+      "is_partition": false,
+      "parent_table": null,
+      "column_count": 5,
+      "primary_key": [
+        "compliance_framework_id"
+      ],
+      "foreign_key_count": 0,
+      "is_rls_enabled": false,
+      "access_classification": "ROLE_RESTRICTED",
+      "sensitivity": "INTERNAL_ANALYTICS"
+    },
+    {
+      "full_name": "governance.compliance_requirement",
+      "schema": "governance",
+      "table_name": "compliance_requirement",
+      "is_partition": false,
+      "parent_table": null,
+      "column_count": 10,
+      "primary_key": [
+        "compliance_requirement_id"
+      ],
+      "foreign_key_count": 1,
+      "is_rls_enabled": false,
+      "access_classification": "ROLE_RESTRICTED",
+      "sensitivity": "INTERNAL_ANALYTICS"
+    },
+    {
+      "full_name": "governance.compliance_check",
+      "schema": "governance",
+      "table_name": "compliance_check",
+      "is_partition": false,
+      "parent_table": null,
+      "column_count": 10,
+      "primary_key": [
+        "compliance_check_id"
+      ],
+      "foreign_key_count": 2,
+      "is_rls_enabled": false,
+      "access_classification": "ROLE_RESTRICTED",
+      "sensitivity": "INTERNAL_ANALYTICS"
+    },
+    {
+      "full_name": "quality.kpi_definition",
+      "schema": "quality",
+      "table_name": "kpi_definition",
+      "is_partition": false,
+      "parent_table": null,
+      "column_count": 16,
+      "primary_key": [
+        "kpi_definition_id"
+      ],
+      "foreign_key_count": 2,
+      "is_rls_enabled": false,
+      "access_classification": "ALLOW",
+      "sensitivity": "PUBLIC_ANALYTICS"
+    },
+    {
+      "full_name": "quality.kpi_value",
+      "schema": "quality",
+      "table_name": "kpi_value",
+      "is_partition": false,
+      "parent_table": null,
+      "column_count": 16,
+      "primary_key": [
+        "kpi_value_id"
+      ],
+      "foreign_key_count": 2,
+      "is_rls_enabled": false,
+      "access_classification": "ALLOW_WITH_ROLE_SCOPE",
+      "sensitivity": "INTERNAL_ANALYTICS"
+    },
+    {
+      "full_name": "quality.accreditation_criterion",
+      "schema": "quality",
+      "table_name": "accreditation_criterion",
+      "is_partition": false,
+      "parent_table": null,
+      "column_count": 8,
+      "primary_key": [
+        "accreditation_criterion_id"
+      ],
+      "foreign_key_count": 3,
+      "is_rls_enabled": false,
+      "access_classification": "ALLOW_WITH_ROLE_SCOPE",
+      "sensitivity": "INTERNAL_ANALYTICS"
+    },
+    {
+      "full_name": "quality.evidence_item",
+      "schema": "quality",
+      "table_name": "evidence_item",
+      "is_partition": false,
+      "parent_table": null,
+      "column_count": 15,
+      "primary_key": [
+        "evidence_item_id"
+      ],
+      "foreign_key_count": 2,
+      "is_rls_enabled": false,
+      "access_classification": "ALLOW_WITH_ROLE_SCOPE",
+      "sensitivity": "INTERNAL_ANALYTICS"
+    },
+    {
+      "full_name": "quality.criterion_readiness",
+      "schema": "quality",
+      "table_name": "criterion_readiness",
+      "is_partition": false,
+      "parent_table": null,
+      "column_count": 10,
+      "primary_key": [
+        "criterion_readiness_id"
+      ],
+      "foreign_key_count": 2,
+      "is_rls_enabled": false,
+      "access_classification": "ALLOW_WITH_ROLE_SCOPE",
+      "sensitivity": "INTERNAL_ANALYTICS"
+    },
+    {
+      "full_name": "quality.feedback_instrument",
+      "schema": "quality",
+      "table_name": "feedback_instrument",
+      "is_partition": false,
+      "parent_table": null,
+      "column_count": 11,
+      "primary_key": [
+        "feedback_instrument_id"
+      ],
+      "foreign_key_count": 2,
+      "is_rls_enabled": false,
+      "access_classification": "ALLOW_WITH_ROLE_SCOPE",
+      "sensitivity": "INTERNAL_ANALYTICS"
+    },
+    {
+      "full_name": "quality.feedback_response",
+      "schema": "quality",
+      "table_name": "feedback_response",
+      "is_partition": false,
+      "parent_table": null,
+      "column_count": 7,
+      "primary_key": [
+        "feedback_response_id"
+      ],
+      "foreign_key_count": 1,
+      "is_rls_enabled": false,
+      "access_classification": "ALLOW_WITH_ROLE_SCOPE",
+      "sensitivity": "INTERNAL_ANALYTICS"
+    },
+    {
+      "full_name": "knowledge.document",
+      "schema": "knowledge",
+      "table_name": "document",
+      "is_partition": false,
+      "parent_table": null,
+      "column_count": 18,
+      "primary_key": [
+        "document_id"
+      ],
+      "foreign_key_count": 3,
+      "is_rls_enabled": false,
+      "access_classification": "ROLE_RESTRICTED",
+      "sensitivity": "INTERNAL_ANALYTICS"
+    },
+    {
+      "full_name": "knowledge.document_chunk",
+      "schema": "knowledge",
+      "table_name": "document_chunk",
+      "is_partition": false,
+      "parent_table": null,
+      "column_count": 7,
+      "primary_key": [
+        "document_chunk_id"
+      ],
+      "foreign_key_count": 1,
+      "is_rls_enabled": false,
+      "access_classification": "ROLE_RESTRICTED",
+      "sensitivity": "INTERNAL_ANALYTICS"
+    },
+    {
+      "full_name": "knowledge.chunk_embedding",
+      "schema": "knowledge",
+      "table_name": "chunk_embedding",
+      "is_partition": false,
+      "parent_table": null,
+      "column_count": 6,
+      "primary_key": [
+        "chunk_embedding_id"
+      ],
+      "foreign_key_count": 1,
+      "is_rls_enabled": false,
+      "access_classification": "ROLE_RESTRICTED",
+      "sensitivity": "INTERNAL_ANALYTICS"
+    },
+    {
+      "full_name": "knowledge.extraction_job",
+      "schema": "knowledge",
+      "table_name": "extraction_job",
+      "is_partition": false,
+      "parent_table": null,
+      "column_count": 9,
+      "primary_key": [
+        "extraction_job_id"
+      ],
+      "foreign_key_count": 1,
+      "is_rls_enabled": false,
+      "access_classification": "ROLE_RESTRICTED",
+      "sensitivity": "INTERNAL_ANALYTICS"
+    },
+    {
+      "full_name": "knowledge.extracted_field",
+      "schema": "knowledge",
+      "table_name": "extracted_field",
+      "is_partition": false,
+      "parent_table": null,
+      "column_count": 12,
+      "primary_key": [
+        "extracted_field_id"
+      ],
+      "foreign_key_count": 2,
+      "is_rls_enabled": false,
+      "access_classification": "ROLE_RESTRICTED",
+      "sensitivity": "INTERNAL_ANALYTICS"
+    },
+    {
+      "full_name": "agentops.agent",
+      "schema": "agentops",
+      "table_name": "agent",
+      "is_partition": false,
+      "parent_table": null,
+      "column_count": 15,
+      "primary_key": [
+        "agent_id"
+      ],
+      "foreign_key_count": 1,
+      "is_rls_enabled": false,
+      "access_classification": "ROLE_RESTRICTED",
+      "sensitivity": "INTERNAL_ANALYTICS"
+    },
+    {
+      "full_name": "agentops.agent_tool",
+      "schema": "agentops",
+      "table_name": "agent_tool",
+      "is_partition": false,
+      "parent_table": null,
+      "column_count": 7,
+      "primary_key": [
+        "agent_tool_id"
+      ],
+      "foreign_key_count": 1,
+      "is_rls_enabled": false,
+      "access_classification": "ROLE_RESTRICTED",
+      "sensitivity": "INTERNAL_ANALYTICS"
+    },
+    {
+      "full_name": "agentops.agent_run",
+      "schema": "agentops",
+      "table_name": "agent_run",
+      "is_partition": false,
+      "parent_table": null,
+      "column_count": 17,
+      "primary_key": [
+        "agent_run_id"
+      ],
+      "foreign_key_count": 4,
+      "is_rls_enabled": false,
+      "access_classification": "ROLE_RESTRICTED",
+      "sensitivity": "INTERNAL_ANALYTICS"
+    },
+    {
+      "full_name": "agentops.agent_run_input",
+      "schema": "agentops",
+      "table_name": "agent_run_input",
+      "is_partition": false,
+      "parent_table": null,
+      "column_count": 7,
+      "primary_key": [
+        "agent_run_input_id"
+      ],
+      "foreign_key_count": 1,
+      "is_rls_enabled": false,
+      "access_classification": "ROLE_RESTRICTED",
+      "sensitivity": "INTERNAL_ANALYTICS"
+    },
+    {
+      "full_name": "agentops.agent_output",
+      "schema": "agentops",
+      "table_name": "agent_output",
+      "is_partition": false,
+      "parent_table": null,
+      "column_count": 13,
+      "primary_key": [
+        "agent_output_id"
+      ],
+      "foreign_key_count": 1,
+      "is_rls_enabled": false,
+      "access_classification": "ROLE_RESTRICTED",
+      "sensitivity": "INTERNAL_ANALYTICS"
+    },
+    {
+      "full_name": "agentops.human_review",
+      "schema": "agentops",
+      "table_name": "human_review",
+      "is_partition": false,
+      "parent_table": null,
+      "column_count": 9,
+      "primary_key": [
+        "human_review_id"
+      ],
+      "foreign_key_count": 2,
+      "is_rls_enabled": false,
+      "access_classification": "ROLE_RESTRICTED",
+      "sensitivity": "INTERNAL_ANALYTICS"
+    },
+    {
+      "full_name": "agentops.agent_feedback",
+      "schema": "agentops",
+      "table_name": "agent_feedback",
+      "is_partition": false,
+      "parent_table": null,
+      "column_count": 7,
+      "primary_key": [
+        "agent_feedback_id"
+      ],
+      "foreign_key_count": 3,
+      "is_rls_enabled": false,
+      "access_classification": "ROLE_RESTRICTED",
+      "sensitivity": "INTERNAL_ANALYTICS"
+    },
+    {
+      "full_name": "agentops.risk_flag",
+      "schema": "agentops",
+      "table_name": "risk_flag",
+      "is_partition": false,
+      "parent_table": null,
+      "column_count": 22,
+      "primary_key": [
+        "risk_flag_id"
+      ],
+      "foreign_key_count": 6,
+      "is_rls_enabled": true,
+      "access_classification": "ROLE_RESTRICTED",
+      "sensitivity": "INTERNAL_ANALYTICS"
+    },
+    {
+      "full_name": "agentops.intervention",
+      "schema": "agentops",
+      "table_name": "intervention",
+      "is_partition": false,
+      "parent_table": null,
+      "column_count": 13,
+      "primary_key": [
+        "intervention_id"
+      ],
+      "foreign_key_count": 5,
+      "is_rls_enabled": false,
+      "access_classification": "ROLE_RESTRICTED",
+      "sensitivity": "INTERNAL_ANALYTICS"
+    },
+    {
+      "full_name": "agentops.intervention_participant",
+      "schema": "agentops",
+      "table_name": "intervention_participant",
+      "is_partition": false,
+      "parent_table": null,
+      "column_count": 3,
+      "primary_key": [
+        "student_id",
+        "intervention_id"
+      ],
+      "foreign_key_count": 2,
+      "is_rls_enabled": false,
+      "access_classification": "ROLE_RESTRICTED",
+      "sensitivity": "INTERNAL_ANALYTICS"
+    },
+    {
+      "full_name": "agentops.intervention_outcome",
+      "schema": "agentops",
+      "table_name": "intervention_outcome",
+      "is_partition": false,
+      "parent_table": null,
+      "column_count": 10,
+      "primary_key": [
+        "intervention_outcome_id"
+      ],
+      "foreign_key_count": 1,
+      "is_rls_enabled": false,
+      "access_classification": "ROLE_RESTRICTED",
+      "sensitivity": "INTERNAL_ANALYTICS"
+    },
+    {
+      "full_name": "agentops.alert",
+      "schema": "agentops",
+      "table_name": "alert",
+      "is_partition": false,
+      "parent_table": null,
+      "column_count": 14,
+      "primary_key": [
+        "alert_id"
+      ],
+      "foreign_key_count": 4,
+      "is_rls_enabled": false,
+      "access_classification": "ROLE_RESTRICTED",
+      "sensitivity": "INTERNAL_ANALYTICS"
+    },
+    {
+      "full_name": "agentops.model_version",
+      "schema": "agentops",
+      "table_name": "model_version",
+      "is_partition": false,
+      "parent_table": null,
+      "column_count": 16,
+      "primary_key": [
+        "model_version_id"
+      ],
+      "foreign_key_count": 2,
+      "is_rls_enabled": false,
+      "access_classification": "ROLE_RESTRICTED",
+      "sensitivity": "INTERNAL_ANALYTICS"
+    },
+    {
+      "full_name": "agentops.fairness_audit",
+      "schema": "agentops",
+      "table_name": "fairness_audit",
+      "is_partition": false,
+      "parent_table": null,
+      "column_count": 15,
+      "primary_key": [
+        "fairness_audit_id"
+      ],
+      "foreign_key_count": 3,
+      "is_rls_enabled": false,
+      "access_classification": "ROLE_RESTRICTED",
+      "sensitivity": "INTERNAL_ANALYTICS"
+    },
+    {
+      "full_name": "agentops.agent_incident",
+      "schema": "agentops",
+      "table_name": "agent_incident",
+      "is_partition": false,
+      "parent_table": null,
+      "column_count": 14,
+      "primary_key": [
+        "agent_incident_id"
+      ],
+      "foreign_key_count": 3,
+      "is_rls_enabled": false,
+      "access_classification": "ROLE_RESTRICTED",
+      "sensitivity": "INTERNAL_ANALYTICS"
+    },
+    {
+      "full_name": "agentops.schedule",
+      "schema": "agentops",
+      "table_name": "schedule",
+      "is_partition": false,
+      "parent_table": null,
+      "column_count": 9,
+      "primary_key": [
+        "schedule_id"
+      ],
+      "foreign_key_count": 2,
+      "is_rls_enabled": false,
+      "access_classification": "ROLE_RESTRICTED",
+      "sensitivity": "INTERNAL_ANALYTICS"
+    }
+  ],
+  "views": [
+    {
+      "view_name": "hr.faculty_leave_public",
+      "schema": "hr",
+      "name": "faculty_leave_public",
+      "access": "ROLE_RESTRICTED",
+      "referenced_tables": [
+        "hr.faculty_leave"
+      ],
+      "query_summary": "SELECT faculty_leave_id, faculty_id, leave_type_id, from_date, to_date, days,        substitution_arranged, status, approved_at,        NULL::text AS reason_restricted FROM hr.faculty_leave..."
+    },
+    {
+      "view_name": "academics.v_offering_roster",
+      "schema": "academics",
+      "name": "v_offering_roster",
+      "access": "ALLOW_WITH_ROLE_SCOPE",
+      "referenced_tables": [
+        "academics.course_offering",
+        "academics.student_registration",
+        "b.batch_id",
+        "b.label",
+        "b.programme_id",
+        "c.course_id",
+        "c.title",
+        "co.course_offering_id",
+        "co.course_version_id",
+        "co.department_id",
+        "co.section_id",
+        "co.term_id",
+        "core.department",
+        "core.term",
+        "curriculum.batch",
+        "curriculum.course",
+        "curriculum.course_version",
+        "curriculum.programme",
+        "curriculum.section",
+        "cv.course_code",
+        "cv.course_id",
+        "cv.course_type",
+        "cv.course_version_id",
+        "cv.credits",
+        "d.code",
+        "d.department_id",
+        "p.code",
+        "p.programme_id",
+        "people.person",
+        "people.student",
+        "per.full_name",
+        "per.person_id",
+        "s.person_id",
+        "s.roll_no",
+        "s.student_id",
+        "sec.batch_id",
+        "sec.code",
+        "sec.section_id",
+        "sr.attempt_no",
+        "sr.course_offering_id",
+        "sr.registration_type",
+        "sr.status",
+        "sr.student_id",
+        "t.label",
+        "t.term_id"
+      ],
+      "query_summary": "SELECT co.course_offering_id, co.term_id, t.label AS term_label,        cv.course_code, c.title AS course_title, cv.credits, cv.course_type,        sec.code AS section_code, b.label AS batch_label, p.code AS programme_code,        d.code AS departmen..."
+    },
+    {
+      "view_name": "attendance.v_current_attendance",
+      "schema": "attendance",
+      "name": "v_current_attendance",
+      "access": "ALLOW_WITH_ROLE_SCOPE",
+      "referenced_tables": [
+        "attendance.attendance_summary"
+      ],
+      "query_summary": "SELECT DISTINCT ON (student_id, course_offering_id, term_id)        student_id, course_offering_id, term_id, as_of_date,        classes_held, classes_attended, raw_pct, adjusted_pct,        trend_slope, projected_end_pct, band, risk_level FROM attend..."
+    },
+    {
+      "view_name": "assessment.v_course_performance",
+      "schema": "assessment",
+      "name": "v_course_performance",
+      "access": "ALLOW_WITH_ROLE_SCOPE",
+      "referenced_tables": [
+        "100.0",
+        "academics.course_offering",
+        "assessment.course_result",
+        "c.course_id",
+        "c.title",
+        "co.course_offering_id",
+        "co.department_id",
+        "co.section_id",
+        "cr.course_offering_id",
+        "cr.course_version_id",
+        "cr.exam_type",
+        "cr.external_marks",
+        "cr.internal_marks",
+        "cr.result_status",
+        "cr.term_id",
+        "cr.total_marks",
+        "curriculum.course",
+        "curriculum.course_version",
+        "cv.course_code",
+        "cv.course_id",
+        "cv.course_version_id"
+      ],
+      "query_summary": "SELECT cr.course_version_id, cv.course_code, c.title AS course_title,        cr.term_id, co.course_offering_id, co.section_id, co.department_id,        count(*) AS students_appeared,        count(*) FILTER (WHERE cr.result_status = 'PASS') AS passed,..."
+    },
+    {
+      "view_name": "outcomes.v_attainment_trace",
+      "schema": "outcomes",
+      "name": "v_attainment_trace",
+      "access": "ALLOW_WITH_ROLE_SCOPE",
+      "referenced_tables": [
+        "academics.course_offering",
+        "ar.attainment_run_id",
+        "ar.course_offering_id",
+        "ar.run_at",
+        "ar.status",
+        "coa.attaining_pct",
+        "coa.attainment_run_id",
+        "coa.contributing_questions",
+        "coa.course_outcome_id",
+        "coa.direct_level",
+        "coa.final_level",
+        "coa.indirect_level",
+        "coa.students_evaluated",
+        "cofr.course_offering_id",
+        "cofr.course_version_id",
+        "cofr.term_id",
+        "core.term",
+        "cpm.course_outcome_id",
+        "cpm.programme_outcome_id",
+        "cpm.strength",
+        "curriculum.co_po_map",
+        "curriculum.course_outcome",
+        "curriculum.course_version",
+        "curriculum.programme_outcome",
+        "cv.course_code",
+        "cv.course_version_id",
+        "cvo.co_no",
+        "cvo.course_outcome_id",
+        "cvo.statement",
+        "outcomes.attainment_run",
+        "outcomes.co_attainment",
+        "outcomes.po_attainment",
+        "po.outcome_no",
+        "po.outcome_type",
+        "po.programme_outcome_id",
+        "po.statement",
+        "poa.programme_outcome_id",
+        "poa.target_level",
+        "poa.weighted_level",
+        "t.label",
+        "t.term_id"
+      ],
+      "query_summary": "SELECT po.outcome_type, po.outcome_no, po.statement AS outcome_statement,        poa.weighted_level AS po_level, poa.target_level AS po_target,        cvo.co_no, cvo.statement AS co_statement,        cpm.strength AS mapping_strength,        coa.direc..."
+    },
+    {
+      "view_name": "hr.v_current_workload",
+      "schema": "hr",
+      "name": "v_current_workload",
+      "access": "ROLE_RESTRICTED",
+      "referenced_tables": [
+        "core.department",
+        "d.code",
+        "d.department_id",
+        "f.department_id",
+        "f.designation",
+        "f.faculty_id",
+        "f.person_id",
+        "fw.computed_at",
+        "fw.faculty_id",
+        "fw.norm_expected",
+        "fw.status",
+        "fw.term_id",
+        "fw.total_weighted_load",
+        "fw.variance_pct",
+        "hr.faculty_workload",
+        "people.faculty",
+        "people.person",
+        "per.full_name",
+        "per.person_id"
+      ],
+      "query_summary": "SELECT DISTINCT ON (fw.faculty_id, fw.term_id)        fw.faculty_id, per.full_name, f.designation, d.code AS department_code,        fw.term_id, fw.total_weighted_load, fw.norm_expected, fw.variance_pct, fw.status FROM hr.faculty_workload fw JOIN peo..."
+    },
+    {
+      "view_name": "agentops.v_open_flags",
+      "schema": "agentops",
+      "name": "v_open_flags",
+      "access": "ROLE_RESTRICTED",
+      "referenced_tables": [
+        "a.agent_id",
+        "a.agent_no",
+        "a.code",
+        "agentops.agent",
+        "agentops.risk_flag",
+        "rf.agent_id",
+        "rf.course_offering_id",
+        "rf.deviation_summary",
+        "rf.faculty_id",
+        "rf.flag_type",
+        "rf.raised_at",
+        "rf.respond_by",
+        "rf.responder_user_id",
+        "rf.risk_flag_id",
+        "rf.severity",
+        "rf.status",
+        "rf.student_id",
+        "rf.subject_type",
+        "rf.suggested_first_action"
+      ],
+      "query_summary": "SELECT rf.risk_flag_id, a.code AS agent_code, a.agent_no,        rf.flag_type, rf.severity, rf.subject_type,        rf.student_id, rf.faculty_id, rf.course_offering_id,        rf.deviation_summary, rf.suggested_first_action,        rf.raised_at, rf.r..."
+    },
+    {
+      "view_name": "agentops.v_agent_health",
+      "schema": "agentops",
+      "name": "v_agent_health",
+      "access": "ROLE_RESTRICTED",
+      "referenced_tables": [
+        "100.0",
+        "a.agent_class",
+        "a.agent_id",
+        "a.agent_no",
+        "a.code",
+        "a.name",
+        "a.status",
+        "agentops.agent",
+        "agentops.agent_feedback",
+        "agentops.agent_output",
+        "agentops.agent_run",
+        "agentops.human_review",
+        "agentops.risk_flag",
+        "fb.agent_output_id",
+        "fb.rating",
+        "fl.agent_id",
+        "fl.confirmed_by_human",
+        "fl.raised_at",
+        "fl.risk_flag_id",
+        "hr2.agent_output_id",
+        "hr2.decision",
+        "hr2.human_review_id",
+        "o.agent_output_id",
+        "o.agent_run_id",
+        "r.agent_id",
+        "r.agent_run_id",
+        "r.started_at"
+      ],
+      "query_summary": "SELECT a.agent_id, a.code, a.agent_no, a.name, a.agent_class, a.status,        count(DISTINCT r.agent_run_id)                                   AS runs_30d,        count(DISTINCT o.agent_output_id)                                AS outputs_30d,      ..."
+    },
+    {
+      "view_name": "agentops.v_intervention_effectiveness",
+      "schema": "agentops",
+      "name": "v_intervention_effectiveness",
+      "access": "ROLE_RESTRICTED",
+      "referenced_tables": [
+        "agentops.intervention",
+        "agentops.intervention_outcome",
+        "agentops.intervention_participant",
+        "i.intervention_id",
+        "i.intervention_type",
+        "i.status",
+        "io.comparison_group_delta",
+        "io.intervention_id",
+        "io.net_effect",
+        "io.post_value",
+        "io.pre_value",
+        "io.sample_size",
+        "ip.intervention_id",
+        "ip.student_id"
+      ],
+      "query_summary": "SELECT i.intervention_type,        count(DISTINCT i.intervention_id)      AS interventions,        count(DISTINCT ip.student_id)          AS students_reached,        round(avg(io.post_value - io.pre_value)::numeric, 2)   AS avg_raw_improvement,      ..."
+    },
+    {
+      "view_name": "quality.v_kpi_latest",
+      "schema": "quality",
+      "name": "v_kpi_latest",
+      "access": "ALLOW_WITH_ROLE_SCOPE",
+      "referenced_tables": [
+        "kd.code",
+        "kd.direction",
+        "kd.domain",
+        "kd.framework_mapping",
+        "kd.is_active",
+        "kd.kpi_definition_id",
+        "kd.name",
+        "kd.unit",
+        "kv.kpi_definition_id",
+        "kv.period_end",
+        "kv.period_start",
+        "kv.scope_id",
+        "kv.scope_type",
+        "kv.status",
+        "kv.target_value",
+        "kv.trend",
+        "kv.validated_at",
+        "kv.value",
+        "kv.variance_pct",
+        "quality.kpi_definition",
+        "quality.kpi_value"
+      ],
+      "query_summary": "SELECT DISTINCT ON (kd.code, kv.scope_type, kv.scope_id)        kd.code, kd.name, kd.domain, kd.unit, kd.direction,        kv.scope_type, kv.scope_id, kv.period_start, kv.period_end,        kv.value, kv.target_value, kv.variance_pct, kv.trend, kv.sta..."
+    },
+    {
+      "view_name": "people.v_student_profile",
+      "schema": "people",
+      "name": "v_student_profile",
+      "access": "ALLOW_WITH_ROLE_SCOPE",
+      "referenced_tables": [
+        "a.course_offering_id",
+        "a.student_id",
+        "ach.student_id",
+        "ach.verification_status",
+        "assessment.term_result",
+        "attendance.v_current_attendance",
+        "b.batch_id",
+        "b.label",
+        "b.programme_id",
+        "core.department",
+        "curriculum.batch",
+        "curriculum.programme",
+        "curriculum.section",
+        "d.code",
+        "d.department_id",
+        "fd.created_at",
+        "fd.outstanding",
+        "fd.student_id",
+        "finance.fee_demand",
+        "i.status",
+        "i.student_id",
+        "o.status",
+        "o.student_id",
+        "p.code",
+        "p.department_id",
+        "p.programme_id",
+        "people.person",
+        "people.student",
+        "per.full_name",
+        "per.person_id",
+        "placement.internship",
+        "placement.offer",
+        "s.batch_id",
+        "s.current_section_id",
+        "s.current_year_of_study",
+        "s.person_id",
+        "s.roll_no",
+        "s.status",
+        "s.student_id",
+        "sc.student_id",
+        "sc.verification_status",
+        "sec.code",
+        "sec.section_id",
+        "studentlife.achievement",
+        "studentlife.student_certification",
+        "tr.backlog_count",
+        "tr.cgpa",
+        "tr2.published_on",
+        "tr2.student_id"
+      ],
+      "query_summary": "SELECT s.student_id, s.roll_no, per.full_name, s.status,        p.code AS programme_code, d.code AS department_code,        b.label AS batch_label, sec.code AS section_code, s.current_year_of_study,        tr.cgpa, tr.backlog_count,        (SELECT ro..."
+    }
+  ],
+  "functions": [
+    {
+      "function_name": "core.set_row_audit",
+      "arguments": "",
+      "return_type": "trigger"
+    },
+    {
+      "function_name": "core.add_audit_columns",
+      "arguments": "p_table regclass",
+      "return_type": "void"
+    },
+    {
+      "function_name": "identity.current_user_id",
+      "arguments": "",
+      "return_type": "uuid"
+    },
+    {
+      "function_name": "identity.current_student_id",
+      "arguments": "",
+      "return_type": "uuid"
+    },
+    {
+      "function_name": "identity.current_faculty_id",
+      "arguments": "",
+      "return_type": "uuid"
+    },
+    {
+      "function_name": "identity.has_role",
+      "arguments": "p_role text",
+      "return_type": "boolean"
+    },
+    {
+      "function_name": "identity.dept_scope",
+      "arguments": ") RETURNS uuid[] AS $$   SELECT CASE     WHEN coalesce(current_setting('app.dept_scope', true), '') = '' THEN ARRAY[]::uuid[]     ELSE string_to_array(current_setting('app.dept_scope', true), ',')::uuid[]   END $$ LANGUAGE sql STABLE;  -- Does the current faculty user teach this offering? CREATE OR REPLACE FUNCTION academics.teaches_offering(p_offering uuid",
+      "return_type": "boolean"
+    },
+    {
+      "function_name": "studentlife.is_mentor_of",
+      "arguments": "p_student uuid",
+      "return_type": "boolean"
+    },
+    {
+      "function_name": "people.student_in_scope",
+      "arguments": "p_student uuid",
+      "return_type": "boolean"
+    },
+    {
+      "function_name": "identity.block_audit_mutation",
+      "arguments": "",
+      "return_type": "trigger"
+    }
+  ],
+  "rls_policies": [
+    {
+      "policy_name": "att_summary_self",
+      "table_name": "attendance.attendance_summary",
+      "for_command": "SELECT",
+      "roles": "PUBLIC",
+      "using_expression": "student_id = identity.current_student_id()"
+    },
+    {
+      "policy_name": "att_summary_teaching_faculty",
+      "table_name": "attendance.attendance_summary",
+      "for_command": "SELECT",
+      "roles": "PUBLIC",
+      "using_expression": "course_offering_id IS NOT NULL     AND academics.teaches_offering(course_offering_id)"
+    },
+    {
+      "policy_name": "att_summary_mentor",
+      "table_name": "attendance.attendance_summary",
+      "for_command": "SELECT",
+      "roles": "PUBLIC",
+      "using_expression": "studentlife.is_mentor_of(student_id)"
+    },
+    {
+      "policy_name": "att_summary_dept_leadership",
+      "table_name": "attendance.attendance_summary",
+      "for_command": "SELECT",
+      "roles": "PUBLIC",
+      "using_expression": "(identity.has_role('HOD') OR identity.has_role('DEAN') OR identity.has_role('IQAC'))     AND people.student_in_scope(student_id)"
+    },
+    {
+      "policy_name": "att_summary_institution",
+      "table_name": "attendance.attendance_summary",
+      "for_command": "ALL",
+      "roles": "PUBLIC",
+      "using_expression": "identity.has_role('PRINCIPAL') OR identity.has_role('SYSTEM')"
+    },
+    {
+      "policy_name": "internal_mark_self",
+      "table_name": "assessment.internal_mark",
+      "for_command": "SELECT",
+      "roles": "PUBLIC",
+      "using_expression": "student_id = identity.current_student_id()     AND is_provisional = false OR published_at IS NOT NULL"
+    },
+    {
+      "policy_name": "internal_mark_faculty",
+      "table_name": "assessment.internal_mark",
+      "for_command": "ALL",
+      "roles": "PUBLIC",
+      "using_expression": "academics.teaches_offering(course_offering_id)"
+    },
+    {
+      "policy_name": "internal_mark_leadership",
+      "table_name": "assessment.internal_mark",
+      "for_command": "SELECT",
+      "roles": "PUBLIC",
+      "using_expression": "(identity.has_role('HOD') OR identity.has_role('DEAN') OR identity.has_role('COE'))     AND people.student_in_scope(student_id)"
+    },
+    {
+      "policy_name": "qp_setter_moderator",
+      "table_name": "assessment.question_paper",
+      "for_command": "ALL",
+      "roles": "PUBLIC",
+      "using_expression": "(setter_faculty_id = identity.current_faculty_id()      OR moderator_faculty_id = identity.current_faculty_id())     AND (access_opens_at IS NULL OR now() >= access_opens_at)     AND (access_closes_at IS NULL OR now() <= access_closes_at)"
+    },
+    {
+      "policy_name": "qp_coe",
+      "table_name": "assessment.question_paper",
+      "for_command": "ALL",
+      "roles": "PUBLIC",
+      "using_expression": "identity.has_role('COE')"
+    },
+    {
+      "policy_name": "counselling_counsellor",
+      "table_name": "confidential.counselling_case",
+      "for_command": "ALL",
+      "roles": "PUBLIC",
+      "using_expression": "identity.has_role('COUNSELLOR')     AND (counsellor_user_id = identity.current_user_id() OR counsellor_user_id IS NULL)"
+    },
+    {
+      "policy_name": "counselling_self",
+      "table_name": "confidential.counselling_case",
+      "for_command": "SELECT",
+      "roles": "PUBLIC",
+      "using_expression": "student_id = identity.current_student_id()"
+    },
+    {
+      "policy_name": "counselling_note_counsellor",
+      "table_name": "confidential.counselling_note",
+      "for_command": "ALL",
+      "roles": "PUBLIC",
+      "using_expression": "identity.has_role('COUNSELLOR')     AND counsellor_user_id = identity.current_user_id()"
+    },
+    {
+      "policy_name": "disc_authority",
+      "table_name": "studentlife.disciplinary_case",
+      "for_command": "ALL",
+      "roles": "PUBLIC",
+      "using_expression": "(identity.has_role('DISCIPLINE_COMMITTEE') OR identity.has_role('DEAN_STUDENT_AFFAIRS'))     AND retention_until >= current_date"
+    },
+    {
+      "policy_name": "disc_self",
+      "table_name": "studentlife.disciplinary_case",
+      "for_command": "SELECT",
+      "roles": "PUBLIC",
+      "using_expression": "student_id = identity.current_student_id() AND retention_until >= current_date"
+    },
+    {
+      "policy_name": "flag_responder",
+      "table_name": "agentops.risk_flag",
+      "for_command": "ALL",
+      "roles": "PUBLIC",
+      "using_expression": "responder_user_id = identity.current_user_id()"
+    },
+    {
+      "policy_name": "flag_mentor",
+      "table_name": "agentops.risk_flag",
+      "for_command": "SELECT",
+      "roles": "PUBLIC",
+      "using_expression": "student_id IS NOT NULL AND studentlife.is_mentor_of(student_id)"
+    },
+    {
+      "policy_name": "flag_academic_leadership",
+      "table_name": "agentops.risk_flag",
+      "for_command": "SELECT",
+      "roles": "PUBLIC",
+      "using_expression": "(identity.has_role('HOD') OR identity.has_role('DEAN'))     AND flag_type <> 'WELLBEING_CONCERN'     AND routed_to_confidential = false     AND (student_id IS NULL OR people.student_in_scope(student_id))"
+    },
+    {
+      "policy_name": "flag_counsellor",
+      "table_name": "agentops.risk_flag",
+      "for_command": "SELECT",
+      "roles": "PUBLIC",
+      "using_expression": "identity.has_role('COUNSELLOR') AND flag_type = 'WELLBEING_CONCERN'"
+    }
+  ]
+}

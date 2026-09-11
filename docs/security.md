@@ -62,6 +62,12 @@ The security of Agent 63 is built upon zero trust and defense-in-depth principle
 
 ---
 
-## 4. Current Phase Status
+## 4. Current Phase Status & Phase 1 Database Controls
 - **Phase 0:** Architectural security boundaries and policies established and documented.
-- **Phases 1–16:** Incremental implementation of code-level guards, validators, and tests according to the master plan.
+- **Phase 1 [Implemented]:**
+  - **Schema Registry Control Boundary:** `agent63_schema_registry.json` created as a machine-readable allowlist. Future SQL generators will only query explicitly permitted tables and columns.
+  - **Confidential Schema Lockdown:** All tables under `confidential` (`counselling_case`, `counselling_note`, `medical_record`, `crisis_escalation`) marked with non-negotiable `DENY_GENERAL_ANALYTICS`.
+  - **Exam Security Lockdown:** `assessment.question_paper`, `exams.question_paper_delivery`, and `exams.malpractice_incident` marked `DENY_GENERAL_ANALYTICS`.
+  - **Database RLS Awareness:** Cataloged 7 RLS-enabled tables and 19 security policies (`database/documentation/database-security-integration.md`). Dual enforcement will verify scopes in Python and PostgreSQL session claims.
+  - **Read-Only Least Privilege:** Architecture documented in `database/documentation/read-only-integration.md` with explicit 5,000ms execution timeout and read-only role requirements.
+- **Phases 2–16:** Incremental implementation of code-level guards, validators, and tests according to the master plan.

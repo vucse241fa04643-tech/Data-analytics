@@ -149,12 +149,12 @@ USER
 - **Dependencies:** RBAC service.
 
 ### [9] College Database Schema Registry
-- **Status:** PLANNED (*Phase 1*)
-- **Responsibility:** Controlled, read-only representation of the actual college-provided database tables, columns, data types, primary keys, and foreign keys.
-- **Inputs:** Physical schema inspection data from the real college database.
-- **Outputs:** Approved schema metadata used for SQL generation.
-- **Security Boundary:** Ensures only approved institutional tables are queryable; protects sensitive fields.
-- **Dependencies:** SQLAlchemy inspection engine.
+- **Status:** IMPLEMENTED / PHASE 1 PREPARED (`database/mappings/agent63_schema_registry.json`)
+- **Responsibility:** Controlled, read-only representation of the actual college-provided PostgreSQL 14+ database (21 schemas, 225 tables, 11 views, 7 RLS-enabled tables).
+- **Inputs:** Inspected physical schema (`01_foundation.sql` / `schema_full.sql`).
+- **Outputs:** Machine-readable Schema Registry (`agent63_schema_registry.json`) and inventory (`college_schema_inventory.json`).
+- **Security Boundary:** Restricts queryable scope to approved institutional objects; enforces strict `DENY_GENERAL_ANALYTICS` on `confidential.*` and exam security tables.
+- **Dependencies:** Schema inspection parser and registry validator (`scripts/validate_schema_registry.py`).
 
 ### [10] Safe SQL Generator
 - **Status:** PLANNED (*Phase 7*)

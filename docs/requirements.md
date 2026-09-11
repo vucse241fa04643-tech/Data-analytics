@@ -59,10 +59,13 @@
 ---
 
 ## G. Database Requirements
-- **DB-01 [Phase 0 / Phase 1]:** The authoritative data source is the college-provided database. No synthetic university database or mock tables shall be created.
-- **DB-02 [Phase 0 / Phase 1]:** The system must not assume any specific database engine (PostgreSQL, MySQL, SQL Server, Oracle) until Phase 1 inspection is complete.
-- **DB-03 [Future - Phase 1]:** The system shall maintain an inspected Schema Registry capturing actual table names, column types, primary keys, foreign keys, and indexes.
-- **DB-04 [Future - Phase 1/8]:** The system shall never modify, rename, truncate, or alter the college database structure or data.
+- **DB-01 [Phase 0 / Phase 1 - Completed]:** The authoritative data source is the college-provided PostgreSQL 14+ database (`01_foundation.sql` / `schema_full.sql`). Zero synthetic university databases or mock tables were created.
+- **DB-02 [Phase 1 - Completed]:** Database engine verified as PostgreSQL 14+ with pgcrypto and pg_trgm extensions across 21 institutional schemas.
+- **DB-03 [Phase 1 - Completed]:** Maintained machine-readable Schema Registry (`database/mappings/agent63_schema_registry.json`) and complete inventory (`database/schema/college_schema_inventory.json`) capturing 225 tables, 11 views, foreign keys, and 7 RLS-enabled tables.
+- **DB-04 [Phase 1 - Completed]:** All schema objects classified across 5 sensitivity tiers: `PUBLIC_ANALYTICS`, `INTERNAL_ANALYTICS`, `ROLE_RESTRICTED`, `SENSITIVE`, and `HIGHLY_SENSITIVE`.
+- **DB-05 [Phase 1 - Completed]:** Strict isolation of the `confidential` schema (medical/counselling records) and exam security objects (`assessment.question_paper`) with non-negotiable `DENY_GENERAL_ANALYTICS` status.
+- **DB-06 [Phase 1 - Completed]:** Documented read-only connection scaffolding with least privilege and 5,000ms query timeout limit (`database/documentation/read-only-integration.md`).
+- **DB-07 [Phase 1 / Future - Phase 8]:** The system shall never modify, rename, truncate, or alter the college database structure or data. Real student data access remains unconfigured in Phase 1.
 
 ---
 
