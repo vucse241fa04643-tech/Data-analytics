@@ -73,6 +73,26 @@ class SemanticRegistryError(AppException):
         )
 
 
+class AuthenticationError(AppException):
+    def __init__(self, message: str = "Authentication failed.", details: Optional[Dict[str, Any]] = None):
+        super().__init__(
+            code="AUTHENTICATION_FAILED",
+            message=message,
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            details=details,
+        )
+
+
+class AuthorizationError(AppException):
+    def __init__(self, message: str = "Access denied.", details: Optional[Dict[str, Any]] = None):
+        super().__init__(
+            code="AUTHORIZATION_DENIED",
+            message=message,
+            status_code=status.HTTP_403_FORBIDDEN,
+            details=details,
+        )
+
+
 class ServiceUnavailableError(AppException):
     def __init__(self, message: str = "Service unavailable.", details: Optional[Dict[str, Any]] = None):
         super().__init__(

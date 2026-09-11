@@ -106,13 +106,14 @@
 
 ---
 
-## Phase 5: Authentication + RBAC
-- [ ] Implement JWT authentication service and password hashing
-- [ ] Implement user models and role claims (`MANAGEMENT`, `PRINCIPAL`, `DEAN`, `HOD`, `IQAC`)
-- [ ] Build backend RBAC policy engine
-- [ ] Implement department and school data scoping filters
-- [ ] Secure API routes with authentication dependencies
-- [ ] Write test suite verifying horizontal privilege isolation
+## Phase 5: Authentication + RBAC [COMPLETED - Ready for Review]
+- [x] Implement JWT authentication service and password hashing (`Argon2id` via `argon2-cffi`, `PyJWT`)
+- [x] Implement user models and role claims based on college `identity.*` schema (`STUDENT`, `FACULTY`, `MENTOR`, `HOD`, `DEAN`, `COE`, `IQAC`, `PLACEMENT`, `ACCOUNTS`, `COUNSELLOR`, `PRINCIPAL`, `ADMIN`)
+- [x] Build backend token revocation abstraction (`TokenRevocationStore` with JTI tracking)
+- [x] Build server-side Identity Authority and RBAC policy engine (`AuthorizationService`)
+- [x] Implement department, student self, and institutional data scoping filters
+- [x] Secure API routes with authentication dependencies (`Depends(get_current_principal)`, `require_roles`, `require_permissions`)
+- [x] Write test suite verifying horizontal privilege isolation, header tampering rejection, and semantic security integration (36 tests, 86 total passing)
 
 ---
 

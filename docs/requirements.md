@@ -57,20 +57,21 @@
 ---
 
 ## E. Authentication Requirements
-- **AUT-01 [Future - Phase 5]:** The system shall authenticate institutional users via secure username/password or institutional SSO integration.
-- **AUT-02 [Future - Phase 5]:** Authenticated sessions must issue cryptographically signed JWT tokens with configurable expiration (default 60 minutes).
-- **AUT-03 [Future - Phase 5]:** Passwords must be hashed using industry-standard adaptive hashing (bcrypt/argon2).
+- **AUT-01 [IMPLEMENTED - Phase 5]:** The system implements a production-oriented Authentication + RBAC foundation authenticating institutional users via Argon2id hashed credentials against the `identity.*` schema abstraction. (Actual production authentication requires the future college identity database integration; unconfigured production runtime fails closed).
+- **AUT-02 [IMPLEMENTED - Phase 5]:** Authenticated sessions issue cryptographically signed JWT tokens with strictly minimal claims (`sub`, `jti`, `iat`, `nbf`, `exp`, `iss`, `aud`), configurable expiry (default 60 min), and token revocation abstraction via JTI tracking (in-memory for process lifetime; persistent store to be backed by database/cache in a future phase).
+- **AUT-03 [IMPLEMENTED - Phase 5]:** Passwords are cryptographically hashed and verified using Argon2id (`argon2-cffi`). Passwords and hashes are strictly excluded from logs.
 
 ---
 
 ## F. Role-Based Access Control (RBAC) Requirements
-- **RBC-01 [Future - Phase 5]:** The system shall support distinct institutional roles: `MANAGEMENT`, `PRINCIPAL`, `DEAN`, `HOD`, and `IQAC`.
-- **RBC-02 [Future - Phase 5]:** Role-based scoping must be enforced at the backend service layer before query generation:
-  - `HOD`: Restricted exclusively to data from their assigned academic department.
-  - `DEAN`: Restricted to departments and programs within their assigned academic school.
-  - `PRINCIPAL` & `MANAGEMENT`: Access to institution-wide aggregated metrics.
-  - `IQAC`: Access to institutional quality, compliance, and accreditation indicators.
-- **RBC-03 [Future - Phase 5]:** Client-side visibility flags must never be considered security boundaries; permissions must be validated on every API call.
+- **RBC-01 [IMPLEMENTED - Phase 5]:** The system supports institutional roles derived from the college schema: `STUDENT`, `FACULTY`, `MENTOR`, `HOD`, `DEAN`, `COE`, `IQAC`, `PLACEMENT`, `ACCOUNTS`, `COUNSELLOR`, `PRINCIPAL`, and `ADMIN`.
+- **RBC-02 [IMPLEMENTED - Phase 5]:** Scoped authorization is enforced as `authenticated principal -> role -> permission -> scope -> semantic sensitivity -> authorization decision`:
+  - `HOD`: Restricted exclusively to their assigned academic department (e.g., `DEPARTMENT:CSE`).
+  - `DEAN`: Restricted to their assigned academic school/faculty.
+  - `STUDENT`: Restricted to `SELF` scope (`student_id`).
+  - `PRINCIPAL` & `IQAC`: Institutional-wide scope across non-confidential domains.
+  - Role claims in JWT are non-authoritative; permissions and scopes are dynamically resolved server-side on every request.
+- **RBC-03 [IMPLEMENTED - Phase 5]:** Client-side visibility flags, client-provided headers, and token payload tampering are strictly non-authoritative; all authorization is evaluated server-side.
 
 ---
 

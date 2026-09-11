@@ -129,7 +129,63 @@ During Phase 4, the following data governance and semantic security controls hav
 
 ---
 
-## 6. Current Phase Status & Phase 1 Database Controls
+## 6. Phase 5 Authentication + Scoped RBAC Security Implementation
+
+During Phase 5, a **production-oriented Authentication + RBAC + Authorization foundation** was formally implemented and verified via automated test suites. Actual production authentication requires the future college identity database integration (configured in a future phase).
+
+### 6.1 Server-Side Identity Authority (No Trust in JWT Role Claims)
+- **Principle:** JWT claims (`roles`, `permissions`, `scopes`) supplied by a client can become stale or be forged. They are strictly non-authoritative.
+- **Enforcement Pipeline:**
+  1. JWT signature and cryptographic expiration verified using pinned HMAC-SHA256.
+  2. Subject identifier (`sub`) extracted to establish authenticated user identity.
+  3. Server-side `IdentityRepository` queries real user state (`identity.app_user`, `identity.user_role`, `identity.role`).
+  4. Active status verified (inactive or suspended accounts are rejected with HTTP 401).
+  5. Authoritative roles, permissions, and scopes are resolved dynamically server-side.
+  6. Scoped authorization evaluates target action/metric and organizational boundary.
+  7. Semantic sensitivity tier checks ensure role clearance (`PUBLIC_ANALYTICS` through `HIGHLY_SENSITIVE`).
+- Any custom client headers (e.g. `X-User-Role`, `X-Department-Id`) or tampered token payloads are discarded without trust.
+
+### 6.2 Token Revocation Abstraction (`jti`) & Architectural Limitations
+- Standard JWTs are stateless, but true logout requires revocation. Agent 63 implements a server-side `TokenRevocationStore` tracking token identifiers (`jti`).
+- Upon `POST /api/v1/auth/logout`, the token's `jti` is revoked until its expiration timestamp (`exp`).
+- Subsequent requests presenting a revoked token are rejected with HTTP 401 `TOKEN_REVOKED`.
+- **Architectural Limitation Notice:** Current Phase 5 implementation (`InMemoryTokenRevocationStore`) revokes tokens for the lifetime of the running process only. Revocation state is maintained in-memory and is lost after process restart. The abstraction is intentionally designed for future persistent PostgreSQL/Redis-backed revocation without changing API contracts. Neither PostgreSQL nor Redis is implemented in Phase 5.
+
+### 6.3 Test Fixture Isolation & Fail-Closed Behavior
+- `InMemoryIdentityRepository` contains test fixtures (`test_principal`, `test_hod_cse`, etc.) and is strictly **TEST-ONLY**.
+- In production (`APP_ENV=production`) or when `ALLOW_TEST_FIXTURES=False`, the application uses `UnavailableIdentityRepository`, which fails closed on all identity lookups.
+- No test fixture user can ever be authenticated in a production configuration.
+- Disabling authentication (`AUTH_ENABLED=False`) causes protected endpoints and authentication routes to fail closed with HTTP 401, preventing accidental unrestricted access.
+
+### 6.4 Minimal JWT Claims & Cryptographic Secret Validation
+- JWT claims are strictly minimized to: `sub`, `jti`, `iat`, `nbf`, `exp`, `iss`, `aud`.
+- Username, roles, permissions, email, and sensitive institutional details are strictly omitted from token payloads and resolved server-side.
+- The backend contains zero hardcoded JWT secrets.
+- `JWT_SECRET` requires an adequate minimum length ($\ge 32$ characters).
+- In production, placeholder secrets (such as example strings from `.env.example`) or development keys are rejected during configuration validation, failing fast.
+
+### 6.5 Password Security & Secret Scrubbing
+- Passwords are verified using Argon2id (`argon2-cffi`) with secure parameters.
+- Plaintext passwords and cryptographic hashes are never returned across API models or logged in telemetry.
+- All authentication logs are emitted via `AuditService` with structured JSON, masking usernames, scrubbing authorization headers, and tagging events with `X-Request-ID`.
+
+### 6.6 Fine-Grained Scoped Authorization
+- Scoping models the college's organizational hierarchy:
+  - `INSTITUTION`: Cross-institutional aggregate analytics (`PRINCIPAL`, `IQAC`, `DEAN`).
+  - `DEPARTMENT`: Restricted to specific departments (e.g., `HOD` of `CSE` cannot access `ECE`).
+  - `PROGRAMME` / `COURSE_OFFERING` / `SECTION`: Course-level academic boundaries.
+  - `SELF`: Personal records only (`STUDENT` restricted to their own `student_id`).
+- Horizontal privilege escalation attempts across departments or students result in deterministic HTTP 403 `FORBIDDEN`.
+
+### 6.7 Semantic Layer Authorization Integration
+- Requests for institutional metrics are gated by `AuthorizationService.authorize_metric()`:
+  - Only `APPROVED` metrics may be queried (e.g. `students_below_threshold` in `REVIEW_REQUIRED` is rejected).
+  - Metrics tagged `HIGHLY_SENSITIVE` require explicit executive permission (`analytics:read:sensitive` held by `PRINCIPAL`, `IQAC`, `DEAN`).
+  - Organizational filters must match or be contained within the principal's active organizational scopes.
+
+---
+
+## 7. Current Phase Status & Phase 1 Database Controls
 - **Phase 0:** Architectural security boundaries and policies established and documented.
 - **Phase 1 [Implemented]:**
   - **Schema Registry Control Boundary:** `agent63_schema_registry.json` created as a machine-readable allowlist. Future SQL generators will only query explicitly permitted tables and columns.
@@ -140,4 +196,6 @@ During Phase 4, the following data governance and semantic security controls hav
 - **Phase 2 [Implemented]:** Hardened FastAPI foundation, structured error redacting, correlation tracing, schema registry service.
 - **Phase 3 [Implemented]:** Institutional frontend foundation, zero synthetic data, live backend telemetry probe.
 - **Phase 4 [Implemented]:** Authoritative semantic layer, 26 metrics, 10 dimensions, 24 join paths, security policy, and validation suite.
-- **Phases 5–16:** Incremental implementation of authentication, intent parsing, safe SQL generation, and read-only execution according to the master plan.
+- **Phase 5 [Implemented]:** Authentication + Scoped RBAC Foundation, Argon2id verification, PyJWT with JTI revocation, server-side principal resolution, semantic security policy integration.
+- **Phases 6–16:** Incremental implementation of intent parsing, safe SQL generation, and read-only execution according to the master plan.
+

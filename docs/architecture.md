@@ -125,20 +125,20 @@ Schema Registry Service [IMPLEMENTED - Phase 1 & 2]
 - **Dependencies:** FastAPI, Uvicorn, Pydantic v2, Python 3.14+.
 
 ### [3] Authentication Service
-- **Status:** PLANNED (*Phase 5*)
-- **Responsibility:** Verify institutional user identities via secure JWT tokens, API keys, or LDAP/OAuth provider.
-- **Inputs:** Credentials from UI login dialog.
-- **Outputs:** Verified user profile containing institutional role and department assignment.
-- **Security Boundary:** Gatekeeper. Blocks unauthenticated traffic from analytical pipeline.
-- **Dependencies:** Python-JOSE / PyJWT, Passlib/Bcrypt.
+- **Status:** IMPLEMENTED (*Phase 5*)
+- **Responsibility:** Authenticate institutional users via Argon2id password verification, issue cryptographically signed JWT bearer tokens with standard claims (`sub`, `jti`, `exp`, `nbf`, `iss`, `aud`), support server-side token revocation abstraction via JTI tracking, and resolve authentic server-side principal identities without trusting client-supplied role claims.
+- **Inputs:** Credentials from API login request (`POST /api/v1/auth/login`).
+- **Outputs:** Signed access token and verified `AuthenticatedPrincipal` identity.
+- **Security Boundary:** First authentication perimeter. Enforces constant-time hash verification, token expiry, algorithm pinning, JTI revocation checks, and secret scrubbing.
+- **Dependencies:** `PyJWT`, `argon2-cffi`, `AuthenticationService`, `TokenRevocationStore`.
 
 ### [4] Role-Based Access Control (RBAC) & Scoping Engine
-- **Status:** PLANNED (*Phase 5*)
-- **Responsibility:** Evaluate user roles (`MANAGEMENT`, `PRINCIPAL`, `DEAN`, `HOD`, `IQAC`) against requested metrics and data dimensions (e.g., restricting an HOD to their own department).
-- **Inputs:** Authenticated user claims, requested metric ID, requested filters.
-- **Outputs:** Mandatory scope constraints (e.g., `department_id = 'CSE'`) injected into the pipeline.
-- **Security Boundary:** Critical security barrier. Enforced in Python backend code; cannot be overridden by user prompts or LLM output.
-- **Dependencies:** Internal policy engine.
+- **Status:** IMPLEMENTED (*Phase 5*)
+- **Responsibility:** Evaluate user roles (`STUDENT`, `FACULTY`, `MENTOR`, `HOD`, `DEAN`, `COE`, `IQAC`, `PLACEMENT`, `ACCOUNTS`, `COUNSELLOR`, `PRINCIPAL`, `ADMIN`) against requested permissions, organizational scopes (`SELF`, `SECTION`, `COURSE_OFFERING`, `PROGRAMME`, `DEPARTMENT`, `CAMPUS`, `INSTITUTION`), and Phase 4 semantic metric sensitivity tiers (`PUBLIC_ANALYTICS`, `INTERNAL_ANALYTICS`, `ROLE_RESTRICTED`, `SENSITIVE`, `HIGHLY_SENSITIVE`).
+- **Inputs:** Authenticated principal, requested metric ID or domain action, organizational scope parameters.
+- **Outputs:** Deterministic authorization decisions (`ALLOW` or `DENY` with audit logging), and mandatory scoping filters.
+- **Security Boundary:** Critical authorization barrier. Enforced in Python backend code; client role headers and JWT role claims are never trusted; cannot be overridden by user prompts or LLM output.
+- **Dependencies:** `AuthorizationService`, `IdentityRepository`, `SemanticRegistryService`.
 
 ### [5] Agent 63 Orchestrator
 - **Status:** PLANNED (*Phase 6*)

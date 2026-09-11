@@ -90,15 +90,22 @@
 
 ---
 
-## Phase 5: Authentication + RBAC
-- **Objective:** Implement secure institutional authentication and fine-grained role-based access control.
-- **Major Tasks:**
-  - Implement JWT token generation and validation services.
-  - Define role permissions matrix (`MANAGEMENT`, `PRINCIPAL`, `DEAN`, `HOD`, `IQAC`).
-  - Implement role-based data scoping (e.g., department boundary enforcement for HOD).
-  - Secure API routes with FastAPI dependency injection (`Depends(get_current_user)`).
-- **Expected Deliverables:** Auth router (`/api/v1/auth/login`), JWT middleware, RBAC enforcement engine, security unit tests.
-- **Acceptance Criteria:** Unauthorized requests rejected with `401`/`403`; department scoping strictly prevents horizontal privilege escalation.
+## Phase 5: Authentication + RBAC [COMPLETED - Ready for Review]
+- **Objective:** Implement a production-oriented Authentication + RBAC + Authorization foundation. (Actual production authentication requires the future college identity database integration).
+- **Major Tasks Completed:**
+  - Implemented Argon2id password verification (`backend/app/services/password.py`) using `argon2-cffi`.
+  - Implemented JWT token generation and validation services (`backend/app/services/authentication.py`) using `PyJWT` with pinned HMAC-SHA256, minimal claims (`sub`, `jti`, `iat`, `nbf`, `exp`, `iss`, `aud`), and startup secret validation.
+  - Built token revocation abstraction (`TokenRevocationStore`) using token `jti` identifiers with expiration pruning (ephemeral in-memory process-lifetime limitation documented; designed for future PostgreSQL/Redis persistence).
+  - Implemented test fixture isolation: `InMemoryIdentityRepository` is strictly test-only; unconfigured production runtime fails closed via `UnavailableIdentityRepository`.
+  - Implemented Scoped Authorization Engine (`backend/app/services/authorization.py`) mapping `principal -> role -> permission -> scope -> semantic sensitivity -> authorization decision`.
+  - Established Server-Side Identity Authority: JWT role claims are never trusted blindly; roles and scopes are resolved server-side on each request.
+  - Integrated Phase 4 Semantic Layer security policy: enforces `APPROVED` lifecycle gatekeeping, confidential schema blocking, and sensitivity tiers.
+  - Built FastAPI auth dependencies (`extract_bearer_token`, `get_current_principal`, `require_roles`, `require_permissions`, `require_department_scope`).
+  - Added Auth REST API endpoints: `POST /api/v1/auth/login`, `GET /api/v1/auth/me`, `POST /api/v1/auth/logout` with fail-closed behavior when disabled.
+  - Implemented structured security audit logging with `X-Request-ID` and token/password scrubbing.
+  - Authored comprehensive test suites (44 new unit and integration tests, 94 total passing).
+- **Deliverables:** `backend/app/schemas/principal.py`, `backend/app/schemas/auth.py`, `backend/app/services/authentication.py`, `backend/app/services/authorization.py`, `backend/app/services/token_revocation.py`, `backend/app/services/identity_repository.py`, `backend/app/services/password.py`, `backend/app/services/audit.py`, `backend/app/dependencies/auth.py`, `backend/app/api/v1/auth.py`, and test suites.
+- **Acceptance Criteria Met:** Unauthorized requests rejected with `401`/`403`; department/student scoping strictly prevents horizontal privilege escalation; token tampering and header manipulation are rejected; production cannot authenticate with test fixtures; zero live PostgreSQL or external LLM requirements; 94 passing tests.
 - **Dependencies:** Phase 2, Phase 4.
 
 ---
