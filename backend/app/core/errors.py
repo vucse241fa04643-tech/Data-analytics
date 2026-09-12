@@ -103,6 +103,198 @@ class ServiceUnavailableError(AppException):
         )
 
 
+class GroqError(AppException):
+    """Raised when Groq provider returns an operational, rate-limiting, or network failure."""
+    def __init__(self, message: str = "Groq intent service failure.", details: Optional[Dict[str, Any]] = None):
+        super().__init__(
+            code="GROQ_ERROR",
+            message=message,
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            details=details,
+        )
+
+
+class GroqConfigurationError(AppException):
+    """Raised when Groq API key or configuration is missing when invoked."""
+    def __init__(self, message: str = "Groq API is not configured on this server.", details: Optional[Dict[str, Any]] = None):
+        super().__init__(
+            code="GROQ_NOT_CONFIGURED",
+            message=message,
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            details=details,
+        )
+
+
+class GroqTimeoutError(AppException):
+    """Raised when Groq API call exceeds configured timeout bounds."""
+    def __init__(self, message: str = "Groq intent extraction timed out.", details: Optional[Dict[str, Any]] = None):
+        super().__init__(
+            code="GROQ_TIMEOUT",
+            message=message,
+            status_code=status.HTTP_504_GATEWAY_TIMEOUT,
+            details=details,
+        )
+
+
+class GeminiError(AppException):
+    """Raised when Google Gemini provider returns an operational or network failure."""
+    def __init__(self, message: str = "Google Gemini intent service failure.", details: Optional[Dict[str, Any]] = None):
+        super().__init__(
+            code="GEMINI_ERROR",
+            message=message,
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            details=details,
+        )
+
+
+class GeminiConfigurationError(AppException):
+    """Raised when Google Gemini API key or configuration is missing when invoked."""
+    def __init__(self, message: str = "Google Gemini API is not configured on this server.", details: Optional[Dict[str, Any]] = None):
+        super().__init__(
+            code="GEMINI_NOT_CONFIGURED",
+            message=message,
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            details=details,
+        )
+
+
+class GeminiTimeoutError(AppException):
+    """Raised when Google Gemini API call exceeds configured timeout bounds."""
+    def __init__(self, message: str = "Google Gemini intent extraction timed out.", details: Optional[Dict[str, Any]] = None):
+        super().__init__(
+            code="GEMINI_TIMEOUT",
+            message=message,
+            status_code=status.HTTP_504_GATEWAY_TIMEOUT,
+            details=details,
+        )
+
+
+class IntentValidationError(AppException):
+    """Raised when extracted intent violates semantic layer catalog or security policy."""
+    def __init__(self, message: str = "Structured intent validation failed.", details: Optional[Dict[str, Any]] = None):
+        super().__init__(
+            code="INTENT_VALIDATION_ERROR",
+            message=message,
+            status_code=status.HTTP_400_BAD_REQUEST,
+            details=details,
+        )
+
+
+class SQLCompilationError(AppException):
+    """Raised when structured intent cannot be safely compiled into an institutional SQL artifact."""
+    def __init__(self, message: str = "SQL compilation failed.", details: Optional[Dict[str, Any]] = None):
+        super().__init__(
+            code="SQL_COMPILATION_ERROR",
+            message=message,
+            status_code=status.HTTP_400_BAD_REQUEST,
+            details=details,
+        )
+
+
+class SQLValidationError(AppException):
+    """Raised when generated SQL fails AST-level security or structural validation rules."""
+    def __init__(self, message: str = "Generated SQL failed safety validation.", details: Optional[Dict[str, Any]] = None):
+        super().__init__(
+            code="SQL_VALIDATION_ERROR",
+            message=message,
+            status_code=status.HTTP_400_BAD_REQUEST,
+            details=details,
+        )
+
+
+class SQLAuthorizationError(AppException):
+    """Raised when user authorization scope cannot safely support requested SQL query compilation."""
+    def __init__(self, message: str = "Access denied: insufficient scope for requested analytical query.", details: Optional[Dict[str, Any]] = None):
+        super().__init__(
+            code="SQL_AUTHORIZATION_DENIED",
+            message=message,
+            status_code=status.HTTP_403_FORBIDDEN,
+            details=details,
+        )
+
+
+# =========================================================================
+# Phase 8: Safe SQL Execution & Result Validation Exceptions
+# =========================================================================
+
+class DatabaseNotConfiguredError(AppException):
+    """Raised when query execution is attempted but college database credentials/host are missing."""
+    def __init__(self, message: str = "Institutional PostgreSQL database connection is not configured.", details: Optional[Dict[str, Any]] = None):
+        super().__init__(
+            code="DATABASE_NOT_CONFIGURED",
+            message=message,
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            details=details,
+        )
+
+
+class DatabaseConnectionError(AppException):
+    """Raised when backend fails to establish connection to PostgreSQL."""
+    def __init__(self, message: str = "Failed to establish connection to institutional database.", details: Optional[Dict[str, Any]] = None):
+        super().__init__(
+            code="DATABASE_CONNECTION_ERROR",
+            message=message,
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            details=details,
+        )
+
+
+class DatabaseTimeoutError(AppException):
+    """Raised when query execution exceeds the configured statement timeout."""
+    def __init__(self, message: str = "Database query execution exceeded configured statement timeout.", details: Optional[Dict[str, Any]] = None):
+        super().__init__(
+            code="DATABASE_TIMEOUT",
+            message=message,
+            status_code=status.HTTP_504_GATEWAY_TIMEOUT,
+            details=details,
+        )
+
+
+class DatabaseExecutionError(AppException):
+    """Raised when database query execution fails with a PostgreSQL operational or driver error."""
+    def __init__(self, message: str = "An error occurred during safe database query execution.", details: Optional[Dict[str, Any]] = None):
+        super().__init__(
+            code="DATABASE_EXECUTION_ERROR",
+            message=message,
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            details=details,
+        )
+
+
+class ResultValidationError(AppException):
+    """Raised when raw database query results fail mathematical, type, or integrity checks."""
+    def __init__(self, message: str = "Query result validation failed against semantic catalog rules.", details: Optional[Dict[str, Any]] = None):
+        super().__init__(
+            code="RESULT_VALIDATION_ERROR",
+            message=message,
+            status_code=422,
+            details=details,
+        )
+
+
+class ResultSizeLimitExceededError(AppException):
+    """Raised when database result row count or payload size exceeds configured bounds."""
+    def __init__(self, message: str = "Query result exceeds maximum permitted row count or response size.", details: Optional[Dict[str, Any]] = None):
+        super().__init__(
+            code="RESULT_SIZE_EXCEEDED",
+            message=message,
+            status_code=413,
+            details=details,
+        )
+
+
+class SecurityValidationError(AppException):
+    """Raised when an artifact fails pre-execution defense-in-depth security checks."""
+    def __init__(self, message: str = "Security validation failed prior to execution.", details: Optional[Dict[str, Any]] = None):
+        super().__init__(
+            code="SECURITY_VALIDATION_ERROR",
+            message=message,
+            status_code=status.HTTP_400_BAD_REQUEST,
+            details=details,
+        )
+
+
+
 def _format_error_response(code: str, message: str, details: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
     current_request_id = request_id_ctx_var.get()
     error_payload: Dict[str, Any] = {

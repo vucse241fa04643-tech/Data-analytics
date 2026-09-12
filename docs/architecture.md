@@ -84,29 +84,30 @@ USER
 
 ## 3. Component Deep Dive
 
-### Phase 3 Architecture Pipeline Status
+### Current Architecture Pipeline Status (Phases 0–7 Complete)
 
 ```
 Frontend [IMPLEMENTED - Phase 3]
    ↓
 FastAPI Backend Gateway [IMPLEMENTED - Phase 2]
    ↓
-API Router [IMPLEMENTED - Phase 2]
+Authentication & Token Verification [IMPLEMENTED - Phase 5]
    ↓
-Application Services [IMPLEMENTED - Phase 2]
-   ↓
-[Future Authentication / RBAC - Phase 5]
+RBAC & Data Scoping Engine [IMPLEMENTED - Phase 5]
    ↓
 Semantic Layer & Metric Catalog [IMPLEMENTED - Phase 4]
    ↓
 Schema Registry Service [IMPLEMENTED - Phase 1 & 2]
    ↓
-[Future Structured Intent Parser / Gemini - Phase 6]
+Structured Intent Parser (Groq API) [IMPLEMENTED - Phase 6]
    ↓
-[Future Safe SQL Builder & AST Validator - Phase 7]
+Safe SQL Generator (Parameter Separation & Role Scoping) [IMPLEMENTED - Phase 7]
+   ↓
+SQL AST Validator (sqlglot PostgreSQL Dialect) [IMPLEMENTED - Phase 7]
    ↓
 [Future Read-Only College DB Execution Pool - Phase 8+]
 ```
+
 
 ### [1] Institutional UI & Branding Layer
 - **Status:** IMPLEMENTED (*Phase 3*)
@@ -157,12 +158,12 @@ Schema Registry Service [IMPLEMENTED - Phase 1 & 2]
 - **Dependencies:** `semantic_layer/registry/semantic_registry.json`, `backend/app/services/semantic_registry.py`, `scripts/validate_semantic_layer.py`.
 
 ### [7] Structured Intent Parser
-- **Status:** PLANNED (*Phase 6*)
-- **Responsibility:** Translates unstructured natural language into a strictly typed, validated intent schema.
-- **Inputs:** Natural language question, available metric catalog summaries.
-- **Outputs:** Validated `IntentSchema` (Metric, Population, Time Period, Dimensions, Filters).
-- **Security Boundary:** Schema validation prevents prompt injection from leaking into SQL generation.
-- **Dependencies:** LLM API, Pydantic v2.
+- **Status:** IMPLEMENTED (*Phase 6*)
+- **Responsibility:** Translates unstructured natural language into a strictly typed, validated `StructuredIntent` object using Google Gemini (`google-genai` SDK) grounded exclusively in the Phase 4 Semantic Layer.
+- **Inputs:** Natural language question from authenticated user, prompt compiled from approved Phase 4 metrics and dimensions.
+- **Outputs:** Validated, authorized `StructuredIntent` (Intent Type, Primary Metric, Secondary Metrics, Dimensions, Filters, Time Context, Reasoning Summary).
+- **Security Boundary:** Strict JSON schema enforcement, zero SQL generation, deterministic `IntentValidator` catalog checks, and server-side `AuthorizationService` scoping evaluation.
+- **Dependencies:** Google GenAI SDK (`google-genai`), Pydantic v2, `IntentValidator`, `AuthorizationService`, `SemanticRegistryService`.
 
 ### [8] Authorized Data Scope Filter
 - **Status:** PLANNED (*Phase 5/7*)
@@ -181,28 +182,29 @@ Schema Registry Service [IMPLEMENTED - Phase 1 & 2]
 - **Dependencies:** Schema inspection parser and registry validator (`scripts/validate_schema_registry.py`).
 
 ### [10] Safe SQL Generator
-- **Status:** PLANNED (*Phase 7*)
-- **Responsibility:** Constructs parameterized, read-only SQL queries combining the scoped intent, metric definition, and schema registry.
-- **Inputs:** Scoped intent, metric mapping, physical schema metadata.
-- **Outputs:** Parameterized SQL statement with bound values.
-- **Security Boundary:** Never concatenates raw user strings directly into SQL clauses.
-- **Dependencies:** SQLAlchemy Core query builder.
+- **Status:** IMPLEMENTED (*Phase 7*)
+- **Responsibility:** Deterministically constructs parameterized, read-only PostgreSQL SELECT queries combining the validated StructuredIntent, Semantic Layer metric definitions, and Schema Registry objects.
+- **Inputs:** Validated `StructuredIntent`, `AuthenticatedPrincipal`, metric definitions from Semantic Layer.
+- **Outputs:** Parameterized `SQLArtifact` with bound values in `parameters: Dict[str, Any]`, separated from SQL text.
+- **Security Boundary:** Zero user input interpolation. Enforces server-side authorization scoping predicates (e.g. STUDENT self-scope, HOD departmental scope).
+- **Dependencies:** `SQLCompiler`, `SemanticRegistryService`, `SchemaRegistryService`, `AuthorizationService`.
 
 ### [11] SQL Validator
-- **Status:** PLANNED (*Phase 7*)
-- **Responsibility:** Performs Abstract Syntax Tree (AST) inspection of every generated SQL string before execution. Rejects any query containing mutation statements or non-whitelisted functions.
-- **Inputs:** Parameterized SQL string.
-- **Outputs:** Approval boolean or rejection exception.
-- **Security Boundary:** Hard perimeter protecting against SQL injection, DDL, and DML.
-- **Dependencies:** `sqlglot` or internal AST parser.
+- **Status:** IMPLEMENTED (*Phase 7*)
+- **Responsibility:** Performs Abstract Syntax Tree (AST) inspection of every compiled SQL statement using `sqlglot` (PostgreSQL dialect) before returning artifacts.
+- **Inputs:** Parameterized `SQLArtifact`.
+- **Outputs:** Verified `SQLArtifact` with `validation_status = "VALID"`, or raises `SQLValidationError`.
+- **Security Boundary:** Multi-tier AST defense: single statement, `exp.Select` only, no `SELECT *`, no SQL comments, strict schema/table/function allowlists, confidential quarantine, mandatory limit bounds (`1 <= limit <= 1000`).
+- **Dependencies:** `sqlglot`, `SQLValidator`, `SchemaRegistryService`.
+
 
 ### [12] Read-Only Query Executor
-- **Status:** PLANNED (*Phase 8*)
-- **Responsibility:** Connects to the college-provided database using strictly read-only database credentials with query execution timeouts (e.g., 5-second max).
-- **Inputs:** Validated SQL and parameters.
-- **Outputs:** Raw tabular query result set.
-- **Security Boundary:** Database-level read-only user privileges.
-- **Dependencies:** SQLAlchemy, DBAPI drivers.
+- **Status:** IMPLEMENTED (*Phase 8*)
+- **Responsibility:** Connects to the college PostgreSQL database using strictly read-only transactions, parameter translation (:param to %(param)s), statement timeouts (default 5000ms), and row/byte limits (max 1000 rows, 1MB).
+- **Inputs:** Validated SQLArtifact and parameters.
+- **Outputs:** Raw tabular query result set, column types, and execution timing.
+- **Security Boundary:** Database session-level read-only mode (`SET SESSION CHARACTERISTICS AS TRANSACTION READ ONLY;`), driver timeout enforcement, and fail-closed handling when database is unconfigured.
+- **Dependencies:** `psycopg[binary]>=3.1.0`.
 
 ### [13] College-Provided Database(s)
 - **Status:** Authoritative Institutional Source (*Inspected in Phase 1*)
@@ -213,12 +215,12 @@ Schema Registry Service [IMPLEMENTED - Phase 1 & 2]
 - **Dependencies:** College IT infrastructure.
 
 ### [14] Result Validator
-- **Status:** PLANNED (*Phase 8*)
-- **Responsibility:** Validates result integrity: checks expected columns, validates data types, handles nulls, and verifies physical bounds (e.g., attendance percentage between 0 and 100).
-- **Inputs:** Tabular database result set, metric boundary rules.
-- **Outputs:** Validated numerical/tabular dataset or validation error.
+- **Status:** IMPLEMENTED (*Phase 8*)
+- **Responsibility:** Validates result integrity: checks expected columns, validates row counts, handles empty result sets, normalizes Decimals to floats and dates to ISO-8601, preserves NULLs, rejects NaN/Infinity values, and enforces domain physical bounds (percentages in [0, 100], counts >= 0, scales in [0, 3]).
+- **Inputs:** Tabular database result set, metric metadata, and execution timing.
+- **Outputs:** Safe normalized `QueryResult` model.
 - **Security Boundary:** Prevents presentation of corrupt, impossible, or hallucinated numbers.
-- **Dependencies:** Pydantic validators.
+- **Dependencies:** Pydantic models, `math` IEEE-754 validation.
 
 ### [15] Analytics & Anomaly Engine
 - **Status:** PLANNED (*Phase 11*)

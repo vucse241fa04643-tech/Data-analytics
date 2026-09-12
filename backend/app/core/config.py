@@ -67,6 +67,64 @@ class Settings(BaseSettings):
         description="Allow in-memory test fixtures only during automated testing or explicit dev mode"
     )
 
+    # Groq Natural Language Intent Configuration (Phase 6 Provider Migration)
+    GROQ_API_KEY: Optional[str] = Field(
+        default=None,
+        description="Groq API key. Stored exclusively on backend; never exposed to frontend or Git."
+    )
+    GROQ_MODEL: str = Field(
+        default="openai/gpt-oss-20b",
+        description="Configured Groq model identifier for structured intent generation."
+    )
+    GROQ_TIMEOUT_SECONDS: int = Field(
+        default=30,
+        description="Timeout duration in seconds for Groq API invocations."
+    )
+
+    # Google Gemini Natural Language Intent Configuration (Phase 6 - Legacy / Alternative)
+    GEMINI_API_KEY: Optional[str] = Field(
+        default=None,
+        description="Google Gemini API key. Stored exclusively on backend; never exposed to frontend or Git."
+    )
+    GEMINI_MODEL: str = Field(
+        default="gemini-3.6-flash",
+        description="Configured Google Gemini model identifier for structured intent generation."
+    )
+    GEMINI_TIMEOUT_SECONDS: int = Field(
+        default=30,
+        description="Timeout duration in seconds for Google Gemini API invocations."
+    )
+
+    # SQL Generation & Safety Bounds (Phase 7)
+    DEFAULT_QUERY_LIMIT: int = Field(
+        default=100,
+        description="Default maximum row limit for generated institutional analytical queries."
+    )
+    MAX_QUERY_LIMIT: int = Field(
+        default=1000,
+        description="Ceiling limit for any generated analytical query to prevent unbounded resource consumption."
+    )
+
+    # Safe SQL Execution & Result Validation (Phase 8)
+    COLLEGE_DB_MIN_POOL_SIZE: int = Field(
+        default=1,
+        description="Minimum connections maintained in the read-only database pool."
+    )
+    COLLEGE_DB_MAX_POOL_SIZE: int = Field(
+        default=10,
+        description="Maximum concurrent connections in the read-only database pool."
+    )
+    MAX_RESULT_ROWS: int = Field(
+        default=1000,
+        description="Strict upper bound on row count returned from database execution."
+    )
+    MAX_RESULT_BYTES: int = Field(
+        default=1048576,
+        description="Maximum allowed byte size (1MB) for serialized query results."
+    )
+
+
+
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",
@@ -131,6 +189,17 @@ class Settings(BaseSettings):
             self.COLLEGE_DB_USER and
             self.COLLEGE_DB_PASSWORD
         )
+
+    @property
+    def is_groq_configured(self) -> bool:
+        """Evaluates whether Groq API key is configured."""
+        return bool(self.GROQ_API_KEY and self.GROQ_API_KEY.strip())
+
+    @property
+    def is_gemini_configured(self) -> bool:
+        """Evaluates whether Google Gemini API key is configured."""
+        return bool(self.GEMINI_API_KEY and self.GEMINI_API_KEY.strip())
+
 
 
 # Global cached settings instance

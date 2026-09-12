@@ -30,6 +30,7 @@ def test_health_readiness_endpoint_unconfigured_db(client: TestClient):
     assert deps["college_database"] == "not_configured"
     assert deps["schema_registry_objects"] == 236
     assert deps["database_host"] is None
+    assert "groq" in deps
 
 
 def test_no_credentials_in_health_responses(client: TestClient):

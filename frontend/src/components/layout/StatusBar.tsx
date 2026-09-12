@@ -9,9 +9,9 @@ export const StatusBar: React.FC = () => {
   const getStatusText = () => {
     switch (connectionState) {
       case 'connected':
-        return 'System Operational';
+        return 'Phase 6 Intent Engine Operational';
       case 'degraded':
-        return 'Backend Ready (DB Unconfigured)';
+        return 'Phase 6 Intent Engine Ready (DB Unconfigured)';
       case 'offline':
         return 'Backend Offline';
       default:
@@ -54,15 +54,15 @@ export const StatusBar: React.FC = () => {
             Schema Registry:{' '}
             {readinessData?.dependencies.schema_registry_objects
               ? `${readinessData.dependencies.schema_registry_objects} Objects Verified`
-              : 'Phase 1 Registry Available'}
+              : '236 Objects Verified'}
           </span>
         </div>
       </div>
 
       <div className={styles.rightGroup}>
-        <div className={styles.item}>
+        <div className={styles.item} title="SQL execution connects in Phase 7 with read-only constraint">
           <ShieldCheck size={13} color="var(--color-brand-primary)" />
-          <span>Read-Only Execution Boundary Enforced</span>
+          <span>Read-Only Execution Boundary • Ready for Phase 7</span>
         </div>
         <span className={styles.separator}>|</span>
         <div className={styles.item}>

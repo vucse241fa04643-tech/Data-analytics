@@ -172,3 +172,12 @@ class SchemaRegistryService:
 
 # Global service instance
 schema_registry_service = SchemaRegistryService()
+
+
+def get_schema_registry_service() -> SchemaRegistryService:
+    """Provides singleton instance of SchemaRegistryService."""
+    global schema_registry_service
+    if not schema_registry_service.is_ready:
+        schema_registry_service.load()
+    return schema_registry_service
+

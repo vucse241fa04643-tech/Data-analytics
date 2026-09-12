@@ -117,31 +117,45 @@
 
 ---
 
-## Phase 6: Natural Language → Structured Intent
-- [ ] Define `IntentSchema` Pydantic models
-- [ ] Author structured prompt templates referencing the Semantic Layer
-- [ ] Integrate LLM API in structured JSON output mode
-- [ ] Implement intent validation logic
-- [ ] Build clarification fallback handler for ambiguous queries
-- [ ] Write unit tests for question-to-intent parsing
+## Phase 6: Natural Language → Structured Intent [COMPLETED - Ready for Review]
+- [x] Install and pin official Google GenAI SDK (`google-genai>=1.0.0`) in backend requirements
+- [x] Define `StructuredIntent` Pydantic models with intent types, metric IDs, dimensions, filters, and SQL injection guards
+- [x] Author structured prompt templates referencing exclusively APPROVED Phase 4 Semantic Layer metrics and dimensions
+- [x] Implement Gemini client abstraction (`GeminiClient`, `MockGeminiClient`) with structured JSON schema enforcement
+- [x] Implement deterministic `IntentValidator` enforcing catalog grounding, APPROVED lifecycle status, and confidential exclusion
+- [x] Build clarification fallback handler and out-of-scope classifier
+- [x] Implement server-side `AuthorizationService.authorize_metric()` check preventing horizontal/vertical privilege escalation
+- [x] Implement protected `POST /api/v1/intent` endpoint with request correlation and error mapping
+- [x] Update readiness probe to report Gemini configuration status
+- [x] Write 30 new unit and integration tests (124 total tests passing across full suite)
+
 
 ---
 
-## Phase 7: Structured Intent → Safe SQL
-- [ ] Implement parameterized SQL query generator
-- [ ] Inject mandatory RBAC and department scope constraints
-- [ ] Implement AST-based SQL Validator rejecting all mutation keywords
-- [ ] Validate parameter binding on all dynamic values
-- [ ] Write test suite verifying that injection attempts and DDL/DML are blocked
+## Phase 7: Structured Intent → Safe SQL [COMPLETED - Ready for Review]
+- [x] Install and pin `sqlglot>=25.0.0` for AST-level SQL validation
+- [x] Define `SQLArtifact` and `SQLCompilationStatus` Pydantic models
+- [x] Implement parameterized SQL query generator (`SQLCompiler`) for 5 archetypes
+- [x] Inject mandatory RBAC and scope constraints (STUDENT self-scope, HOD departmental scope)
+- [x] Implement AST-based SQL Validator (`SQLValidator`) rejecting comments, DDL/DML, SELECT *, and unauthorized functions
+- [x] Validate strict parameter binding on all dynamic values (`parameters: Dict[str, Any]`)
+- [x] Integrate `compile_intent_to_sql` method on `IntentService`
+- [x] Write comprehensive test suite verifying archetypes, canonical metrics, security rejection matrix, and golden snapshots (30 new tests, 187 total tests passing)
 
 ---
 
-## Phase 8: Safe Query Execution + Result Validation
-- [ ] Configure read-only database connection pool with execution timeouts
-- [ ] Execute validated queries against the college database
-- [ ] Implement Result Validator checking types, nulls, and logical bounds
-- [ ] Format numerical answers and tabular records for presentation
-- [ ] Verify query timeout and resource containment guards
+## Phase 8: Safe Query Execution + Result Validation [COMPLETED - Ready for Review]
+- [x] Install and pin `psycopg[binary]>=3.1.0` in backend requirements
+- [x] Configure read-only database connection abstraction with statement timeouts (5000ms default)
+- [x] Enforce session-level read-only mode (`SET SESSION CHARACTERISTICS AS TRANSACTION READ ONLY;`)
+- [x] Implement deterministic parameter translation (:param to %(param)s) preserving Postgres type casts
+- [x] Enforce maximum result limits (1000 rows, 1MB payload size)
+- [x] Implement Result Validator checking IEEE-754 safety (rejecting NaN, Infinity), domain sanity bounds, and null preservation
+- [x] Build ExecutionService with multi-layer defense-in-depth pre-execution checks and audit logging
+- [x] Implement protected `POST /api/v1/agent/query` route supporting dry-run SQL inspection and live execution
+- [x] Update frontend to display compiled SQL and results in clean data tables without charts
+- [x] Enforce fail-closed handling when database is unconfigured (HTTP 503) without crashing or socket attempts
+- [x] Write comprehensive test suite (29 new tests across 4 suites, 229 total passing tests)
 
 ---
 

@@ -65,5 +65,8 @@ async def check_readiness(
             college_database=db_status,
             schema_registry_objects=registry.get_object_count() if registry_ready else None,
             database_host=settings.COLLEGE_DB_HOST if settings.COLLEGE_DB_HOST else None,
+            gemini="configured" if settings.is_gemini_configured else "not_configured",
+            groq="configured" if settings.is_groq_configured else "not_configured",
         ),
     )
+

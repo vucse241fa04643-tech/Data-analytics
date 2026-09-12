@@ -11,12 +11,12 @@ export interface SidebarProps {
 export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
   const primaryNav = [
     { label: 'Overview', path: '/', icon: <LayoutDashboard size={18} /> },
-    { label: 'Agent 63', path: '/agent', icon: <MessageSquare size={18} />, badge: 'Workspace' },
+    { label: 'Agent 63', path: '/agent', icon: <MessageSquare size={18} />, badge: 'Phase 6 Active' },
     { label: 'Analytics', path: '/analytics', icon: <BarChart2 size={18} /> },
   ];
 
   const futureNav = [
-    { label: 'Role Dashboards', icon: <Shield size={18} />, phase: 'Phase 5' },
+    { label: 'Role Dashboards', icon: <Shield size={18} />, phase: 'Phase 12' },
     { label: 'Reconciliation', icon: <CheckCircle2 size={18} />, phase: 'Phase 14' },
     { label: 'Audit Trail', icon: <FileText size={18} />, phase: 'Phase 13' },
     { label: 'RBAC Scopes', icon: <Lock size={18} />, phase: 'Phase 5' },
@@ -67,9 +67,9 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
             <span style={{ fontWeight: 'var(--font-weight-semibold)', color: 'var(--color-text-secondary)' }}>
               Agent 63 Architecture
             </span>
-            <span>Deterministic Analytics Engine</span>
+            <span>Secure Institutional Analytics Agent</span>
             <span style={{ color: 'var(--color-brand-primary)', fontSize: '10px' }}>
-              Phase 3: Frontend Foundation
+              Phase 6: Intent Engine
             </span>
           </div>
         </div>

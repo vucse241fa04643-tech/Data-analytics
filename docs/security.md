@@ -185,17 +185,113 @@ During Phase 5, a **production-oriented Authentication + RBAC + Authorization fo
 
 ---
 
-## 7. Current Phase Status & Phase 1 Database Controls
-- **Phase 0:** Architectural security boundaries and policies established and documented.
-- **Phase 1 [Implemented]:**
-  - **Schema Registry Control Boundary:** `agent63_schema_registry.json` created as a machine-readable allowlist. Future SQL generators will only query explicitly permitted tables and columns.
-  - **Confidential Schema Lockdown:** All tables under `confidential` (`counselling_case`, `counselling_note`, `medical_record`, `crisis_escalation`) marked with non-negotiable `DENY_GENERAL_ANALYTICS`.
-  - **Exam Security Lockdown:** `assessment.question_paper`, `exams.question_paper_delivery`, and `exams.malpractice_incident` marked `DENY_GENERAL_ANALYTICS`.
-  - **Database RLS Awareness:** Cataloged 7 RLS-enabled tables and 19 security policies (`database/documentation/database-security-integration.md`). Dual enforcement will verify scopes in Python and PostgreSQL session claims.
-  - **Read-Only Least Privilege:** Architecture documented in `database/documentation/read-only-integration.md` with explicit 5,000ms execution timeout and read-only role requirements.
-- **Phase 2 [Implemented]:** Hardened FastAPI foundation, structured error redacting, correlation tracing, schema registry service.
-- **Phase 3 [Implemented]:** Institutional frontend foundation, zero synthetic data, live backend telemetry probe.
-- **Phase 4 [Implemented]:** Authoritative semantic layer, 26 metrics, 10 dimensions, 24 join paths, security policy, and validation suite.
-- **Phase 5 [Implemented]:** Authentication + Scoped RBAC Foundation, Argon2id verification, PyJWT with JTI revocation, server-side principal resolution, semantic security policy integration.
-- **Phases 6–16:** Incremental implementation of intent parsing, safe SQL generation, and read-only execution according to the master plan.
+## 7. Phase 6 Natural Language → Structured Intent Security Implementation
 
+During Phase 6, the Natural Language → Structured Intent pipeline was implemented and migrated to Groq (`openai/gpt-oss-20b`) via the provider-neutral `IntentLLMClient` abstraction.
+
+### 7.1 Backend-Only LLM Custody & API Key Isolation
+- `GROQ_API_KEY` (and legacy `GEMINI_API_KEY`) is strictly confined to the backend process environment; it is never exposed in frontend code, client bundles, or network traffic.
+- The backend configuration validates key availability and fails closed if unconfigured (`GroqConfigurationError`, returning HTTP 503).
+- Any provider errors returned by Groq or upstream providers have potential credentials, headers, and stack traces scrubbed before logging or client response formatting.
+
+### 7.2 Zero-SQL Architectural Boundary
+- The LLM is strictly employed as an untrusted natural language parser; it is mathematically and architecturally prohibited from generating, composing, or executing SQL queries in Phase 6.
+- The `StructuredIntent` Pydantic model enforces structured fields (`filters: Dict[str, Any]`, `dimensions: List[str]`, `primary_metric_id: str`).
+- The Groq client enforces strict JSON schema (`strict: true`, `additionalProperties: false`) on filters, disallowing arbitrary filter keys.
+- A dedicated `@field_validator` on filters rejects raw SQL fragments, keywords (`SELECT`, `WHERE`, `INSERT`, `UPDATE`, `DELETE`, `DROP`, `UNION`, `EXEC`), semicolons, and SQL comments (`--`, `/*`).
+
+### 7.3 Semantic Layer Catalog Grounding & Lifecycle Gatekeeping
+- The system prompt for Groq is dynamically compiled containing exclusively `APPROVED` metrics from the Phase 4 Semantic Layer.
+- `REVIEW_REQUIRED` (e.g. `attendance.students_below_threshold`, `placement.placement_rate`) and `DEPRECATED` metrics are omitted from prompt context and strictly rejected by the deterministic `IntentValidator` with error code `METRIC_NOT_APPROVED`.
+- Nonexistent or hallucinated metrics are rejected with error code `METRIC_NOT_FOUND`.
+- Nonexistent dimensions are rejected with error code `INVALID_DIMENSION`.
+
+### 7.4 Untrusted LLM Model & Server-Side Authorization Authority
+- The LLM provider (Groq) is treated as an untrusted interpreter. The output `StructuredIntent` is never assumed to be authorized.
+- Server-side `AuthorizationService.authorize_metric()` independently inspects the authenticated user's session claims, roles, and organizational scope.
+- Horizontal privilege escalation attempts (e.g., student querying department-wide metrics or HOD of CSE querying ECE) are deterministically rejected with `SCOPE_OUT_OF_BOUNDS` or `INSUFFICIENT_PERMISSIONS`.
+- All rejected and unauthorized intent attempts are recorded in the security audit log (`AuditService`) with `X-Request-ID`.
+
+---
+
+## 8. Phase 7 Safe SQL Generation & AST Validation Security Implementation
+
+During Phase 7, the Structured Intent → Safe SQL compilation pipeline was implemented and hardened with multi-tier AST-level security controls using `sqlglot`:
+
+### 8.1 Read-Only SELECT-Only Enforcement
+- All compiled SQL artifacts are strictly `exp.Select` statements.
+- Any attempt to compile or validate DDL/DML mutation statements (`INSERT`, `UPDATE`, `DELETE`, `DROP`, `ALTER`, `CREATE`, `TRUNCATE`, `GRANT`, `REVOKE`, `EXEC`) is rejected at the AST level with `SQLValidationError`.
+- Multi-statement execution via semicolons (`;`) is strictly forbidden and rejected.
+- SQL comments (`--`, `/* */`) are forbidden to prevent injection cloaking.
+
+### 8.2 Strict Parameter Separation & Isolation
+- All user-supplied filter inputs (strings, dates, codes, IDs) are strictly separated into a named `parameters: Dict[str, Any]` dictionary and bound as `:param_0`, `:param_1`, etc.
+- No user input is ever string-interpolated into SQL queries.
+
+### 8.3 Schema, Table, and Function Allowlists
+- Tables and views must be schema-qualified and present in the Phase 1 Schema Registry or verified institutional analytical views.
+- Access to confidential or administrative schemas (`confidential.*`, `pg_*`, `information_schema.*`, `identity.credential`, `identity.auth_token`) is strictly quarantined and rejected with `SQLValidationError`.
+- `SELECT *` (star expressions) is strictly prohibited. Queries must select explicit, allowlisted columns and formulas.
+- Functions are restricted to an allowlist of approved mathematical and aggregate functions (`avg`, `round`, `count`, `sum`, `min`, `max`, `nullif`, `coalesce`, `filter`, `stddev_pop`, `corr`).
+
+### 8.4 Server-Side Authorization Predicate Injection
+- Authorization scoping predicates are computed server-side from `AuthenticatedPrincipal` and injected directly into query ASTs:
+  - `STUDENT`: automatically appends `a.student_id = :auth_student_id` (self-scope).
+  - `HOD`: automatically appends `d.code = :auth_department_code` or `d.department_id = :auth_department_id` restricted to the HOD's assigned department scope. Cross-department queries by HODs fail closed with `SQLAuthorizationError`.
+- Mandatory `LIMIT` clause is injected and enforced: `0 < limit <= settings.MAX_QUERY_LIMIT` (1000).
+
+### 8.5 Zero-Database Connectivity Boundary (Phase 7 Baseline)
+- Phase 7 operated completely decoupled from PostgreSQL. No database connection was created or utilized.
+- Compilation and validation operated purely in memory against the Schema Registry and Semantic Catalog.
+
+---
+
+## 9. Phase 8 Safe SQL Execution & Result Validation Security Implementation
+
+During Phase 8, safe database execution and result validation were implemented with comprehensive defense-in-depth security:
+
+### 9.1 Multi-Layer Defense-in-Depth Pre-Execution Checks
+Prior to touching the database layer, `ExecutionService` enforces four sequential barriers:
+1. **Validation Status Check:** `artifact.validation_status == 'VALID'`.
+2. **Read-Only Flag Check:** `artifact.read_only is True`.
+3. **AST Re-Validation:** AST inspection using `sqlglot` guarantees single SELECT, no comments, no semicolons, no prohibited schemas, and mandatory LIMIT clause.
+4. **Parameter Completeness Verification:** All `:param` tokens in the SQL string must map to keys in `artifact.parameters`, preventing unbound injection vectors.
+
+### 9.2 Strict Read-Only Database Transaction Mode
+- PostgreSQL transactions are locked to read-only mode at both connection and session level:
+  `conn.read_only = True`
+  `cur.execute("SET SESSION CHARACTERISTICS AS TRANSACTION READ ONLY;")`
+- Any mutation attempt immediately raises `ReadOnlySqlTransaction`, mapped to `DatabaseExecutionError("Execution aborted: write operations are strictly prohibited.")`.
+
+### 9.3 Strict Parameter Separation & Native Driver Translation
+- User inputs are never string-interpolated into SQL.
+- Named parameters from `SQLArtifact` (`:param`) are deterministically translated to `psycopg` native named parameters (`%(param)s`) using word-boundary regular expressions that preserve PostgreSQL type casts (`::text`, `::integer`, `::numeric`).
+
+### 9.4 Hard Resource and Execution Limits
+- **Statement Timeout:** Default 5000ms enforced via `SET statement_timeout = <ms>;`. Query cancellations map to `DatabaseTimeoutError` (HTTP 504).
+- **Row Count Limit:** Capped at `min(limit, MAX_RESULT_ROWS)` (max 1000 rows). Attempts to exceed this limit raise `ResultSizeLimitExceededError` (HTTP 413).
+- **Payload Byte Limit:** Results are capped at 1MB (`MAX_RESULT_BYTES = 1048576`).
+
+### 9.5 Mathematical and Domain Sanity Result Validation
+- **IEEE-754 Safety:** Rejects `NaN`, `Infinity`, and `-Infinity` values with `ResultValidationError`.
+- **Domain Sanity Bounds:** Enforces valid ranges for percentages ([0, 100]), non-negative counts (>= 0), and attainment scales ([0, 3]).
+- **Strict Null Preservation:** Preserves `NULL` as `None` without false coercion to 0 or empty strings.
+- **Type Normalization:** Normalizes `Decimal` to `float` and `date`/`datetime` to ISO-8601 strings for safe JSON serialization.
+
+### 9.6 Fail-Closed Degradation & Absolute Secret Hygiene
+- When `is_database_configured` is `False`, the system starts safely, health checks report `college_database: not_configured`, and `/api/v1/agent/query` returns HTTP 503 `DATABASE_NOT_CONFIGURED` without attempting network socket connections.
+- Database passwords, connection strings, and LLM API keys are redacted from all logs, error envelopes, and audit records.
+- All query executions and failures emit structured audit logs (`QUERY_EXECUTED`, `QUERY_FAILED`) with request correlation IDs.
+
+---
+
+## 10. Summary of Completed Architectural Boundaries
+- **Phase 1 [Implemented]:** Schema registry loaded from JSON with structural validation and strict column whitelisting.
+- **Phase 2 [Implemented]:** FastAPI backend foundation with controlled error envelopes, request correlation, and safe degraded readiness state when the database is unconfigured.
+- **Phase 3 [Implemented]:** Single-page React dashboard with role-based navigation scaffolding and decoupled API service layer.
+- **Phase 4 [Implemented]:** Semantic Layer metric catalog with relational joins, directional validation, and lifecycle states (`APPROVED`, `REVIEW_REQUIRED`).
+- **Phase 5 [Implemented]:** Argon2id hashing, RS/HS256 JWT validation, RBAC with institutional roles, and multi-tenant organizational scope evaluation.
+- **Phase 6 [Implemented]:** Natural Language → Structured Intent via Groq API (`openai/gpt-oss-20b`) with provider-neutral `IntentLLMClient` abstraction, deterministic catalog grounding, zero SQL, server-side authorization gating.
+- **Phase 7 [Implemented]:** Safe SQL Generator & AST-level SQL Validator using `sqlglot`, server-side authorization scoping (STUDENT/HOD), parameter separation, strict schema/table/function allowlists, and zero DB execution.
+- **Phase 8 [Implemented]:** Safe PostgreSQL execution via `psycopg` (read-only transactions, parameter translation, timeouts, row/byte limits), post-execution ResultValidator (NaN/Inf rejection, percentage [0, 100] bounds, non-negative counts, null preservation), fail-closed handling when unconfigured, end-to-end `/api/v1/agent/query` route, and tabular UI.
+- **Phases 9–16:** Incremental implementation of visualizations, explanation metadata, anomaly detection, conversation memory, exports, and scheduled reports according to the master plan.

@@ -86,10 +86,12 @@
 
 ---
 
-## H. Natural Language Requirements
-- **NLR-01 [Future - Phase 6]:** The Natural Language engine shall parse unstructured text into a validated `IntentSchema` JSON object.
-- **NLR-02 [Future - Phase 6]:** The parser must extract: Target Metric, Population/Entity, Academic Period, Dimensional Groupings, and Explicit Filters.
-- **NLR-03 [Future - Phase 6]:** Ambiguous questions must trigger an explicit clarification request rather than generating a speculative query.
+## H. Natural Language Understanding Requirements
+- **NLR-01 [IMPLEMENTED - Phase 6]:** The Natural Language engine parses unstructured text into a validated `StructuredIntent` JSON object using Google Gemini (`google-genai` SDK) grounded exclusively in the Phase 4 Semantic Layer.
+- **NLR-02 [IMPLEMENTED - Phase 6]:** The parser extracts: Intent Type, Primary/Secondary Metrics, Dimensional Groupings, Structured Filters, Time Context (academic year, term), and Reasoning Summary.
+- **NLR-03 [IMPLEMENTED - Phase 6]:** Ambiguous questions, missing metrics, or out-of-scope prompts trigger explicit clarification requests or out-of-scope statuses rather than generating speculative interpretations.
+- **NLR-04 [IMPLEMENTED - Phase 6]:** Zero SQL generation, execution, or raw SQL clauses are permitted; all filters are strictly validated against SQL keywords.
+- **NLR-05 [IMPLEMENTED - Phase 6]:** Server-side authorization evaluates all extracted intents against authenticated principal roles and scopes prior to acceptance.
 
 ---
 

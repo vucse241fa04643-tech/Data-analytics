@@ -37,7 +37,7 @@ export const OverviewPage: React.FC = () => {
         <div style={{ maxWidth: '800px', position: 'relative', zIndex: 2 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
             <StatusBadge variant="info">Institutional Analytics Platform</StatusBadge>
-            <StatusBadge variant="neutral">Phase 3: Frontend Foundation</StatusBadge>
+            <StatusBadge variant="success">Phase 6: Intent Engine Active</StatusBadge>
           </div>
           <h1 style={{ fontSize: 'var(--font-size-3xl)', color: 'var(--color-brand-primary)', marginBottom: '16px' }}>
             Agent 63 – Institutional Data Intelligence

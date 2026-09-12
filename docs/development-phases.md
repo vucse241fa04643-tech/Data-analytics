@@ -110,41 +110,65 @@
 
 ---
 
-## Phase 6: Natural Language → Structured Intent
-- **Objective:** Develop the Natural Language understanding pipeline that maps user questions into typed, validated structured intents.
-- **Major Tasks:**
-  - Define `IntentSchema` Pydantic models (Metric, Population, Academic Period, Dimensions, Filters).
-  - Construct prompt engineering templates referencing the Metric Catalog.
-  - Integrate LLM API call with JSON mode/structured output enforcement.
-  - Build intent validation logic with clarification fallbacks for ambiguous inputs.
-- **Expected Deliverables:** Intent parser service, structured prompt templates, intent validation test suite.
-- **Acceptance Criteria:** Unstructured questions reliably translate to valid `IntentSchema`; out-of-scope questions handled gracefully.
+## Phase 6: Natural Language → Structured Intent [COMPLETED - Ready for Review]
+- **Objective:** Develop the Natural Language understanding pipeline that maps user questions into typed, validated structured intents using Google Gemini backend-only integration.
+- **Major Tasks Completed:**
+  - Installed and pinned `google-genai>=1.0.0` in `backend/requirements.txt` (zero OpenAI, zero LangChain).
+  - Defined strict `StructuredIntent` Pydantic models (`backend/app/schemas/intent.py`) with fields for `intent_type`, `primary_metric_id`, `dimensions`, `filters`, `time_context`, `reasoning_summary`, and raw SQL injection filter guards.
+  - Implemented Google Gemini client abstraction (`backend/app/services/gemini_client.py`) using official `google.genai.Client` and `types.GenerateContentConfig` with structured JSON schema enforcement, deterministic temperature 0.0, timeout guards, and deterministic `MockGeminiClient` for CI testing without API keys.
+  - Implemented `IntentValidator` (`backend/app/services/intent_validator.py`) enforcing metric grounding in Phase 4 catalog, lifecycle status gatekeeping (`APPROVED` only; rejects `REVIEW_REQUIRED` and `DEPRECATED`), confidential domain isolation, dimension validity against Phase 4 dimensions, and SQL injection filter rejection.
+  - Implemented `IntentService` (`backend/app/services/intent_service.py`) orchestrating dynamic system prompt compilation from approved Phase 4 catalog, few-shot institutional examples, Gemini invocation, validation, server-side `AuthorizationService.authorize_metric()` checking, and security audit logging.
+  - Built protected API endpoint `POST /api/v1/intent` (`backend/app/api/v1/intent.py`) requiring `Depends(get_current_principal)` with uniform error mapping (`503` unconfigured, `504` timeout, `400` validation failure) and request correlation ID preservation.
+  - Updated readiness probe (`/api/v1/health/ready`) to report Gemini configuration status.
+  - Authored comprehensive test suite: 30 new unit and integration tests across 5 test files (`test_intent_schema.py`, `test_intent_validator.py`, `test_gemini_client.py`, `test_intent_service.py`, `test_intent_api.py`), bringing total passing test suite to 124 tests.
+- **Deliverables:** `backend/app/schemas/intent.py`, `backend/app/services/gemini_client.py`, `backend/app/services/intent_validator.py`, `backend/app/services/intent_service.py`, `backend/app/api/v1/intent.py`, test suites, and documentation.
+- **Acceptance Criteria Met:** 100% test pass rate (124/124 tests); zero SQL generation or database connection; exclusively Google Gemini SDK; prompt injection attempts quarantined; horizontal privilege escalation blocked server-side; schema registry and semantic layer validation scripts pass 100%; frontend builds cleanly with 0 errors.
 - **Dependencies:** Phase 4, Phase 5.
 
 ---
 
-## Phase 7: Structured Intent → Safe SQL
-- **Objective:** Transform validated intents and RBAC scopes into deterministic, parameterized, read-only SQL queries.
-- **Major Tasks:**
-  - Implement query builder mapping `IntentSchema` and metric definitions to SQL statements.
-  - Inject mandatory RBAC filters (e.g., `WHERE department_id = :dept_id`).
-  - Build AST-based SQL Validator (`sqlglot` or custom parser) to verify read-only semantics.
-  - Enforce rejection of all mutation tokens (`INSERT`, `UPDATE`, `DELETE`, `DROP`, `ALTER`, etc.).
-- **Expected Deliverables:** Safe SQL generator, AST SQL validator, SQL unit tests.
-- **Acceptance Criteria:** Generated queries use parameter binding; any query with mutation keywords is rejected immediately.
-- **Dependencies:** Phase 1, Phase 4, Phase 6.
+## Phase 7: Structured Intent → Safe SQL [COMPLETED - Ready for Review]
+- **Objective:** Transform validated intents and RBAC scopes into deterministic, parameterized, read-only SQL queries with AST-level safety verification.
+- **Major Tasks Completed:**
+  - Installed and pinned `sqlglot>=25.0.0` for PostgreSQL AST inspection.
+  - Defined `SQLArtifact` and `SQLCompilationStatus` Pydantic schemas (`backend/app/schemas/sql_artifact.py`).
+  - Added query limit settings (`DEFAULT_QUERY_LIMIT = 100`, `MAX_QUERY_LIMIT = 1000`) and dedicated error classes (`SQLCompilationError`, `SQLValidationError`, `SQLAuthorizationError`).
+  - Implemented `SQLValidator` (`backend/app/services/sql_validator.py`) with AST-level inspection enforcing: single statement, `exp.Select` only, no `SELECT *`, no SQL comments, schema allowlist, table allowlist via Schema Registry, function allowlist, mandatory positive limit <= 1000, and rejection of all mutation tokens (`INSERT`, `UPDATE`, `DELETE`, `DROP`, `ALTER`, etc.).
+  - Implemented `SQLCompiler` (`backend/app/services/sql_compiler.py`) compiling 5 query archetypes (`METRIC_QUERY`, `BREAKDOWN_QUERY`, `COMPARISON_QUERY`, `TREND_QUERY`, `RANKING_QUERY`) with strict parameter separation and server-side authorization scoping (STUDENT self-scope, HOD departmental scope).
+  - Integrated `compile_intent_to_sql` method on `IntentService`.
+  - Authored comprehensive test suites: 30 new tests across `test_sql_compiler.py`, `test_sql_validator.py`, and `test_sql_golden_snapshots.py`, bringing total passing test suite to 187 tests.
+- **Deliverables:** `backend/app/schemas/sql_artifact.py`, `backend/app/services/sql_validator.py`, `backend/app/services/sql_compiler.py`, updated `intent_service.py`, comprehensive test suites, updated documentation.
+- **Acceptance Criteria Met:** 100% test pass rate (187/187 tests); zero database connections or executions; strictly read-only parameterized queries; zero SQL comments or multiple statements; server-side authorization scoping enforced; schema registry and semantic layer validation scripts pass 100%; frontend builds cleanly.
+- **Dependencies:** Phase 1, Phase 4, Phase 5, Phase 6.
+
 
 ---
 
-## Phase 8: Safe Query Execution + Result Validation
-- **Objective:** Safely execute read-only queries against the college database and validate numerical results.
-- **Major Tasks:**
-  - Configure isolated, read-only database connection pool with execution timeouts.
-  - Execute parameterized SQL queries against the college database.
-  - Implement result validation engine: check data types, null counts, and logical boundaries (e.g., $0\% \le \text{attendance} \le 100\%$).
-  - Format tabular and aggregate results for presentation.
-- **Expected Deliverables:** Read-only execution service, result validation module, query timeout guards.
-- **Acceptance Criteria:** Queries execute within timeout limits; result validation flags impossible numbers; zero write capabilities.
+## Phase 8: Safe Query Execution + Result Validation [COMPLETED - Ready for Review]
+- **Objective:** Safely execute read-only queries against the college PostgreSQL database, enforce hard resource limits and statement timeouts, and validate numerical results against domain sanity bounds.
+- **Major Tasks Completed:**
+  - Installed and pinned `psycopg[binary]>=3.1.0` (version 3.3.5) for high-performance PostgreSQL interaction.
+  - Defined Pydantic query result schemas (`backend/app/schemas/query_result.py`): `QueryResultStatus`, `ExecutionMetadata`, `QueryResult`, `AgentQueryRequest`, `AgentQueryResponse`.
+  - Added Phase 8 configuration settings in `backend/app/core/config.py`: `COLLEGE_DB_MIN_POOL_SIZE = 1`, `COLLEGE_DB_MAX_POOL_SIZE = 10`, `MAX_RESULT_ROWS = 1000`, `MAX_RESULT_BYTES = 1048576`.
+  - Implemented domain exceptions in `backend/app/core/errors.py`: `DatabaseNotConfiguredError` (503), `DatabaseConnectionError` (503), `DatabaseTimeoutError` (504), `DatabaseExecutionError` (500), `ResultValidationError` (422), `ResultSizeLimitExceededError` (413), and `SecurityValidationError` (400).
+  - Upgraded `CollegeDatabaseService` (`backend/app/services/database.py`) with:
+    - Fail-closed handling when database is unconfigured.
+    - Parameter translation from `:param` to `%(param)s` preserving PostgreSQL type casts (`::text`, `::integer`, `::numeric`).
+    - Enforced read-only transaction mode (`conn.read_only = True`, `SET SESSION CHARACTERISTICS AS TRANSACTION READ ONLY;`).
+    - PostgreSQL statement timeout enforcement (`SET statement_timeout = <ms>;`).
+    - Row count and byte payload size guardrails.
+  - Implemented `ResultValidator` (`backend/app/services/result_validator.py`) with:
+    - Empty result set handling (`QueryResultStatus.EMPTY`).
+    - IEEE-754 safety: strictly rejects `NaN`, `Infinity`, and `-Infinity`.
+    - Physical domain sanity bounds (percentages [0, 100], non-negative counts >= 0, rubric scales [0, 3]).
+    - Strict NULL preservation as `None`.
+    - Type normalization (Decimals to floats, dates/datetimes to ISO-8601).
+  - Implemented `ExecutionService` (`backend/app/services/execution_service.py`) with pre-execution defense-in-depth checks, read-only database execution orchestration, and audit event dispatch (`QUERY_EXECUTED`, `QUERY_FAILED`).
+  - Implemented and mounted protected API route `POST /api/v1/agent/query` (`backend/app/api/v1/agent.py`) supporting end-to-end execution and dry-run SQL inspection.
+  - Updated frontend `ApiService` (`frontend/src/services/api.ts`) and `AgentPage` (`frontend/src/pages/AgentPage.tsx`) to display compiled SQL, execution metadata, and results in clean data tables without charts.
+  - Authored comprehensive test suites: 29 new unit and integration tests across 4 test files (`test_database_service.py`, `test_result_validator.py`, `test_execution_service.py`, `test_agent_query_api.py`), bringing total passing tests to 229.
+- **Deliverables:** `backend/app/schemas/query_result.py`, updated `database.py`, `backend/app/services/result_validator.py`, `backend/app/services/execution_service.py`, `backend/app/api/v1/agent.py`, updated router and frontend, test suites, updated documentation.
+- **Acceptance Criteria Met:** 100% test pass rate (229/229 tests); read-only execution exclusively; zero mutations; statement timeouts enforced; domain sanity bounds checked; fail-closed when database is unconfigured (HTTP 503); zero synthetic data; schema registry and semantic layer validation pass 100%; frontend builds cleanly.
 - **Dependencies:** Phase 1, Phase 7.
 
 ---
