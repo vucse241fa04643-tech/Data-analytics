@@ -83,6 +83,70 @@
   color: var(--color-text-secondary);
 }
 
+.subsystemItem {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  padding: 6px var(--spacing-sm);
+  border-radius: var(--radius-sm);
+  color: var(--color-text-secondary);
+  font-size: 12px;
+  font-weight: var(--font-weight-medium);
+  transition: all var(--transition-fast);
+  text-decoration: none;
+  cursor: default;
+}
+
+.subsystemItemClickable {
+  cursor: pointer;
+}
+
+.subsystemItemClickable:hover {
+  background-color: var(--color-bg-workspace);
+  color: var(--color-text-primary);
+}
+
+.subsystemItemActive {
+  background-color: var(--color-brand-light);
+  color: var(--color-brand-primary);
+  font-weight: var(--font-weight-semibold);
+}
+
+.subsystemLabel {
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 11.5px;
+}
+
+.activeBadge {
+  margin-left: auto;
+  font-size: 10px;
+  font-weight: var(--font-weight-semibold);
+  padding: 1px 6px;
+  border-radius: var(--radius-sm);
+  background-color: var(--color-success-bg);
+  color: var(--color-success);
+  border: 1px solid var(--color-success-border);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.plannedBadge {
+  margin-left: auto;
+  font-size: 10px;
+  font-weight: var(--font-weight-medium);
+  padding: 1px 6px;
+  border-radius: var(--radius-sm);
+  background-color: var(--color-bg-subtle);
+  color: var(--color-text-muted);
+  border: 1px solid var(--color-border-subtle);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
 .footer {
   padding: var(--spacing-md);
   border-top: 1px solid var(--color-border-subtle);

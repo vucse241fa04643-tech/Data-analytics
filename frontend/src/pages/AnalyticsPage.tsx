@@ -31,34 +31,34 @@ interface MetricOption {
 
 const APPROVED_METRICS: MetricOption[] = [
   {
-    id: 'student.attendance.percentage',
+    id: 'attendance.percentage',
     label: 'Course Attendance Rate (%)',
     domain: 'Attendance Domain',
   },
   {
-    id: 'assessment.pass_rate',
-    label: 'End-Semester Pass Rate (%)',
+    id: 'assessment.course_pass_percentage',
+    label: 'Course Pass Percentage (%)',
     domain: 'Assessment Domain',
   },
   {
-    id: 'placement.ctc_average',
-    label: 'Average Placement Package (LPA)',
+    id: 'academics.active_student_strength',
+    label: 'Active Student Strength',
+    domain: 'Academic Domain',
+  },
+  {
+    id: 'placement.placed_students_count',
+    label: 'Placed Students Count',
     domain: 'Placement Domain',
   },
   {
-    id: 'faculty.phd_percentage',
-    label: 'Faculty Ph.D. Ratio (%)',
-    domain: 'Faculty Domain',
+    id: 'placement.average_ctc',
+    label: 'Average Placement Package (Annual CTC)',
+    domain: 'Placement Domain',
   },
   {
-    id: 'research.publication_count',
-    label: 'Research Publications Count',
-    domain: 'Research Domain',
-  },
-  {
-    id: 'academics.student_faculty_ratio',
-    label: 'Student-to-Faculty Ratio',
-    domain: 'Academic Domain',
+    id: 'outcomes.co_attainment_level',
+    label: 'Course Outcome Attainment Level',
+    domain: 'Outcomes Domain',
   },
 ];
 
@@ -81,11 +81,21 @@ export const AnalyticsPage: React.FC = () => {
       return;
     }
 
-    let prompt = `Show ${metricObj.label.toLowerCase()}`;
-    if (targetDim === 'department') {
-      prompt += ' by department';
-    } else if (targetDim === 'year') {
-      prompt += ' by academic year';
+    let prompt = '';
+    if (metricObj.id === 'attendance.percentage') {
+      prompt = targetDim === 'department' ? 'What is the average attendance percentage by department?' : 'What is the average attendance percentage?';
+    } else if (metricObj.id === 'assessment.course_pass_percentage') {
+      prompt = targetDim === 'department' ? 'Show course pass percentage by department' : 'What is the course pass percentage?';
+    } else if (metricObj.id === 'academics.active_student_strength') {
+      prompt = targetDim === 'department' ? 'Show active student strength by department' : 'Show active student strength';
+    } else if (metricObj.id === 'placement.placed_students_count') {
+      prompt = targetDim === 'department' ? 'Show the number of placed students by department' : 'Show the number of placed students';
+    } else if (metricObj.id === 'placement.average_ctc') {
+      prompt = targetDim === 'department' ? 'Show average placement CTC by department' : 'What is the average placement CTC?';
+    } else if (metricObj.id === 'outcomes.co_attainment_level') {
+      prompt = targetDim === 'department' ? 'Show CO attainment level by department' : 'Show CO attainment level';
+    } else {
+      prompt = `Show ${metricObj.label.toLowerCase()}${targetDim === 'department' ? ' by department' : ''}`;
     }
 
     setIsLoading(true);
@@ -348,13 +358,40 @@ export const AnalyticsPage: React.FC = () => {
             <AnomalyInsightCard anomaly={queryResponse.anomaly} />
           )}
 
+          {/* Empty result banner */}
+          {result && result.rows.length === 0 && (
+            <div
+              style={{
+                padding: '24px 20px',
+                backgroundColor: 'var(--color-bg-workspace)',
+                border: '1px solid var(--color-border-subtle)',
+                borderRadius: 'var(--radius-md)',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                textAlign: 'center',
+                gap: '8px',
+                margin: '8px 0',
+              }}
+            >
+              <Database size={28} color="var(--color-text-muted)" />
+              <div style={{ fontWeight: 'var(--font-weight-semibold)', color: 'var(--color-text-primary)' }}>
+                No Matching Institutional Records Found
+              </div>
+              <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-secondary)', maxWidth: '520px' }}>
+                The analytical query executed successfully and safely against read-only PostgreSQL, but the database contains no matching records for the specified criteria.
+              </div>
+            </div>
+          )}
+
           {/* Analytical Summary Card */}
-          {explanation && (
+          {explanation && result && result.rows.length > 0 && (
             <AnalyticalSummaryCard explanation={explanation} />
           )}
 
           {/* Tabular Result Representation */}
-          {result && (
+          {result && result.rows.length > 0 && (
             <ResultTableView
               result={result}
               metadata={metadata}
@@ -374,6 +411,8 @@ export const AnalyticsPage: React.FC = () => {
           {queryResponse.request_id && (
             <VerificationCard
               requestId={queryResponse.request_id}
+              hasResult={Boolean(result && result.rows.length > 0)}
+              rowCount={result?.rows.length ?? 0}
             />
           )}
 
@@ -477,7 +516,7 @@ export const AnalyticsPage: React.FC = () => {
                 >
                   <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                     <Database size={12} />
-                    <span>Live SQL Query</span>
+                    <span>Live institutional analysis</span>
                   </span>
                   <span
                     style={{

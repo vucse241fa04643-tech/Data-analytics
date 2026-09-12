@@ -167,8 +167,17 @@ class VerificationService:
         # 2. Retrieve server-side cached analytical artifact
         artifact = self._artifact_store.get_artifact(payload.request_id)
         if not artifact:
-            raise ValueError(
-                "Analytical result not found or session expired. Please re-run the query."
+            return VerificationResult(
+                status=VerificationStatus.NOT_VERIFIED,
+                metric_id="unknown",
+                metric_display_name="Analytical Query",
+                analytical_value=None,
+                official_value=None,
+                reporting_period="2024-2025",
+                scope=None,
+                document_reference=None,
+                reason="Not verified — analytical result is not available in active session for reconciliation.",
+                verified_at=datetime.now(timezone.utc),
             )
 
         # 3. Ownership and Cross-User Isolation
@@ -220,8 +229,7 @@ class VerificationService:
         # 5. Extract Analytical Metadata
         metric_id = artifact.metric_id
         display_name = artifact.metric_display_name
-        rows = artifact.query_result.rows
-        analytical_val = _extract_primary_analytical_value(artifact)
+        rows = artifact.query_result.rows if artifact.query_result else []
 
         # Resolve time context / period from filters
         filters = artifact.filters or {}
@@ -231,6 +239,22 @@ class VerificationService:
             or filters.get("year")
             or "2024-2025"
         )
+
+        if not rows:
+            return VerificationResult(
+                status=VerificationStatus.NOT_VERIFIED,
+                metric_id=metric_id,
+                metric_display_name=display_name,
+                analytical_value=None,
+                official_value=None,
+                reporting_period=analytical_period,
+                scope={"scope_type": artifact.scope_type, "scope_id": artifact.scope_id},
+                document_reference=None,
+                reason="Not verified — no matching analytical records were found in the database for reconciliation.",
+                verified_at=datetime.now(timezone.utc),
+            )
+
+        analytical_val = _extract_primary_analytical_value(artifact)
 
         # 6. Look Up Authoritative Institutional Report
         official_report = self._lookup_authoritative_report(
@@ -458,7 +482,7 @@ class VerificationService:
                     sql += " AND (doc.document_id = :doc_id OR ei.evidence_item_id = :doc_id)"
                     params["doc_id"] = document_id
 
-                rows = self._db_service.execute_read_only_query(sql, params)
+                _, rows, _, _ = self._db_service.execute_query(sql, params)
                 for r in rows:
                     p_start = str(r.get("period_start", ""))
                     if period in p_start or not period:

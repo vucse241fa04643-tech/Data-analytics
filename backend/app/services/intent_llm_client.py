@@ -262,14 +262,7 @@ class GroqIntentClient(IntentLLMClient):
                 {"role": "user", "content": user_content},
             ]
 
-            response_format = {
-                "type": "json_schema",
-                "json_schema": {
-                    "name": "structured_intent",
-                    "strict": True,
-                    "schema": strict_schema,
-                },
-            }
+            response_format = {"type": "json_object"}
 
             start_time = time.time()
             completion = self._client.chat.completions.create(

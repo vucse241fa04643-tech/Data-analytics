@@ -18,8 +18,10 @@ export const ExportControls: React.FC<ExportControlsProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
 
+  const isExportDisabled = disabled || rowCount === 0 || !requestId;
+
   const handleExport = async (format: ExportFormat) => {
-    if (!requestId || disabled || exportingFormat) return;
+    if (isExportDisabled || exportingFormat) return;
 
     setError(null);
     setSuccessMsg(null);
@@ -78,7 +80,11 @@ export const ExportControls: React.FC<ExportControlsProps> = ({
         >
           <Download size={15} color="var(--color-brand-secondary)" />
           <span>
-            Export Analytical Result {rowCount !== undefined && `(${rowCount} row${rowCount === 1 ? '' : 's'})`}
+            Export Analytical Result{' '}
+            {rowCount !== undefined &&
+              (rowCount === 0
+                ? '(0 rows — no records to export)'
+                : `(${rowCount} row${rowCount === 1 ? '' : 's'})`)}
           </span>
         </div>
 
@@ -86,7 +92,7 @@ export const ExportControls: React.FC<ExportControlsProps> = ({
           <button
             type="button"
             onClick={() => handleExport('csv')}
-            disabled={disabled || exportingFormat !== null}
+            disabled={isExportDisabled || exportingFormat !== null}
             style={{
               display: 'inline-flex',
               alignItems: 'center',
@@ -98,13 +104,13 @@ export const ExportControls: React.FC<ExportControlsProps> = ({
               color: 'var(--color-text-primary)',
               border: '1px solid var(--color-border-subtle)',
               borderRadius: 'var(--radius-sm)',
-              cursor: disabled || exportingFormat !== null ? 'not-allowed' : 'pointer',
+              cursor: isExportDisabled || exportingFormat !== null ? 'not-allowed' : 'pointer',
               transition: 'all 0.15s ease',
-              opacity: disabled || exportingFormat !== null ? 0.6 : 1,
+              opacity: isExportDisabled || exportingFormat !== null ? 0.5 : 1,
             }}
-            title="Download sanitized CSV spreadsheet"
+            title={rowCount === 0 ? 'No records available to export' : 'Download sanitized CSV spreadsheet'}
             onMouseOver={(e) => {
-              if (!disabled && exportingFormat === null) {
+              if (!isExportDisabled && exportingFormat === null) {
                 e.currentTarget.style.backgroundColor = 'var(--color-bg-surface)';
                 e.currentTarget.style.borderColor = 'var(--color-brand-secondary)';
                 e.currentTarget.style.color = 'var(--color-brand-secondary)';
@@ -137,7 +143,7 @@ export const ExportControls: React.FC<ExportControlsProps> = ({
           <button
             type="button"
             onClick={() => handleExport('json')}
-            disabled={disabled || exportingFormat !== null}
+            disabled={isExportDisabled || exportingFormat !== null}
             style={{
               display: 'inline-flex',
               alignItems: 'center',

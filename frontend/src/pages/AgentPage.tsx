@@ -28,6 +28,7 @@ import {
   Info,
   RotateCcw,
   HelpCircle,
+  Database,
 } from 'lucide-react';
 
 export const AgentPage: React.FC = () => {
@@ -411,18 +412,45 @@ export const AgentPage: React.FC = () => {
                 </div>
               )}
 
+              {/* 3.1 EMPTY RESULT STATE (SUCCESS WITH 0 ROWS) */}
+              {result && result.rows.length === 0 && (
+                <div
+                  style={{
+                    padding: '24px 20px',
+                    backgroundColor: 'var(--color-bg-workspace)',
+                    border: '1px solid var(--color-border-subtle)',
+                    borderRadius: 'var(--radius-md)',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    textAlign: 'center',
+                    gap: '8px',
+                    margin: '8px 0',
+                  }}
+                >
+                  <Database size={28} color="var(--color-text-muted)" />
+                  <div style={{ fontWeight: 'var(--font-weight-semibold)', color: 'var(--color-text-primary)' }}>
+                    No Matching Institutional Records Found
+                  </div>
+                  <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-secondary)', maxWidth: '520px' }}>
+                    The query executed successfully and safely against read-only PostgreSQL, but the college database contains no matching records for the specified criteria.
+                  </div>
+                </div>
+              )}
+
               {/* 3.5 DETERMINISTIC ANOMALY ASSESSMENT (PHASE 11) */}
-              {queryResponse.anomaly && (
+              {queryResponse.anomaly && result && result.rows.length > 0 && (
                 <AnomalyInsightCard anomaly={queryResponse.anomaly} />
               )}
 
               {/* 4. ANALYTICAL SUMMARY */}
-              {explanation && (
+              {explanation && result && result.rows.length > 0 && (
                 <AnalyticalSummaryCard explanation={explanation} />
               )}
 
               {/* 5. RESULT TABLE (Universal Accessible Representation) */}
-              {result && (
+              {result && result.rows.length > 0 && (
                 <ResultTableView
                   result={result}
                   metadata={metadata}
@@ -442,6 +470,8 @@ export const AgentPage: React.FC = () => {
               {queryResponse.request_id && (
                 <VerificationCard
                   requestId={queryResponse.request_id}
+                  hasResult={Boolean(result && result.rows.length > 0)}
+                  rowCount={result?.rows.length ?? 0}
                 />
               )}
 

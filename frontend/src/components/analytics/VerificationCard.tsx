@@ -6,18 +6,24 @@ import { ShieldCheck, CheckCircle2, AlertTriangle, HelpCircle, FileCheck2, Alert
 interface VerificationCardProps {
   requestId: string;
   documentId?: string;
+  hasResult?: boolean;
+  rowCount?: number;
 }
 
 export const VerificationCard: React.FC<VerificationCardProps> = ({
   requestId,
   documentId,
+  hasResult = true,
+  rowCount,
 }) => {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<VerificationResult | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  const isUnavailable = !hasResult || rowCount === 0 || !requestId;
+
   const handleVerify = async () => {
-    if (!requestId || loading) return;
+    if (isUnavailable || loading) return;
     setLoading(true);
     setError(null);
 
@@ -26,7 +32,12 @@ export const VerificationCard: React.FC<VerificationCardProps> = ({
       setResult(res);
     } catch (err: any) {
       console.error('Verification failed:', err);
-      setError(err?.message || 'Verification check failed.');
+      const msg = err?.message || 'Verification could not be performed.';
+      if (msg.toLowerCase().includes('not found') || msg.toLowerCase().includes('expired')) {
+        setError('Analytical result is not available in the active session. Please re-run the query.');
+      } else {
+        setError(msg);
+      }
     } finally {
       setLoading(false);
     }
@@ -97,7 +108,13 @@ export const VerificationCard: React.FC<VerificationCardProps> = ({
           </span>
         </div>
 
-        {!result && (
+        {isUnavailable ? (
+          <span style={{ color: 'var(--color-text-muted)', fontSize: '11px', fontStyle: 'italic' }}>
+            {rowCount === 0
+              ? 'Not available — zero analytical records returned for reconciliation.'
+              : 'Not available — execute an analytical query with results first.'}
+          </span>
+        ) : !result && (
           <button
             type="button"
             onClick={handleVerify}
