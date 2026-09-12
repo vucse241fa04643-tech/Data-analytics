@@ -9,6 +9,7 @@ import { KpiCard } from '../components/analytics/KpiCard';
 import { BarChartCard } from '../components/analytics/BarChartCard';
 import { LineChartCard } from '../components/analytics/LineChartCard';
 import { AnalyticalSummaryCard } from '../components/analytics/AnalyticalSummaryCard';
+import { AnomalyInsightCard } from '../components/analytics/AnomalyInsightCard';
 import { ResultTableView } from '../components/analytics/ResultTableView';
 import { QueryDetailsAccordion } from '../components/analytics/QueryDetailsAccordion';
 import {
@@ -404,6 +405,11 @@ export const AgentPage: React.FC = () => {
                     </div>
                   )}
                 </div>
+              )}
+
+              {/* 3.5 DETERMINISTIC ANOMALY ASSESSMENT (PHASE 11) */}
+              {queryResponse.anomaly && (
+                <AnomalyInsightCard anomaly={queryResponse.anomaly} />
               )}
 
               {/* 4. ANALYTICAL SUMMARY */}

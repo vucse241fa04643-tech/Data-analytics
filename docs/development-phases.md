@@ -232,15 +232,29 @@
 
 ---
 
-## Phase 11: Anomaly Detection
-- **Objective:** Implement statistical anomaly detection to alert administrators to unusual patterns.
-- **Major Tasks:**
-  - Build explainable statistical algorithms (moving averages, percentage changes, standard deviation thresholds).
-  - Identify sudden drops in attendance, pass rate outliers, or enrollment spikes.
-  - Render anomaly indicator badges on result cards with baseline, threshold, and deviation data.
-- **Expected Deliverables:** Anomaly detection service, statistical unit tests, UI alert badges.
-- **Acceptance Criteria:** Flags genuine statistical outliers; provides transparent mathematical evidence without hallucinating causes.
-- **Dependencies:** Phase 8, Phase 9.
+## Phase 11: Deterministic Anomaly Detection [COMPLETED - Ready for Review]
+- **Objective:** Implement a secure, 100% deterministic anomaly-detection layer that analyzes ONLY already-authorized and already-validated analytical results (`QueryResult`).
+- **Core Security Invariant:**
+  - Anomaly detection is an **ANALYTICS TRANSFORMATION, NOT A DATA ACCESS LAYER**.
+  - Operates strictly AFTER authentication, RBAC, authorization, SQL compilation, AST validation, read-only PostgreSQL execution, and result validation.
+  - Zero database queries, zero SQL generation/manipulation, zero LLM calls (neither Groq, Gemini, nor OpenAI), zero credential usage, zero scope expansion.
+  - 100% deterministic: identical validated results and configuration produce identical anomaly assessments and factual explanations.
+  - Factual explanations disclaim unsupported causal claims: *"The result does not establish the cause."*
+  - **Baseline Governance Policy:** Configured anomaly thresholds are analytical detection parameters unless an authoritative institutional target is present. Configured thresholds (75.0% attendance, 60.0% pass rate, 2.0 attainment, 5% target deviation) are NEVER described as institutional policy, college policy, official threshold, or official benchmark.
+  - Explicit baseline provenance is enforced via `BaselineType`: `OFFICIAL_TARGET` (authoritative target present in validated QueryResult row), `HISTORICAL_BASELINE` (derived from authorized multi-period observations), `ANALYTICAL_HEURISTIC` (configured analytical detection parameters), and `NO_BASELINE`.
+- **Completed Tasks:**
+  - `backend/app/schemas/anomaly.py`: Defined authoritative three-state assessment lifecycle (`NO_ANOMALY`, `ANOMALY_DETECTED`, `ASSESSMENT_UNAVAILABLE`), severity classifications (`NONE`, `LOW`, `MEDIUM`, `HIGH`), baseline provenance (`BaselineType`), methods (`TARGET_DEVIATION`, `CONFIGURED_THRESHOLD`, `PERCENTAGE_DEVIATION`, `HISTORICAL_Z_SCORE`, `CROSS_CATEGORY_IQR`, `INSUFFICIENT_DATA`), `CategoryAnomalyItem`, and `AnomalyAssessment`.
+  - `backend/app/core/config.py`: Added configurable analytical benchmarks (`ANOMALY_DETECTION_ENABLED`, `ANOMALY_ATTENDANCE_THRESHOLD`, `ANOMALY_PASS_RATE_THRESHOLD`, `ANOMALY_ATTAINMENT_THRESHOLD`, `ANOMALY_HISTORICAL_MIN_OBSERVATIONS`, `ANOMALY_Z_SCORE_THRESHOLD`).
+  - `backend/app/services/anomaly_service.py`: Implemented `AnomalyDetectionService` providing in-memory evaluation for single-KPI, categorical cross-sectional IQR distributions, and time-series historical z-score deviations with strict baseline provenance and non-policy governance wording.
+  - `backend/app/schemas/query_result.py`: Added `anomaly: Optional[AnomalyAssessment]` to `AgentQueryResponse`.
+  - `backend/app/api/v1/agent.py`: Integrated `AnomalyDetectionService` into the query pipeline immediately following result validation and visualization recommendation.
+  - `frontend/src/types/index.ts`: Added TypeScript anomaly types including `BaselineType` and updated `AgentQueryResponse`.
+  - `frontend/src/components/analytics/AnomalyInsightCard.tsx`: Built institutional accessible insight card displaying severity badge, baseline provenance badge, observed vs benchmark/target metrics, detection method, factual explanation with governance drawer, and non-alarmist UI.
+  - `frontend/src/pages/AgentPage.tsx`: Integrated `AnomalyInsightCard` in the visual presentation hierarchy.
+  - `backend/tests/test_anomaly_service.py` & `backend/tests/test_anomaly_api.py`: 31 comprehensive tests verifying all 30 prompt specifications, mathematical accuracy, security boundaries, Phase 10 compatibility, and governance regression tests (13a–13e).
+- **Deliverables:** Anomaly schemas, deterministic detection service, API integration, institutional insight card, and 31 automated tests.
+- **Acceptance Criteria Met:** All 283 backend tests pass (100%); schema registry and semantic layer integrity tests pass 100%; frontend builds cleanly (`npm run build`); zero credential leaks; no external LLM or DB calls in anomaly service.
+- **Dependencies:** Phase 8, Phase 9, Phase 10.
 
 ---
 

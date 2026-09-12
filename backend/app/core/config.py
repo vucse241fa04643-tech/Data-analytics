@@ -141,6 +141,32 @@ class Settings(BaseSettings):
         description="Maximum serialized byte ceiling (32KB) for a single conversation context."
     )
 
+    # Deterministic Anomaly Detection (Phase 11)
+    ANOMALY_DETECTION_ENABLED: bool = Field(
+        default=True,
+        description="Enable deterministic anomaly detection on validated QueryResults."
+    )
+    ANOMALY_ATTENDANCE_THRESHOLD: float = Field(
+        default=75.0,
+        description="Configured analytical benchmark for attendance percentage (below which results are flagged as anomalous)."
+    )
+    ANOMALY_PASS_RATE_THRESHOLD: float = Field(
+        default=60.0,
+        description="Configured analytical benchmark for pass percentage (below which results are flagged as anomalous)."
+    )
+    ANOMALY_ATTAINMENT_THRESHOLD: float = Field(
+        default=2.0,
+        description="Configured analytical benchmark for outcome attainment level on 3-point scale."
+    )
+    ANOMALY_HISTORICAL_MIN_OBSERVATIONS: int = Field(
+        default=3,
+        description="Minimum observations required to calculate historical statistical anomaly."
+    )
+    ANOMALY_Z_SCORE_THRESHOLD: float = Field(
+        default=2.0,
+        description="Standard deviation multiple (z-score) required to flag a statistical anomaly."
+    )
+
 
 
     model_config = SettingsConfigDict(

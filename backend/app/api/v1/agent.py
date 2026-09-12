@@ -35,6 +35,10 @@ from backend.app.services.visualization_service import (
     VisualizationService,
     get_visualization_service,
 )
+from backend.app.services.anomaly_service import (
+    AnomalyDetectionService,
+    get_anomaly_service,
+)
 
 logger = get_logger("agent63.api.agent")
 
@@ -74,6 +78,7 @@ def execute_agent_query(
     sql_compiler: SQLCompiler = Depends(get_sql_compiler),
     sql_validator: SQLValidator = Depends(get_sql_validator),
     visualization_service: VisualizationService = Depends(get_visualization_service),
+    anomaly_service: AnomalyDetectionService = Depends(get_anomaly_service),
     conversation_store: ConversationContextStore = Depends(get_conversation_store),
 ) -> AgentQueryResponse:
     """Orchestrates end-to-end natural language query execution with defense-in-depth."""
@@ -204,7 +209,16 @@ def execute_agent_query(
     )
     meta = visualization_service._get_metric_meta(metric_id)
 
-    # Step 7: Update Conversation Context upon Successful Execution
+    # Step 7: Deterministic Anomaly Detection (Phase 11)
+    anomaly_assessment = None
+    if settings.ANOMALY_DETECTION_ENABLED:
+        anomaly_assessment = anomaly_service.assess_result(
+            query_result=query_result,
+            intent=intent_dict,
+            metric_id=metric_id,
+        )
+
+    # Step 8: Update Conversation Context upon Successful Execution
     if query_result.status == QueryResultStatus.SUCCESS:
         new_turn = (context.turn_count + 1) if context else 1
         if new_turn <= settings.CONVERSATION_MAX_TURNS:
@@ -245,4 +259,5 @@ def execute_agent_query(
         metric_display_name=meta[0],
         conversation_id=active_conv_id,
         is_follow_up=is_follow_up,
+        anomaly=anomaly_assessment,
     )

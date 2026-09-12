@@ -59,6 +59,7 @@ class AgentQueryRequest(BaseModel):
 
 
 from backend.app.schemas.visualization import VisualizationDescriptor
+from backend.app.schemas.anomaly import AnomalyAssessment
 
 
 class AgentQueryResponse(BaseModel):
@@ -76,4 +77,5 @@ class AgentQueryResponse(BaseModel):
     conversation_id: Optional[str] = Field(default=None, description="Opaque identifier for the active conversation")
     is_follow_up: bool = Field(default=False, description="Whether this query inherited context from a prior turn")
     clarification_questions: List[str] = Field(default_factory=list, description="Clarification options if follow-up is ambiguous")
+    anomaly: Optional[AnomalyAssessment] = Field(default=None, description="Deterministic anomaly detection assessment")
 

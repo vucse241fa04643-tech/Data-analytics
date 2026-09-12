@@ -161,5 +161,55 @@ export interface AgentQueryResponse {
   conversation_id?: string | null;
   is_follow_up?: boolean;
   clarification_questions?: string[];
+  anomaly?: AnomalyAssessment | null;
+}
+
+/**
+ * Phase 11 – Deterministic Anomaly Detection Types
+ */
+export type AnomalyStatus = 'NO_ANOMALY' | 'ANOMALY_DETECTED' | 'ASSESSMENT_UNAVAILABLE';
+export type AnomalySeverity = 'NONE' | 'LOW' | 'MEDIUM' | 'HIGH';
+export type AnomalyMethod =
+  | 'NONE'
+  | 'TARGET_DEVIATION'
+  | 'CONFIGURED_THRESHOLD'
+  | 'PERCENTAGE_DEVIATION'
+  | 'HISTORICAL_Z_SCORE'
+  | 'CROSS_CATEGORY_IQR'
+  | 'INSUFFICIENT_DATA';
+
+export type BaselineType =
+  | 'OFFICIAL_TARGET'
+  | 'HISTORICAL_BASELINE'
+  | 'ANALYTICAL_HEURISTIC'
+  | 'NO_BASELINE';
+
+export interface CategoryAnomalyItem {
+  category_name: string;
+  observed_value: number;
+  baseline_or_benchmark?: number | null;
+  deviation?: number | null;
+  severity: AnomalySeverity;
+  explanation: string;
+}
+
+export interface AnomalyAssessment {
+  status: AnomalyStatus;
+  detected: boolean;
+  severity: AnomalySeverity;
+  method: AnomalyMethod;
+  metric_id: string;
+  metric_display_name?: string | null;
+  observed_value?: number | null;
+  baseline_value?: number | null;
+  baseline_type?: BaselineType;
+  deviation_value?: number | null;
+  deviation_percentage?: number | null;
+  confidence?: string | null;
+  explanation?: string | null;
+  limitations?: string | null;
+  supporting_scope?: string | null;
+  requires_review?: boolean;
+  category_anomalies?: CategoryAnomalyItem[];
 }
 

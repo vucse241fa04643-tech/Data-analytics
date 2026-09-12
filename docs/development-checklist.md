@@ -191,12 +191,22 @@
 
 ---
 
-## Phase 11: Anomaly Detection
-- [ ] Implement statistical anomaly detection algorithms
-- [ ] Compute moving averages, historical baselines, and deviation thresholds
-- [ ] Render anomaly alert badges on frontend result cards
-- [ ] Ensure anomaly alerts display mathematical evidence without fabricated causes
-- [ ] Test anomaly detection against known historical outliers
+## Phase 11: Deterministic Anomaly Detection [COMPLETED - Ready for Review]
+- [x] Implement structured Pydantic `AnomalyAssessment` schema with 3-state lifecycle (`NO_ANOMALY`, `ANOMALY_DETECTED`, `ASSESSMENT_UNAVAILABLE`), severity levels, and detection methods
+- [x] Implement deterministic `AnomalyDetectionService` analyzing ONLY already-authorized and validated QueryResults
+- [x] Support single-KPI benchmarks, categorical cross-sectional IQR distribution outliers, and time-series historical z-score deviation
+- [x] Ensure strict zero database access, zero SQL generation, zero LLM calls, and zero causal speculation in anomaly explanations
+- [x] Add configurable analytical benchmarks (`ANOMALY_ATTENDANCE_THRESHOLD`, `ANOMALY_PASS_RATE_THRESHOLD`, `ANOMALY_ATTAINMENT_THRESHOLD`, `ANOMALY_HISTORICAL_MIN_OBSERVATIONS`, `ANOMALY_Z_SCORE_THRESHOLD`)
+- [x] Handle NULL, NaN, positive/negative infinity, empty results, and missing baselines safely without false alarms
+- [x] Enforce Baseline Governance Policy: configured thresholds (75%, 60%, 2.0, 5%) are analytical heuristics, never institutional policy
+- [x] Classify baseline provenance explicitly (`OFFICIAL_TARGET`, `HISTORICAL_BASELINE`, `ANALYTICAL_HEURISTIC`, `NO_BASELINE`)
+- [x] Prefer authoritative targets over configured heuristics whenever validated QueryResult contains official target
+- [x] Extend `AgentQueryResponse` API contract with `anomaly` descriptor
+- [x] Build accessible `AnomalyInsightCard` in React/TypeScript with severity badge, baseline provenance badge, and non-alarmist UI
+- [x] Integrate `AnomalyInsightCard` into `AgentPage` analytics presentation hierarchy
+- [x] Ensure Phase 10 multi-turn compatibility (fresh anomaly evaluation per turn; zero carryover; clean reset)
+- [x] Write comprehensive test suite (`backend/tests/test_anomaly_service.py` and `backend/tests/test_anomaly_api.py` with 31 tests, 283 total passing tests)
+- [x] Verify frontend builds cleanly with zero TypeScript errors (`npm run build`)
 
 ---
 
