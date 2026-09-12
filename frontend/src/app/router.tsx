@@ -3,6 +3,7 @@ import { AppShell } from '../components/layout/AppShell';
 import { OverviewPage } from '../pages/OverviewPage';
 import { AgentPage } from '../pages/AgentPage';
 import { AnalyticsPage } from '../pages/AnalyticsPage';
+import { RoleDashboardPage } from '../pages/RoleDashboardPage';
 
 export const router = createBrowserRouter([
   {
@@ -20,6 +21,10 @@ export const router = createBrowserRouter([
       {
         path: 'analytics',
         element: <AnalyticsPage />,
+      },
+      {
+        path: 'dashboards',
+        element: <RoleDashboardPage />,
       },
     ],
   },

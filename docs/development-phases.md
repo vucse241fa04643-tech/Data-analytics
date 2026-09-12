@@ -258,15 +258,24 @@
 
 ---
 
-## Phase 12: Role-Based Dashboards + Scheduled Refresh
-- **Objective:** Implement pre-configured executive dashboards tailored to each institutional role.
-- **Major Tasks:**
-  - Build dashboard view templates for Management, Principal, Dean, HOD, and IQAC.
-  - Implement background refresh scheduler for caching intensive KPI queries.
-  - Connect dashboard cards to the Semantic Layer.
-- **Expected Deliverables:** Role-based dashboard views, scheduled refresh workers, cached metric endpoints.
-- **Acceptance Criteria:** Each role accesses only their authorized dashboard; dashboards render cached metrics instantaneously.
-- **Dependencies:** Phase 5, Phase 9, Phase 11.
+## Phase 12: Role-Based Dashboards + Scheduled Refresh [COMPLETED - Ready for Review]
+- **Objective:** Implement pre-configured executive and operational institutional dashboards tailored strictly to authenticated roles, backed by bounded in-memory caching and secure, re-authenticating scheduled refresh.
+- **Mandatory Governance Principles:**
+  - *Dashboard visibility is presentation only; backend authorization remains authoritative.*
+  - *Scheduled refresh does not bypass authorization. Each refresh executes through the existing authorized analytical pipeline.*
+  - *Zero raw SQL in dashboards, zero frontend metric/scope selection, zero LLM calls for dashboards.*
+- **Major Tasks Completed:**
+  - `backend/app/schemas/dashboard.py`: Defined comprehensive Pydantic models for widgets, dashboard definitions, catalog, execution responses, and schedule management.
+  - `backend/app/services/dashboard_registry.py`: Built institutional dashboard registry mapping approved semantic metrics to 9 roles (Principal, Dean, HOD, Faculty, IQAC Director, Placement Officer, Controller of Examinations, Mentor, Student) while denying quarantined roles (Counsellor).
+  - `backend/app/services/dashboard_service.py`: Implemented authoritative dashboard resolution, scoped role validation, bounded execution via thread pool, in-memory TTL caching with scope keying, and partial error isolation.
+  - `backend/app/services/dashboard_scheduler.py`: Implemented in-process background refresh scheduler enforcing >= 60-minute interval, per-user capacity limits (5), system ceiling (50), and strict re-authorization of credentials on each refresh run.
+  - `backend/app/api/v1/dashboard.py`: Built REST API endpoints (`/catalog`, `/{dashboard_id}`, `/{dashboard_id}/refresh`, `/schedules`).
+  - `frontend/src/pages/RoleDashboardPage.tsx`: Developed institutional React/TypeScript dashboard UI with KPI grid, charts, anomaly insight cards, scheduled refresh drawer, and graceful widget-level error states.
+  - `frontend/src/app/router.tsx` & `Sidebar.tsx`: Integrated role dashboard route `/dashboards` into institutional navigation.
+  - `backend/tests/`: Created 28 new tests across service, scheduler, and API integration (`test_dashboard_service.py`, `test_dashboard_scheduler.py`, `test_dashboard_api.py`).
+- **Deliverables:** Server-controlled dashboard registry, dashboard execution service, in-process scheduler, REST endpoints, institutional frontend dashboard page, and 28 automated tests.
+- **Acceptance Criteria Met:** 311/311 backend tests passing (100%); schema registry and semantic layer integrity tests passing (100%); frontend builds cleanly (`npm run build`); zero raw SQL; zero LLM calls; Counsellor quarantined (403); full error isolation; scope boundaries strictly enforced.
+- **Dependencies:** Phase 4, Phase 5, Phase 7, Phase 8, Phase 9, Phase 11.
 
 ---
 

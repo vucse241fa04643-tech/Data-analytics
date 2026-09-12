@@ -213,3 +213,76 @@ export interface AnomalyAssessment {
   category_anomalies?: CategoryAnomalyItem[];
 }
 
+/**
+ * Phase 12 – Role-Based Institutional Dashboard Types
+ */
+export type WidgetVisualizationType = 'KPI' | 'BAR_CHART' | 'LINE_CHART' | 'TABLE';
+export type WidgetStatus = 'SUCCESS' | 'EMPTY' | 'UNAVAILABLE' | 'ERROR' | 'UNAUTHORIZED';
+
+export interface DashboardCatalogItem {
+  dashboard_id: string;
+  title: string;
+  description: string;
+  role: string;
+  widget_count: number;
+  is_default: boolean;
+}
+
+export interface DashboardCatalogResponse {
+  dashboards: DashboardCatalogItem[];
+  user_roles: string[];
+  active_dashboard_id?: string | null;
+}
+
+export interface DashboardWidgetResult {
+  widget_id: string;
+  metric_id: string;
+  metric_display_name: string;
+  title: string;
+  visualization_type: string;
+  visualization?: VisualizationDescriptor | null;
+  result?: QueryResult | null;
+  anomaly?: AnomalyAssessment | null;
+  explanation?: string | null;
+  status: WidgetStatus;
+  error_message?: string | null;
+  last_updated: string;
+}
+
+export interface DashboardResponse {
+  dashboard_id: string;
+  title: string;
+  description?: string | null;
+  role: string;
+  scope: {
+    scope_type?: string;
+    scope_id?: string | null;
+    display?: string;
+    [key: string]: any;
+  };
+  generated_at: string;
+  last_refreshed_at: string;
+  refresh_mode: string;
+  refresh_status: string;
+  widgets: DashboardWidgetResult[];
+}
+
+export interface DashboardScheduleItem {
+  schedule_id: string;
+  dashboard_id: string;
+  dashboard_title: string;
+  user_id: string;
+  role: string;
+  interval_minutes: number;
+  created_at: string;
+  last_run_at?: string | null;
+  next_run_at?: string | null;
+  is_active: boolean;
+  last_status?: string | null;
+}
+
+export interface DashboardScheduleRequest {
+  dashboard_id: string;
+  interval_minutes: number;
+}
+

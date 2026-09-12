@@ -4,7 +4,7 @@ Aggregates all version 1 routes.
 """
 
 from fastapi import APIRouter
-from backend.app.api.v1 import health, auth, intent, agent
+from backend.app.api.v1 import health, auth, intent, agent, dashboard
 
 api_v1_router = APIRouter()
 
@@ -19,4 +19,7 @@ api_v1_router.include_router(intent.router)
 
 # Query execution endpoints mounted under /agent: /api/v1/agent/query
 api_v1_router.include_router(agent.router)
+
+# Role-based dashboard endpoints mounted under /dashboard
+api_v1_router.include_router(dashboard.router)
 

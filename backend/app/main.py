@@ -54,7 +54,19 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     else:
         logger.info(f"College PostgreSQL parameters detected for host '{settings.COLLEGE_DB_HOST}'.")
 
+    # Start in-process dashboard refresh scheduler
+    scheduler = None
+    try:
+        from backend.app.services.dashboard_scheduler import get_dashboard_scheduler_service
+        scheduler = get_dashboard_scheduler_service()
+        scheduler.start()
+    except Exception as e:
+        logger.warning(f"Could not start dashboard scheduler: {e}")
+
     yield
+
+    if scheduler:
+        scheduler.stop()
 
     logger.info(f"Shutting down {settings.APP_NAME}")
 

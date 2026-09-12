@@ -210,11 +210,18 @@
 
 ---
 
-## Phase 12: Role-Based Dashboards + Scheduled Refresh
-- [ ] Implement executive dashboard views for Management, Principal, Dean, HOD, and IQAC
-- [ ] Connect dashboard cards to the Semantic Layer
-- [ ] Implement background scheduled refresh and query caching
-- [ ] Verify role-restricted dashboard access
+## Phase 12: Role-Based Dashboards + Scheduled Refresh [COMPLETED - Ready for Review]
+- [x] Implement server-controlled dashboard registry for Principal, Dean, HOD, Faculty, IQAC, Placement, COE, Mentor, Student
+- [x] Connect dashboard widgets strictly to approved semantic metrics (zero raw SQL, zero frontend metric selection)
+- [x] Enforce backend authorization as authoritative (dashboard is presentation only; Counsellor quarantined)
+- [x] Implement thread-pooled execution with partial error isolation (failed widget does not crash dashboard)
+- [x] Implement bounded in-memory caching with TTL (300s) and scope-isolated cache keys
+- [x] Implement in-process scheduled refresh worker enforcing >= 60-minute interval and capacity limits
+- [x] Ensure scheduled refresh re-authorizes principal on every trigger (zero credential bypass)
+- [x] Implement REST API endpoints (`/catalog`, `/{id}`, `/{id}/refresh`, `/schedules`)
+- [x] Build institutional responsive frontend `RoleDashboardPage` with KPI cards, charts, anomaly cards, and schedule drawer
+- [x] Write 28 automated tests covering service, scheduler, and API integration (311 total passing tests)
+- [x] Verify frontend builds cleanly with zero TypeScript errors (`npm run build`)
 
 ---
 

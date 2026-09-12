@@ -167,7 +167,44 @@ class Settings(BaseSettings):
         description="Standard deviation multiple (z-score) required to flag a statistical anomaly."
     )
 
-
+    # Role-Based Institutional Dashboards & Scheduled Refresh (Phase 12)
+    DASHBOARD_CACHE_ENABLED: bool = Field(
+        default=True,
+        description="Whether in-memory dashboard result caching is enabled."
+    )
+    DASHBOARD_CACHE_TTL_SECONDS: int = Field(
+        default=300,
+        description="TTL in seconds for cached dashboard results (default 5 minutes)."
+    )
+    DASHBOARD_MAX_WIDGETS_PER_DASHBOARD: int = Field(
+        default=8,
+        description="Maximum widgets allowed per dashboard to bound execution load."
+    )
+    DASHBOARD_MAX_CONCURRENT_WIDGET_EXECUTIONS: int = Field(
+        default=3,
+        description="Maximum concurrent widget executions per dashboard request."
+    )
+    DASHBOARD_SCHEDULER_ENABLED: bool = Field(
+        default=False,
+        description=(
+            "Whether the in-process dashboard refresh scheduler is enabled. "
+            "Defaults to False to prevent background threads during testing and local development. "
+            "Set DASHBOARD_SCHEDULER_ENABLED=true in production .env to enable scheduled refresh. "
+            "The scheduler can always be triggered manually via POST /{dashboard_id}/refresh."
+        ),
+    )
+    DASHBOARD_SCHEDULE_MIN_INTERVAL_MINUTES: int = Field(
+        default=60,
+        description="Minimum allowed refresh interval in minutes (default 60 minutes, prevents polling abuse)."
+    )
+    DASHBOARD_MAX_SCHEDULES_PER_USER: int = Field(
+        default=5,
+        description="Maximum active refresh schedules allowed per user."
+    )
+    DASHBOARD_MAX_TOTAL_SCHEDULES: int = Field(
+        default=50,
+        description="Maximum active refresh schedules system-wide."
+    )
 
     model_config = SettingsConfigDict(
         env_file=".env",

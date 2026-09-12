@@ -11,6 +11,9 @@ import {
   UserProfileResponse,
   TokenResponse,
   AgentQueryResponse,
+  DashboardCatalogResponse,
+  DashboardResponse,
+  DashboardScheduleItem,
 } from '../types';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
@@ -360,10 +363,154 @@ class ApiService {
     }
   }
 
+  /**
+   * Fetches available role-based dashboard catalog for the current user.
+   * Target: GET /api/v1/dashboard/catalog
+   */
+  async getDashboardCatalog(): Promise<DashboardCatalogResponse> {
+    if (!this.token) {
+      throw new ApiError('Authentication required to access dashboard catalog.', 401, 'AUTHENTICATION_REQUIRED');
+    }
+
+    const response = await fetch(`${this.baseUrl}/api/v1/dashboard/catalog`, {
+      method: 'GET',
+      headers: {
+        'Accept': 'application/json',
+        'Authorization': `Bearer ${this.token}`,
+      },
+    });
+
+    if (!response.ok) {
+      throw new ApiError('Failed to fetch dashboard catalog.', response.status);
+    }
+    return response.json();
+  }
+
+  /**
+   * Retrieves and executes an authorized role-based dashboard.
+   * Target: GET /api/v1/dashboard/{dashboard_id} or POST /api/v1/dashboard/{dashboard_id}/refresh
+   */
+  async getDashboard(dashboardId: string, forceRefresh: boolean = false): Promise<DashboardResponse> {
+    if (!this.token) {
+      throw new ApiError('Authentication required to access role dashboard.', 401, 'AUTHENTICATION_REQUIRED');
+    }
+
+    const url = forceRefresh
+      ? `${this.baseUrl}/api/v1/dashboard/${encodeURIComponent(dashboardId)}/refresh`
+      : `${this.baseUrl}/api/v1/dashboard/${encodeURIComponent(dashboardId)}`;
+
+    const method = forceRefresh ? 'POST' : 'GET';
+
+    const response = await fetch(url, {
+      method,
+      headers: {
+        'Accept': 'application/json',
+        'Authorization': `Bearer ${this.token}`,
+      },
+    });
+
+    if (!response.ok) {
+      let msg = 'Failed to load institutional dashboard.';
+      let code: string | undefined;
+      try {
+        const body = await response.json();
+        if (body?.error?.message) {
+          msg = body.error.message;
+          code = body.error.code;
+        } else if (body?.detail) {
+          msg = typeof body.detail === 'string' ? body.detail : JSON.stringify(body.detail);
+        }
+      } catch {
+        // ignore parse error
+      }
+      throw new ApiError(msg, response.status, code);
+    }
+
+    return response.json();
+  }
+
+  /**
+   * Lists active refresh schedules for the current user.
+   * Target: GET /api/v1/dashboard/schedules
+   */
+  async getDashboardSchedules(): Promise<DashboardScheduleItem[]> {
+    if (!this.token) {
+      throw new ApiError('Authentication required to view schedules.', 401, 'AUTHENTICATION_REQUIRED');
+    }
+
+    const response = await fetch(`${this.baseUrl}/api/v1/dashboard/schedules`, {
+      method: 'GET',
+      headers: {
+        'Accept': 'application/json',
+        'Authorization': `Bearer ${this.token}`,
+      },
+    });
+
+    if (!response.ok) {
+      throw new ApiError('Failed to fetch refresh schedules.', response.status);
+    }
+    return response.json();
+  }
+
+  /**
+   * Creates a new scheduled refresh job for a dashboard.
+   * Target: POST /api/v1/dashboard/schedules
+   */
+  async createDashboardSchedule(dashboardId: string, intervalMinutes: number = 60): Promise<DashboardScheduleItem> {
+    if (!this.token) {
+      throw new ApiError('Authentication required to schedule refresh.', 401, 'AUTHENTICATION_REQUIRED');
+    }
+
+    const response = await fetch(`${this.baseUrl}/api/v1/dashboard/schedules`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        'Authorization': `Bearer ${this.token}`,
+      },
+      body: JSON.stringify({ dashboard_id: dashboardId, interval_minutes: intervalMinutes }),
+    });
+
+    if (!response.ok) {
+      let msg = 'Failed to create dashboard schedule.';
+      try {
+        const body = await response.json();
+        if (body?.detail) msg = body.detail;
+      } catch {
+        // ignore
+      }
+      throw new ApiError(msg, response.status);
+    }
+    return response.json();
+  }
+
+  /**
+   * Cancels an existing refresh schedule.
+   * Target: DELETE /api/v1/dashboard/schedules/{schedule_id}
+   */
+  async cancelDashboardSchedule(scheduleId: string): Promise<void> {
+    if (!this.token) {
+      throw new ApiError('Authentication required to cancel schedule.', 401, 'AUTHENTICATION_REQUIRED');
+    }
+
+    const response = await fetch(`${this.baseUrl}/api/v1/dashboard/schedules/${encodeURIComponent(scheduleId)}`, {
+      method: 'DELETE',
+      headers: {
+        'Accept': 'application/json',
+        'Authorization': `Bearer ${this.token}`,
+      },
+    });
+
+    if (!response.ok) {
+      throw new ApiError('Failed to cancel schedule.', response.status);
+    }
+  }
+
   getBaseUrl(): string {
     return this.baseUrl;
   }
 }
 
 export const apiService = new ApiService(API_BASE_URL);
+
 
