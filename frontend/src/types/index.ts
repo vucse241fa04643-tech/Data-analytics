@@ -129,6 +129,22 @@ export interface QueryResult {
 export interface AgentQueryRequest {
   prompt: string;
   dry_run?: boolean;
+  conversation_id?: string | null;
+}
+
+/**
+ * Phase 9 & 10 – Visualization & Conversational Analytics Types
+ */
+export type ChartType = 'kpi' | 'bar' | 'horizontal_bar' | 'line' | 'table' | 'none';
+
+export interface VisualizationDescriptor {
+  recommended: boolean;
+  chart_type: ChartType;
+  x_field?: string | null;
+  y_field?: string | null;
+  title?: string | null;
+  unit?: string | null;
+  description?: string | null;
 }
 
 export interface AgentQueryResponse {
@@ -139,5 +155,11 @@ export interface AgentQueryResponse {
   dry_run: boolean;
   message?: string | null;
   request_id?: string | null;
+  visualization?: VisualizationDescriptor | null;
+  explanation?: string | null;
+  metric_display_name?: string | null;
+  conversation_id?: string | null;
+  is_follow_up?: boolean;
+  clarification_questions?: string[];
 }
 

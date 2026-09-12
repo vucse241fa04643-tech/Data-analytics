@@ -645,13 +645,16 @@ class SQLCompiler:
                 raise SQLAuthorizationError("HOD account has no assigned departmental scope boundary.")
 
             # Validate requested department against HOD boundary if user specified it
+            from backend.app.services.intent_service import DEPT_ALIAS_MAP
             user_dept = intent.filters.get("department") or intent.filters.get("department_id")
             if user_dept:
                 requested_list = user_dept if isinstance(user_dept, list) else [user_dept]
                 for req in requested_list:
-                    req_clean = str(req).strip().upper()
+                    req_clean = str(req).strip().lower()
+                    req_norm = DEPT_ALIAS_MAP.get(req_clean, str(req).strip().upper())
                     matched = any(
-                        req_clean == str(d_id).strip().upper() for d_id in allowed_dept_ids
+                        req_norm == str(d_id).strip() or req_clean == str(d_id).strip().lower()
+                        for d_id in allowed_dept_ids
                     )
                     if not matched:
                         raise SQLAuthorizationError(

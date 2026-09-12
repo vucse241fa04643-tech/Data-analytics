@@ -17,8 +17,10 @@ def test_health_liveness_endpoint(client: TestClient):
     assert "X-Request-ID" in response.headers
 
 
-def test_health_readiness_endpoint_unconfigured_db(client: TestClient):
+def test_health_readiness_endpoint_unconfigured_db(client: TestClient, monkeypatch):
     """GET /api/v1/health/ready should report degraded state because college database is unconfigured."""
+    from backend.app.core.config import settings
+    monkeypatch.setattr(settings, "COLLEGE_DB_HOST", None)
     response = client.get("/api/v1/health/ready")
     assert response.status_code == 200
     data = response.json()

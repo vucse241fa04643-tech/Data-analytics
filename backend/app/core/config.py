@@ -123,6 +123,24 @@ class Settings(BaseSettings):
         description="Maximum allowed byte size (1MB) for serialized query results."
     )
 
+    # Conversation Context & Follow-Up Analytics (Phase 10)
+    CONVERSATION_CONTEXT_TTL_SECONDS: int = Field(
+        default=1800,
+        description="Time-to-live in seconds for active conversation context (default 30 minutes)."
+    )
+    CONVERSATION_MAX_TURNS: int = Field(
+        default=10,
+        description="Maximum number of turns allowed in a single conversation thread."
+    )
+    CONVERSATION_MAX_ENTRIES: int = Field(
+        default=1000,
+        description="Maximum concurrent active conversation contexts in memory (LRU eviction)."
+    )
+    CONVERSATION_MAX_SIZE_BYTES: int = Field(
+        default=32768,
+        description="Maximum serialized byte ceiling (32KB) for a single conversation context."
+    )
+
 
 
     model_config = SettingsConfigDict(

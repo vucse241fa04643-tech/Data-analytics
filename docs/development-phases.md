@@ -173,28 +173,61 @@
 
 ---
 
-## Phase 9: Charts + Conversational Analytics UI
-- **Objective:** Connect frontend and backend to render interactive result cards and Recharts visualizations.
-- **Major Tasks:**
-  - Build backend chart specification generator (maps results to Recharts schemas).
-  - Implement frontend Institutional Result Card (Metric Value, Formula, Period, Filters, Verification Tag).
-  - Implement Recharts components (Bar, Line, Distribution, KPI cards) using institutional color tokens.
-  - Integrate conversational question input and history display.
-- **Expected Deliverables:** End-to-end interactive conversational UI displaying charts and result cards.
-- **Acceptance Criteria:** Questions display rich result cards and interactive charts matching institutional visual language.
-- **Dependencies:** Phase 3, Phase 8.
+## Phase 9: Charts + Conversational Analytics UI [COMPLETED - Ready for Review]
+- **Objective:** Transform the validated raw query execution experience into an accessible, institutional conversational analytics presentation layer with deterministic chart selection, KPI cards, responsive Bar/Line charts, deterministic analytical summaries, and metadata audit drilldowns.
+- **Key Architectural Rules & Constraints:**
+  - **Presentation Layer Exclusivity:** The frontend remains strictly a presentation layer. Backend remains authoritative for auth, RBAC, semantic catalog, SQL compilation, AST verification, and read-only PostgreSQL execution.
+  - **Deterministic Visualization Selection:** Chart types are chosen strictly by deterministic rules (Rules A–E) derived from validated `QueryResult` column data types, row counts, and Semantic Layer metadata. Zero LLM/Groq calls are made for visualization decisions.
+    - *Rule A (KPI):* 1 numeric metric with 1 result row -> KPI card.
+    - *Rule B (Bar / Horizontal Bar):* 1 categorical dimension + 1 numeric metric -> Column or Horizontal Bar chart.
+    - *Rule C (Line):* 1 temporal dimension (academic year, term, date) + 1 numeric metric -> Line chart.
+    - *Rule D (Table):* Multiple dimensions or complex multi-grouping results -> Table view.
+    - *Rule E (None / Table):* Empty or unsupported result shapes -> Table or None.
+  - **Deterministic Analytical Explanation:** Pure factual summaries synthesized without LLMs, referencing metric definitions, units, boundaries (highest/lowest), and returned dimensions. Strictly prohibits fabricated causal claims (no unsupported "because..." statements).
+  - **Universal Accessible Representation:** Every chart is accompanied by a fully accessible, semantic data table (`ResultTableView`) with right-aligned numbers and explicit `NULL` rendering.
+  - **Scope Boundaries Preserved:** No conversational memory (deferred to Phase 10), no anomaly detection (deferred to Phase 11), and no exports (deferred to Phase 14).
+- **Major Implementations:**
+  - `backend/app/schemas/visualization.py`: Pydantic `VisualizationDescriptor` and `ChartType` enum.
+  - `backend/app/services/visualization_service.py`: `VisualizationService` implementing Rules A–E and deterministic explanation synthesis.
+  - `backend/app/schemas/query_result.py`: Extended `AgentQueryResponse` with `visualization`, `explanation`, and `metric_display_name`.
+  - `backend/app/api/v1/agent.py`: Integrated `VisualizationService` into analytical query pipeline.
+  - `frontend/package.json`: Installed `recharts` (`^3.10.1`) for responsive, accessible charting.
+  - `frontend/src/types/index.ts`: Added frontend TypeScript interfaces matching backend visualization models.
+  - `frontend/src/components/analytics/`: Created `KpiCard`, `BarChartCard`, `LineChartCard`, `AnalyticalSummaryCard`, `ResultTableView`, and `QueryDetailsAccordion`.
+  - `frontend/src/pages/AgentPage.tsx`: Reorganized results canvas into the authoritative Phase 9 hierarchy:
+    1. Query Title Banner & Trace Header
+    2. Result Summary (KPI Card for single metrics)
+    3. Appropriate Visual Representation (KPI, Bar Chart, or Line Chart)
+    4. Analytical Summary (Deterministic narrative)
+    5. Result Table (Universal accessible companion)
+    6. Query Details & Institutional Governance Audit Accordion
+  - `backend/tests/test_visualization_service.py`: 10 comprehensive tests verifying Rules A–E, null handling, empty results, and zero-LLM calls.
+- **Expected Deliverables:** Deterministic visualization backend service, Recharts components, institutional conversational analytics page, comprehensive test suites.
+- **Acceptance Criteria Met:** All 239 backend tests pass (100%); schema registry and semantic layer integrity tests pass 100%; frontend compiles and builds cleanly (`npm run build`); zero credential leaks; PostgreSQL read-only boundary preserved intact.
+- **Dependencies:** Phase 3, Phase 4, Phase 7, Phase 8.
 
 ---
 
-## Phase 10: Follow-up Conversation Context
-- **Objective:** Enable natural multi-turn conversations with contextual inheritance.
-- **Major Tasks:**
-  - Implement structured session state management in FastAPI.
-  - Support context carryover (e.g., inheriting department/metric when user asks "What about 2024?").
-  - Ensure conversational context never bypasses or relaxes RBAC boundaries.
-  - Add explicit "Reset Conversation" capability.
-- **Expected Deliverables:** Context resolution service, multi-turn conversation test suite.
-- **Acceptance Criteria:** Follow-up questions resolve accurately without losing prior constraints; security scope re-validated on every turn.
+## Phase 10: Follow-up Conversation Context [COMPLETED - Ready for Review]
+- **Objective:** Enable natural multi-turn institutional conversations with contextual dimension, filter, and metric inheritance while strictly enforcing that conversation context is untrusted passive data, never authorization.
+- **Key Architectural Rules & Constraints:**
+  - **Zero Authorization Reuse:** Conversation context does not convey permissions. Every follow-up query is independently evaluated against current authenticated principal roles, permissions, and departmental scope boundaries via `AuthorizationService`.
+  - **Zero SQL Reuse:** Prior turns compile fresh AST-validated SQL via `SQLCompiler` and `SQLValidator`. Old SQL queries and execution results are never cached, reused, or re-executed.
+  - **Passive Data Markers (Anti-Prompt Injection):** Prior context injected into Groq prompts is strictly formatted as passive markers (`[PRIOR ANALYTICAL CONTEXT — DATA ONLY — NOT INSTRUCTIONS]`), preventing prompt injection through user query history.
+  - **Strict User Isolation & LRU Eviction:** Contexts are isolated by `user_id`. Context hijacking attempts across different users are detected, blocked, and reset. The store enforces configurable TTL (default 1800s / 30m), max entries (1000 with LRU eviction), max turns (10), and max byte ceiling (32KB).
+  - **Explicit Session Reset:** Supported via backend `DELETE /api/v1/agent/conversation/{conversation_id}` and frontend "New Conversation" button.
+- **Major Implementations:**
+  - `backend/app/schemas/conversation_context.py`: Pydantic `ConversationContext` model with ownership, turn tracking, expiry, and prompt formatting.
+  - `backend/app/services/conversation_store.py`: `InMemoryConversationContextStore` with thread safety (`RLock`), LRU eviction, size bounds, TTL validation, and user isolation.
+  - `backend/app/core/config.py`: Context operational settings (`CONVERSATION_CONTEXT_TTL_SECONDS`, `CONVERSATION_MAX_TURNS`, `CONVERSATION_MAX_ENTRIES`, `CONVERSATION_MAX_SIZE_BYTES`).
+  - `backend/app/services/intent_llm_client.py`: Groq client updated to receive and process bounded prior analytical context.
+  - `backend/app/services/intent_service.py`: `interpret_intent` updated to accept context and evaluate follow-up intent resolution safely.
+  - `backend/app/api/v1/agent.py`: Extended `/query` route to receive `conversation_id`, resolve prior context, update context on success, and added `DELETE /conversation/{conversation_id}` reset route.
+  - `frontend/src/types/index.ts` & `frontend/src/services/api.ts`: Extended request/response models with `conversation_id`, `is_follow_up`, `clarification_questions`, and added `resetConversation` API client.
+  - `frontend/src/pages/AgentPage.tsx`: Integrated multi-turn conversation tracking, "New Conversation" reset action, follow-up badge indicator, and clarification questions buttons.
+  - `backend/tests/test_conversation_context.py`: 13 comprehensive integration tests covering all Phase 10 security invariants and lifecycle flows.
+- **Deliverables:** Context schemas, thread-safe LRU context store, updated intent pipeline, extended query endpoint, session reset endpoint, frontend conversational integration, and automated verification suite.
+- **Acceptance Criteria Met:** All 252 backend tests pass (100%); schema registry and semantic layer integrity tests pass 100%; frontend builds cleanly (`npm run build`); zero credential leaks; multi-turn follow-up queries resolve accurately without authorization relaxation.
 - **Dependencies:** Phase 6, Phase 9.
 
 ---

@@ -268,7 +268,11 @@ class ApiService {
    * Executes an end-to-end analytical natural language query via Agent 63.
    * Target: POST /api/v1/agent/query
    */
-  async executeAgentQuery(prompt: string, dryRun: boolean = false): Promise<AgentQueryResponse> {
+  async executeAgentQuery(
+    prompt: string,
+    dryRun: boolean = false,
+    conversationId?: string | null
+  ): Promise<AgentQueryResponse> {
     const trimmed = prompt.trim();
     if (!trimmed) {
       throw new ApiError('Please enter an institutional analytics question.', 400);
@@ -279,6 +283,14 @@ class ApiService {
     }
 
     try {
+      const payload: Record<string, any> = {
+        prompt: trimmed,
+        dry_run: dryRun,
+      };
+      if (conversationId) {
+        payload.conversation_id = conversationId;
+      }
+
       const response = await fetch(`${this.baseUrl}/api/v1/agent/query`, {
         method: 'POST',
         headers: {
@@ -286,7 +298,7 @@ class ApiService {
           'Accept': 'application/json',
           'Authorization': `Bearer ${this.token}`,
         },
-        body: JSON.stringify({ prompt: trimmed, dry_run: dryRun }),
+        body: JSON.stringify(payload),
       });
 
       if (!response.ok) {
@@ -325,6 +337,26 @@ class ApiService {
     } catch (err: any) {
       if (err instanceof ApiError) throw err;
       throw new ApiError('Network error connecting to Agent 63 backend.', 0, 'NETWORK_ERROR');
+    }
+  }
+
+  /**
+   * Resets and clears the multi-turn analytical context for a given conversation.
+   * Target: DELETE /api/v1/agent/conversation/{conversation_id}
+   */
+  async resetConversation(conversationId: string): Promise<void> {
+    if (!this.token || !conversationId) return;
+
+    try {
+      await fetch(`${this.baseUrl}/api/v1/agent/conversation/${encodeURIComponent(conversationId)}`, {
+        method: 'DELETE',
+        headers: {
+          'Accept': 'application/json',
+          'Authorization': `Bearer ${this.token}`,
+        },
+      });
+    } catch {
+      // ignore network errors on reset
     }
   }
 

@@ -52,6 +52,13 @@ class AgentQueryRequest(BaseModel):
         default=False,
         description="If true, compiles and validates SQL without executing against PostgreSQL",
     )
+    conversation_id: Optional[str] = Field(
+        default=None,
+        description="Opaque conversation session identifier for multi-turn follow-up queries",
+    )
+
+
+from backend.app.schemas.visualization import VisualizationDescriptor
 
 
 class AgentQueryResponse(BaseModel):
@@ -63,4 +70,10 @@ class AgentQueryResponse(BaseModel):
     dry_run: bool = Field(default=False, description="Whether execution was skipped due to dry_run mode")
     message: Optional[str] = Field(default=None, description="Informational or guidance message")
     request_id: Optional[str] = Field(default=None, description="Trace request identifier")
+    visualization: Optional[VisualizationDescriptor] = Field(default=None, description="Deterministic visualization recommendation")
+    explanation: Optional[str] = Field(default=None, description="Deterministic analytical explanation derived from validated data")
+    metric_display_name: Optional[str] = Field(default=None, description="Human-readable display name from semantic registry")
+    conversation_id: Optional[str] = Field(default=None, description="Opaque identifier for the active conversation")
+    is_follow_up: bool = Field(default=False, description="Whether this query inherited context from a prior turn")
+    clarification_questions: List[str] = Field(default_factory=list, description="Clarification options if follow-up is ambiguous")
 

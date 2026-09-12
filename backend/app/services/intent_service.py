@@ -27,6 +27,7 @@ from backend.app.schemas.intent import (
     IntentValidationStatus,
     StructuredIntent,
 )
+from backend.app.schemas.conversation_context import ConversationContext
 from backend.app.schemas.principal import AuthenticatedPrincipal, ScopeType
 from backend.app.schemas.sql_artifact import SQLArtifact
 from backend.app.services.sql_compiler import SQLCompiler, get_sql_compiler
@@ -279,11 +280,12 @@ Output:
         request: IntentRequest,
         principal: AuthenticatedPrincipal,
         request_id: Optional[str] = None,
+        conversation_context: Optional[ConversationContext] = None,
     ) -> IntentResponse:
         """
         Main pipeline:
         1. Compile system instruction grounded in APPROVED Phase 4 catalog
-        2. Call Gemini structured generation
+        2. Call Groq structured generation (with safe prior context summary if follow-up)
         3. Validate intent via IntentValidator
         4. Authorize intent via AuthorizationService
         5. Log audit event
@@ -294,17 +296,30 @@ Output:
 
         logger.info(
             f"Processing intent interpretation: user='{principal.username}' "
-            f"req_id={req_id} query_len={len(user_message)}"
+            f"req_id={req_id} query_len={len(user_message)} "
+            f"has_context={bool(conversation_context)}"
         )
 
         # 1. Compile system prompt
         system_instruction = self.build_system_prompt()
 
-        # 2. Invoke Intent LLM Provider (Groq / neutral abstraction)
-        raw_intent = self._llm_client.generate_intent(
-            user_message=user_message,
-            system_instruction=system_instruction,
-        )
+        # 2. Invoke Intent LLM Provider (Groq / neutral abstraction) with passive prior context
+        prior_summary = conversation_context.to_prompt_context_summary() if conversation_context else None
+        try:
+            raw_intent = self._llm_client.generate_intent(
+                user_message=user_message,
+                system_instruction=system_instruction,
+                prior_context_summary=prior_summary,
+            )
+        except TypeError as te:
+            if "prior_context_summary" in str(te):
+                # Backwards-compatibility fallback for clients defining only (user_message, system_instruction)
+                raw_intent = self._llm_client.generate_intent(
+                    user_message=user_message,
+                    system_instruction=system_instruction,
+                )
+            else:
+                raise
 
         try:
             # 3. Deterministic Validation
@@ -473,3 +488,15 @@ def get_intent_service() -> IntentService:
     if _intent_service is None:
         _intent_service = IntentService()
     return _intent_service
+
+
+def set_intent_service(service: IntentService) -> None:
+    """Sets the active IntentService singleton, useful for test overrides."""
+    global _intent_service
+    _intent_service = service
+
+
+def reset_intent_service() -> None:
+    """Resets the active IntentService singleton."""
+    global _intent_service
+    _intent_service = None

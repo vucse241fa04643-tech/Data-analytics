@@ -35,7 +35,12 @@ class BaseGeminiClient(IntentLLMClient):
     """Abstract contract for Gemini natural language intent generation (Legacy Phase 6)."""
 
     @abstractmethod
-    def generate_intent(self, user_message: str, system_instruction: str) -> StructuredIntent:
+    def generate_intent(
+        self,
+        user_message: str,
+        system_instruction: str,
+        prior_context_summary: Optional[str] = None,
+    ) -> StructuredIntent:
         """Submits prompt to Gemini with system instructions and returns validated StructuredIntent."""
         pass
 
@@ -123,14 +128,26 @@ class GeminiClient(BaseGeminiClient):
         """Indicates if API key and client are operational."""
         return bool(self._api_key and self._client)
 
-    def generate_intent(self, user_message: str, system_instruction: str) -> StructuredIntent:
+    def generate_intent(
+        self,
+        user_message: str,
+        system_instruction: str,
+        prior_context_summary: Optional[str] = None,
+    ) -> StructuredIntent:
         """
-        Invokes Gemini with structured JSON output enforcement using the official SDK.
+        Invokes Gemini with structured output enforcement and returns validated StructuredIntent.
         Fails closed if the client or API key is unconfigured.
+        Maps any provider or parse error to safe sanitized exceptions.
         """
         if not self._client or not self._api_key:
             logger.warning("Gemini intent requested but GEMINI_API_KEY is not configured on backend.")
             raise GeminiConfigurationError("GEMINI_API_KEY is not configured on this server.")
+
+        effective_message = (
+            f"{prior_context_summary}\n\nCurrent User Query: {user_message}"
+            if prior_context_summary
+            else user_message
+        )
 
         try:
             from google.genai import types
@@ -252,10 +269,16 @@ class MockGeminiClient(BaseGeminiClient):
         self._should_fail = should_fail
         self._error_message = message
 
-    def generate_intent(self, user_message: str, system_instruction: str) -> StructuredIntent:
+    def generate_intent(
+        self,
+        user_message: str,
+        system_instruction: str,
+        prior_context_summary: Optional[str] = None,
+    ) -> StructuredIntent:
         self._call_history.append({
             "user_message": user_message,
             "system_instruction": system_instruction,
+            "prior_context_summary": prior_context_summary,
         })
 
         if self._should_timeout:

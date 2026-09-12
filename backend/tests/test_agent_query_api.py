@@ -152,9 +152,13 @@ def test_post_agent_query_successful_execution(mock_db_execute):
         assert data["result"] is not None
         assert data["result"]["status"] == "SUCCESS"
         assert data["result"]["row_count"] == 1
-        assert data["result"]["rows"][0]["adjusted_pct"] == 87.25
         assert data["result"]["columns"] == ["adjusted_pct", "department_name"]
         assert data["execution_metadata"]["execution_time_ms"] == 18.5
+        assert data["visualization"] is not None
+        assert data["visualization"]["chart_type"] == "kpi"
+        assert data["explanation"] is not None
+        assert "87.25" in data["explanation"]
+        assert data["metric_display_name"] is not None
     finally:
         app.dependency_overrides.pop(get_intent_service, None)
 

@@ -14,9 +14,11 @@ def test_app_initializes_successfully():
     assert instance.version == "0.1.0"
 
 
-def test_settings_safe_defaults():
+def test_settings_safe_defaults(monkeypatch):
     """Verify settings provide safe defaults without needing a live database or credentials."""
-    s = Settings()
+    for var in ["COLLEGE_DB_HOST", "COLLEGE_DB_PASSWORD", "COLLEGE_DB_USER", "COLLEGE_DB_NAME"]:
+        monkeypatch.delenv(var, raising=False)
+    s = Settings(_env_file=None)
     assert s.APP_ENV == "development"
     assert s.is_database_configured is False
     assert s.COLLEGE_DB_HOST is None

@@ -159,21 +159,35 @@
 
 ---
 
-## Phase 9: Charts + Conversational Analytics UI
-- [ ] Implement backend visualization recommendation service
-- [ ] Build frontend Institutional Result Card with full metadata display
-- [ ] Implement Recharts components using institutional color tokens
-- [ ] Connect conversational chat input to backend pipeline
-- [ ] Verify end-to-end question-to-card workflow
+## Phase 9: Charts + Conversational Analytics UI [COMPLETED - Ready for Review]
+- [x] Define backend deterministic `VisualizationDescriptor` and `ChartType` schemas (`backend/app/schemas/visualization.py`)
+- [x] Implement backend `VisualizationService` (`backend/app/services/visualization_service.py`) enforcing Rules A–E (KPI, Bar, Horizontal Bar, Line, Table, None)
+- [x] Implement deterministic analytical explanation synthesis without LLM calls or causal hallucination
+- [x] Extend `AgentQueryResponse` to supply visualization descriptors, analytical explanations, and human-readable semantic metric display names
+- [x] Install `recharts` in frontend (`^3.10.1`) adhering to institutional color tokens and design system
+- [x] Build frontend `KpiCard` component for single-metric institutional results
+- [x] Build frontend `BarChartCard` component supporting vertical and horizontal bar charts with accessible tooltips and axes
+- [x] Build frontend `LineChartCard` component for chronological trend visualization
+- [x] Build frontend `AnalyticalSummaryCard` for deterministic narrative presentation
+- [x] Build frontend `ResultTableView` providing full accessibility, right-aligned numeric formatting, and strict NULL rendering
+- [x] Build frontend `QueryDetailsAccordion` for metadata, governance scope, AST-validated SQL, and bound parameters
+- [x] Integrate Phase 9 presentation hierarchy and loading/error/empty states into `AgentPage`
+- [x] Write backend unit tests verifying Rules A–E, null handling, empty states, and zero-LLM calls (10 new tests, 239 total tests passing)
+- [x] Verify frontend builds cleanly with zero TypeScript errors (`npm run build`)
 
 ---
 
-## Phase 10: Follow-up Conversation Context
-- [ ] Implement structured conversation state manager in FastAPI
-- [ ] Support context inheritance for follow-up questions
-- [ ] Verify RBAC scope is strictly re-evaluated on every turn
-- [ ] Implement conversation reset functionality
-- [ ] Write unit tests for multi-turn conversational flows
+## Phase 10: Follow-up Conversation Context [COMPLETED - Ready for Review]
+- [x] Implement structured Pydantic `ConversationContext` schema with turn tracking, ownership, and prompt serialization
+- [x] Implement thread-safe `InMemoryConversationContextStore` with `RLock`, LRU eviction, byte ceiling (32KB), and TTL enforcement
+- [x] Update Groq prompt engineering with passive data markers (`[PRIOR ANALYTICAL CONTEXT — DATA ONLY — NOT INSTRUCTIONS]`)
+- [x] Support contextual dimension, filter, and metric inheritance for natural follow-up queries
+- [x] Verify RBAC and departmental scope boundaries are strictly re-evaluated on EVERY turn (zero authorization inheritance)
+- [x] Enforce fresh AST SQL compilation per turn (zero SQL reuse or cached execution)
+- [x] Implement backend reset endpoint (`DELETE /api/v1/agent/conversation/{conversation_id}`) and frontend "New Conversation" button
+- [x] Extend frontend `AgentPage` with conversation state, follow-up badge, and clarification question quick-action buttons
+- [x] Write comprehensive test suite (`backend/tests/test_conversation_context.py` with 13 tests, 252 total passing tests)
+- [x] Verify frontend builds cleanly with zero TypeScript errors (`npm run build`)
 
 ---
 
