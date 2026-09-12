@@ -206,6 +206,72 @@ class Settings(BaseSettings):
         description="Maximum active refresh schedules system-wide."
     )
 
+    # Analytical Query Logging & Popular-Question Aggregation (Phase 13)
+    QUERY_LOG_ENABLED: bool = Field(
+        default=True,
+        description=(
+            "Whether application-level analytical query logging is enabled. "
+            "Logging is in-memory only and does NOT write to the college PostgreSQL database. "
+            "Set to False to disable all query event collection."
+        ),
+    )
+    QUERY_LOG_MAX_ENTRIES: int = Field(
+        default=10000,
+        description=(
+            "Maximum number of query log events retained in memory. "
+            "Oldest events are evicted (LRU) when the limit is reached. "
+            "Bounds memory consumption of the query logging subsystem."
+        ),
+    )
+    QUERY_LOG_AGGREGATION_WINDOW_HOURS: int = Field(
+        default=168,
+        description=(
+            "Time window (in hours) for popular-question aggregation (default: 168 = 7 days). "
+            "Events older than this window are excluded from popularity calculations. "
+            "Does not represent an institutional data retention policy — "
+            "this is application-level usage analytics only."
+        ),
+    )
+    QUERY_LOG_MAX_POPULAR_RESULTS: int = Field(
+        default=10,
+        description=(
+            "Maximum number of popular analytical patterns returned by the popular-questions API. "
+            "Bounded to prevent overly long response payloads."
+        ),
+    )
+    QUERY_LOG_SAFE_QUERY_LABEL_MAX_LEN: int = Field(
+        default=0,
+        description=(
+            "Maximum character length of the optional safe_query_label field stored per event. "
+            "Defaults to 0 (disabled) — raw natural language query text is NOT stored. "
+            "Popular questions are derived from metric_id and dimensions, not raw query text. "
+            "Set to a positive value (e.g. 200) to store a bounded, sanitized label for debugging. "
+            "Never stores SQL, credentials, or confidential content regardless of this setting."
+        ),
+    )
+
+    # Analytical Result Export & Official Report Verification (Phase 14)
+    EXPORT_ENABLED: bool = Field(
+        default=True,
+        description="Whether analytical query result export (CSV, JSON) is enabled."
+    )
+    EXPORT_MAX_ROWS: int = Field(
+        default=1000,
+        description="Strict maximum row ceiling for exported results (matches Phase 8 MAX_RESULT_ROWS)."
+    )
+    EXPORT_MAX_BYTES: int = Field(
+        default=2097152,
+        description="Maximum allowed byte size (2MB) for serialized export payloads."
+    )
+    EXPORT_ARTIFACT_TTL_SECONDS: int = Field(
+        default=900,
+        description="Time-to-live in seconds for server-side cached analytical export artifacts (default 15 minutes)."
+    )
+    EXPORT_ARTIFACT_MAX_ENTRIES: int = Field(
+        default=1000,
+        description="Maximum number of active export artifacts retained in memory (LRU eviction)."
+    )
+
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",

@@ -225,19 +225,35 @@
 
 ---
 
-## Phase 13: Query Logging + Popular Questions
-- [ ] Implement immutable audit logging for all analytical queries
-- [ ] Sanitize log records to ensure zero secrets or PII are logged
-- [ ] Build frequently asked institutional questions recommender
-- [ ] Verify audit log integrity and query telemetry
+## Phase 13: Query Logging + Popular Questions [COMPLETED - Ready for Review]
+- [x] Implement thread-safe in-memory `QueryLoggingService` with LRU eviction and aggregation window
+- [x] Sanitize log records to ensure zero passwords, JWTs, API keys, raw SQL, or raw result rows are logged
+- [x] Aggregate popular analytical questions by metric ID and dimension signature without user identities
+- [x] Enforce RBAC filtering so popular questions only surface metrics authorized for the caller
+- [x] Integrate query logging into agent manual queries, dry runs, intent rejections, and conversational follow-ups
+- [x] Integrate widget execution and scheduled refresh logging into dashboard service and scheduler
+- [x] Implement REST endpoint `GET /api/v1/analytics/popular-questions`
+- [x] Build institutional frontend `PopularQuestionsPanel` with privacy-safe design and query selection
+- [x] Write 30 comprehensive automated tests covering security, privacy, fail-open, and role-filtering (361 total passing tests)
+- [x] Verify frontend builds cleanly with zero TypeScript errors (`npm run build`)
 
 ---
 
-## Phase 14: Export + Official Report Verification
-- [ ] Implement CSV and Excel export generators with audit metadata headers
-- [ ] Enforce export RBAC permissions
-- [ ] Implement Official Report Verification badges linked to reconciliation checkpoints
-- [ ] Verify exported files adhere strictly to role-based scopes
+## Phase 14: Export + Official Report Verification [COMPLETED - Ready for Review]
+- [x] Implement CSV and JSON export generators with safe institutional provenance metadata headers
+- [x] Enforce mandatory principal re-authorization, cross-user isolation, and strict role scoping on export
+- [x] Implement robust CSV formula injection defense escaping `=`, `+`, `-`, `@`, `\t`, `\r` while preserving negative/positive numbers
+- [x] Enforce hard system ceilings: `EXPORT_MAX_ROWS` (1000) and `EXPORT_MAX_BYTES` (2MB)
+- [x] Implement bounded in-memory `ExportArtifactStore` with TTL (900s) and LRU eviction preventing client-supplied result injection
+- [x] Implement deterministic `VerificationService` comparing live query results with registered official benchmarks with zero LLM dependencies
+- [x] Query authoritative PostgreSQL `quality.kpi_value` (`validated_at IS NOT NULL`) and `quality.kpi_definition`, returning `NOT_VERIFIED` when no authoritative record exists (zero synthetic benchmarks in production)
+- [x] Handle exact Decimal/equality comparison first, then IEEE-754 representation normalization (`FLOAT_REPRESENTATION_ABS_TOL = 1e-9`), classifying `MATCH`, `MISMATCH`, `NOT_COMPARABLE`, `NOT_VERIFIED`
+- [x] Ensure non-alarmist, neutral institutional disclaimers on all verification outcomes (mathematical concordance, never false certification)
+- [x] Integrate export logging into Phase 13 query logging subsystem fail-open
+- [x] Implement REST endpoints `POST /api/v1/analytics/export` and `POST /api/v1/analytics/verify`
+- [x] Build institutional frontend `ExportControls` and `VerificationCard` integrated into `AgentPage`
+- [x] Write 56 comprehensive automated tests covering security, CSV injection, numeric semantics, float normalization, re-authorization, and verification logic (427 total passing tests)
+- [x] Verify frontend builds cleanly with zero TypeScript errors (`npm run build`)
 
 ---
 

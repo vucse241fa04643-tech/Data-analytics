@@ -20,7 +20,7 @@ export const ChartPlaceholder: React.FC<ChartPlaceholderProps> = ({
         <EmptyState
           icon={<BarChart3 size={28} />}
           title="Visualization Workspace"
-          description="Visual charts (Recharts) will render automatically upon execution of authorized, verified analytical queries in Phase 9."
+          description="Visual charts render automatically upon execution of authorized, verified analytical queries from read-only PostgreSQL."
         />
       </div>
     </Card>

@@ -12,6 +12,10 @@ import { AnalyticalSummaryCard } from '../components/analytics/AnalyticalSummary
 import { AnomalyInsightCard } from '../components/analytics/AnomalyInsightCard';
 import { ResultTableView } from '../components/analytics/ResultTableView';
 import { QueryDetailsAccordion } from '../components/analytics/QueryDetailsAccordion';
+import { PopularQuestionsPanel } from '../components/analytics/PopularQuestionsPanel';
+import { ExportControls } from '../components/analytics/ExportControls';
+import { VerificationCard } from '../components/analytics/VerificationCard';
+import { APP_PHASE } from '../constants/phases';
 import {
   MessageSquare,
   Send,
@@ -145,7 +149,7 @@ export const AgentPage: React.FC = () => {
             <h1 style={{ fontSize: 'var(--font-size-2xl)', color: 'var(--color-text-primary)', margin: 0 }}>
               Agent 63 Conversational Analytics
             </h1>
-            <StatusBadge variant="success">Phase 10 Conversational Analytics</StatusBadge>
+            <StatusBadge variant="success">{APP_PHASE.AGENT_BADGE}</StatusBadge>
           </div>
           <p style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-text-muted)', margin: 0 }}>
             Multi-turn follow-up analytics, contextual dimension inheritance, deterministic visualization, and read-only PostgreSQL.
@@ -426,6 +430,21 @@ export const AgentPage: React.FC = () => {
                 />
               )}
 
+              {/* 5.5 PHASE 14 EXPORT CONTROLS */}
+              {queryResponse.request_id && result && (
+                <ExportControls
+                  requestId={queryResponse.request_id}
+                  rowCount={result.rows.length}
+                />
+              )}
+
+              {/* 5.6 PHASE 14 OFFICIAL REPORT VERIFICATION */}
+              {queryResponse.request_id && (
+                <VerificationCard
+                  requestId={queryResponse.request_id}
+                />
+              )}
+
               {/* 6. QUERY DETAILS & AUDIT ACCORDION */}
               <QueryDetailsAccordion
                 metricId={metricId}
@@ -463,6 +482,12 @@ export const AgentPage: React.FC = () => {
 
         {/* Bottom Section: Query Input & Example Chips */}
         <div style={{ borderTop: '1px solid var(--color-border-subtle)', paddingTop: 'var(--spacing-md)', marginTop: 'auto' }}>
+          {/* Phase 13: Popular Analytical Questions Panel */}
+          <PopularQuestionsPanel
+            onSelectQuestion={(q) => setInputValue(q)}
+            disabled={isLoading}
+          />
+
           {/* Example Query Chips */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '10px' }}>
             <Sparkles size={14} color="var(--color-brand-secondary)" />

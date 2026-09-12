@@ -1,7 +1,18 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
 import styles from './Sidebar.module.css';
-import { LayoutDashboard, MessageSquare, BarChart2, Shield, Lock, FileText, CheckCircle2 } from 'lucide-react';
+import { APP_PHASE } from '../../constants/phases';
+import {
+  LayoutDashboard,
+  MessageSquare,
+  BarChart2,
+  Shield,
+  Lock,
+  FileText,
+  CheckCircle2,
+  ShieldAlert,
+  Server,
+} from 'lucide-react';
 
 export interface SidebarProps {
   isOpen: boolean;
@@ -13,13 +24,18 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
     { label: 'Overview', path: '/', icon: <LayoutDashboard size={18} /> },
     { label: 'Agent 63', path: '/agent', icon: <MessageSquare size={18} />, badge: 'Active' },
     { label: 'Role Dashboards', path: '/dashboards', icon: <Shield size={18} />, badge: 'Phase 12 Active' },
-    { label: 'Analytics', path: '/analytics', icon: <BarChart2 size={18} /> },
+    { label: 'Analytics', path: '/analytics', icon: <BarChart2 size={18} />, badge: 'Active' },
+  ];
+
+  const activeCapabilities = [
+    { label: 'Official Verification', icon: <CheckCircle2 size={18} />, phase: 'Phase 14 Active' },
+    { label: 'Query Audit Log', icon: <FileText size={18} />, phase: 'Phase 13 Active' },
+    { label: 'RBAC Scopes', icon: <Lock size={18} />, phase: 'Phase 5 Active' },
   ];
 
   const futureNav = [
-    { label: 'Reconciliation', icon: <CheckCircle2 size={18} />, phase: 'Phase 14' },
-    { label: 'Audit Trail', icon: <FileText size={18} />, phase: 'Phase 13' },
-    { label: 'RBAC Scopes', icon: <Lock size={18} />, phase: 'Phase 5' },
+    { label: 'Adversarial Security', icon: <ShieldAlert size={18} />, phase: 'Phase 15' },
+    { label: 'Production Staging', icon: <Server size={18} />, phase: 'Phase 16' },
   ];
 
   return (
@@ -48,11 +64,43 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
             ))}
           </nav>
 
-          <div style={{ margin: 'var(--spacing-lg) 0 var(--spacing-xs) 0' }}>
-            <div className={styles.sectionTitle}>Planned Features</div>
+          {/* Integrated Active Capabilities */}
+          <div style={{ margin: 'var(--spacing-md) 0 var(--spacing-xs) 0' }}>
+            <div className={styles.sectionTitle}>Active Subsystems</div>
+            <div className={styles.navList}>
+              {activeCapabilities.map((item, idx) => (
+                <div
+                  key={idx}
+                  className={[styles.navItem, styles.disabledItem].join(' ')}
+                  title={`${item.label} — ${item.phase} (Integrated into Agent & Dashboards)`}
+                >
+                  <span className={styles.navIcon}>{item.icon}</span>
+                  <span>{item.label}</span>
+                  <span
+                    className={styles.badge}
+                    style={{
+                      backgroundColor: 'var(--color-success-bg)',
+                      color: 'var(--color-success)',
+                      border: '1px solid var(--color-success-border)',
+                    }}
+                  >
+                    {item.phase}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Planned Future Phases */}
+          <div style={{ margin: 'var(--spacing-md) 0 var(--spacing-xs) 0' }}>
+            <div className={styles.sectionTitle}>Planned Phases</div>
             <div className={styles.navList}>
               {futureNav.map((item, idx) => (
-                <div key={idx} className={[styles.navItem, styles.disabledItem].join(' ')} title={`${item.label} - ${item.phase}`}>
+                <div
+                  key={idx}
+                  className={[styles.navItem, styles.disabledItem].join(' ')}
+                  title={`${item.label} — ${item.phase}`}
+                >
                   <span className={styles.navIcon}>{item.icon}</span>
                   <span>{item.label}</span>
                   <span className={styles.badge}>{item.phase}</span>
@@ -67,9 +115,9 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
             <span style={{ fontWeight: 'var(--font-weight-semibold)', color: 'var(--color-text-secondary)' }}>
               Agent 63 Architecture
             </span>
-            <span>Secure Institutional Analytics Agent</span>
-            <span style={{ color: 'var(--color-brand-primary)', fontSize: '10px' }}>
-              Phase 6: Intent Engine
+            <span>Secure Institutional Analytics</span>
+            <span style={{ color: 'var(--color-brand-primary)', fontSize: '10px', fontWeight: 'var(--font-weight-semibold)' }}>
+              {APP_PHASE.FOOTER_PHASE}
             </span>
           </div>
         </div>
@@ -77,3 +125,4 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
     </>
   );
 };
+export default Sidebar;

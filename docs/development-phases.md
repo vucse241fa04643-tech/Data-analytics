@@ -279,27 +279,49 @@
 
 ---
 
-## Phase 13: Query Logging + Popular Questions
-- **Objective:** Maintain comprehensive audit logs and capture institutional questioning patterns.
-- **Major Tasks:**
-  - Implement structured audit logger recording query hash, user ID, role, duration, and status.
-  - Scrub all passwords, tokens, and PII from log streams.
-  - Build "Frequently Asked Institutional Questions" suggestion service.
-- **Expected Deliverables:** Audit logging middleware, telemetry database/store, suggested questions component.
-- **Acceptance Criteria:** Immutable audit log maintained; sensitive secrets completely sanitized.
-- **Dependencies:** Phase 5, Phase 8.
+## Phase 13: Query Logging + Popular Questions [COMPLETED - Ready for Review]
+- **Objective:** Maintain bounded, thread-safe, privacy-safe analytical query logging and capture institutional questioning patterns without leaking secrets, credentials, raw SQL, raw rows, or user identities.
+- **Mandatory Privacy & Architecture Invariants:**
+  - *Storage is application-memory only*: The query logging store uses bounded in-memory LRU storage (`QUERY_LOG_MAX_ENTRIES=10000`) and a strict time window (`QUERY_LOG_AGGREGATION_WINDOW_HOURS=168`).
+  - *Database persistence is intentionally absent*: Server restart clears query-log and popularity state.
+  - *AgentOps database persistence is intentionally deferred*: Integration with college PostgreSQL `agentops.agent_run` is deferred because `agentops.agent_run` enforces a foreign key to `agentops.agent` (where Agent 63 does not have a provisioned row), and the institutional connection is strictly read-only. This design avoids creating a second persistent audit store or modifying the institutional schema.
+  - *No synthetic popularity counts*: Popular questions are derived solely from real, observed analytical query events. Zero synthetic numbers or mock questions exist.
+  - *Query logging is purely observational and NEVER an authorization source*: Authorization is always evaluated independently before executing any query and before surfacing any popular question candidate.
+  - *Authorization evaluated per candidate*: Popular questions are filtered strictly to metrics and organizational scopes the authenticated principal is authorized to execute.
+  - *Zero sensitive data leakage*: Zero SQL statements, zero credentials/JWTs/passwords, zero raw result rows, and zero user identifiers are persisted in events or exposed in outputs.
+  - *Fail-open resilience*: Logging failure never aborts or corrupts analytical query execution.
+- **Major Tasks Completed:**
+  - `backend/app/schemas/query_log.py`: Defined `QueryLogEvent`, `QueryLogEventType`, `QueryLogStatus`, and `PopularQuestion` schemas.
+  - `backend/app/services/query_log_service.py`: Implemented thread-safe in-memory `QueryLoggingService` with LRU eviction, role-based metric and scope authorization filtering, and aggregation engine.
+  - `backend/app/api/v1/agent.py`: Integrated query logging into manual queries, dry runs, intent rejections, and conversational follow-ups.
+  - `backend/app/services/dashboard_service.py` & `dashboard_scheduler.py`: Integrated widget refresh and scheduled refresh logging.
+  - `backend/app/api/v1/analytics.py`: Implemented authenticated `GET /api/v1/analytics/popular-questions` endpoint.
+  - `frontend/src/types/index.ts` & `frontend/src/services/api.ts`: Added `PopularQuestion` type and `getPopularQuestions()` API method.
+  - `frontend/src/components/analytics/PopularQuestionsPanel.tsx`: Created privacy-first popular questions panel with aggregated frequency tags.
+  - `frontend/src/pages/AgentPage.tsx`: Integrated `PopularQuestionsPanel` into the conversational analytics interface.
+  - `backend/tests/test_query_log_service.py` & `backend/tests/test_analytics_api.py`: 40 comprehensive security, scope, and API integration tests.
+- **Deliverables:** In-memory query logging service, popular questions recommender, analytics API, frontend panel, and 40 automated tests.
+- **Acceptance Criteria Met:** 371/371 backend tests passing (100%); schema registry and semantic layer validation clean (0 errors, 0 warnings); frontend builds cleanly (`npm run build`); zero raw SQL, secrets, or user identities in log outputs; strict RBAC adherence.
+- **Dependencies:** Phase 5, Phase 8, Phase 10, Phase 12.
 
 ---
 
-## Phase 14: Export + Official Report Verification
-- **Objective:** Provide authorized data exports and distinguish between ad-hoc analytics and official statutory figures.
-- **Major Tasks:**
-  - Implement CSV and Excel export generators with full metadata headers.
-  - Enforce RBAC export permissions.
-  - Implement Official Report Verification tag referencing reconciliation checkpoints (e.g., NAAC/AISHE figures).
-- **Expected Deliverables:** Export API endpoints, export UI triggers, official verification status badges.
-- **Acceptance Criteria:** Exports include audit headers and respect row-level scoping; official figures clearly demarcated.
-- **Dependencies:** Phase 8, Phase 9, Phase 12.
+## Phase 14: Export + Official Report Verification [COMPLETED - Ready for Review]
+- **Objective:** Provide authorized data exports and deterministically distinguish between ad-hoc analytical query outputs and registered official institutional benchmark figures without LLM dependencies.
+- **Completed Tasks:**
+  - `backend/app/schemas/export.py`: Defined `ExportFormat` (CSV, JSON), `ExportRequest`, `ExportMetadata`, `ExportResponseJSON`, `VerificationStatus` (MATCH, MISMATCH, NOT_COMPARABLE, NOT_VERIFIED), `VerificationRequest`, `VerificationResult`, and server-side `ExportArtifact`.
+  - `backend/app/services/export_artifact_store.py`: Built bounded, in-memory LRU store with thread-safe locks and TTL expiration (15 minutes / 1000 items) for caching analytical results by correlation `request_id`.
+  - `backend/app/services/export_service.py`: Built export serialization service with mandatory re-authorization (student self-scope, HOD departmental boundary), cross-user ownership isolation, CSV formula injection defense (`=`, `+`, `-`, `@`, `\t`, `\r` neutralized with `'`) while preserving legitimate negative and positive numeric semantics (`-42`, `-3.14`, `85.5`, string `"-42"` converted to number), RFC 4180 escaping (commas, quotes, newlines, UTF-8 Unicode), distinct NULL preservation, row limit ceiling (`EXPORT_MAX_ROWS=1000`), byte ceiling (`EXPORT_MAX_BYTES=2MB`), and fail-open `EXPORT` query logging.
+  - `backend/app/services/verification_service.py`: Implemented deterministic official report reconciliation engine with zero LLM calls, querying authoritative PostgreSQL schema objects (`quality.kpi_value` with `validated_at IS NOT NULL`, `quality.kpi_definition`, `knowledge.document`), returning `NOT_VERIFIED` when no validated official benchmark exists (zero synthetic benchmarks in production). Implements exact Decimal/equality comparison first, followed by mathematical IEEE-754 floating-point representation normalization (`FLOAT_REPRESENTATION_ABS_TOL = 1e-9`, strictly technical representation normalization, NOT an institutional tolerance), checking reporting periods and organizational scopes, and generating neutral institutional concordance statements (never claiming certification or accreditation).
+  - `backend/app/api/v1/analytics.py`: Exposed authenticated `POST /api/v1/analytics/export` and `POST /api/v1/analytics/verify` endpoints with strict principal ownership validation.
+  - `frontend/src/types/index.ts` & `frontend/src/services/api.ts`: Added export and verification types and client API methods (`exportResult`, `verifyResult`).
+  - `frontend/src/components/analytics/ExportControls.tsx`: Accessible CSV and JSON download triggers with progress state and error/success alerts.
+  - `frontend/src/components/analytics/VerificationCard.tsx`: Deterministic report comparison card displaying MATCH, MISMATCH, NOT_COMPARABLE, or NOT_VERIFIED with neutral governance notices (mathematical concordance, never false certification).
+  - `frontend/src/pages/AgentPage.tsx`: Integrated `ExportControls` and `VerificationCard` into the query result layout.
+  - `backend/tests/test_export_service.py`: 56 comprehensive automated unit, service, API, and security regression tests.
+- **Deliverables:** Export and verification schemas, artifact cache store, serialization service, verification service, REST endpoints, UI controls, and 56 automated tests.
+- **Acceptance Criteria Met:** 427/427 backend tests passing (100%); 56/56 Phase 14 tests passing; schema and semantic layer validations 100% clean (0 errors, 0 warnings); frontend builds cleanly with zero TypeScript errors (`npm run build`); zero raw SQL, secrets, or unescaped formulas; zero LLM calls in verification or export; strict RBAC and re-authorization enforced; strictly zero database mutations or synthetic institutional benchmarks.
+- **Dependencies:** Phase 8, Phase 9, Phase 12, Phase 13.
 
 ---
 

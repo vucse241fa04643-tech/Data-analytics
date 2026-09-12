@@ -66,6 +66,8 @@ from backend.app.services.visualization_service import (
     VisualizationService,
     get_visualization_service,
 )
+from backend.app.schemas.query_log import QueryLogEvent, QueryLogEventType, QueryLogStatus
+from backend.app.services.query_log_service import QueryLoggingService, get_query_log_service
 
 logger = get_logger("agent63.services.dashboard")
 
@@ -83,26 +85,31 @@ class DashboardCacheEntry:
 
 
 class DashboardService:
-    """Central service orchestrating role-based dashboard loading, caching, and execution."""
+    """
+    Orchestrates secure, role-based dashboard execution.
+    Phase 13: Integrates QueryLoggingService for bounded dashboard query event logging.
+    Logging reuses the singleton QueryLoggingService — no second pipeline.
+    """
 
     def __init__(
         self,
         registry: Optional[DashboardRegistryService] = None,
-        authorization: Optional[AuthorizationService] = None,
         compiler: Optional[SQLCompiler] = None,
         validator: Optional[SQLValidator] = None,
         executor: Optional[ExecutionService] = None,
         visualizer: Optional[VisualizationService] = None,
         anomaly_detector: Optional[AnomalyDetectionService] = None,
+        authorization: Optional[AuthorizationService] = None,
+        log_service: Optional[QueryLoggingService] = None,
     ):
         self._registry = registry or get_dashboard_registry_service()
-        self._authorization = authorization or get_authorization_service()
         self._compiler = compiler or get_sql_compiler()
         self._validator = validator or get_sql_validator()
         self._executor = executor or execution_service
         self._visualizer = visualizer or get_visualization_service()
         self._anomaly_detector = anomaly_detector or get_anomaly_service()
-
+        self._authorization = authorization or get_authorization_service()
+        self._log_service = log_service or get_query_log_service()
         self._cache: Dict[str, DashboardCacheEntry] = {}
         self._cache_lock = threading.RLock()
 
@@ -199,7 +206,10 @@ class DashboardService:
 
         # 5. Execute Widgets with Bounded Concurrency & Error Isolation
         widgets = definition.widgets[: settings.DASHBOARD_MAX_WIDGETS_PER_DASHBOARD]
-        widget_results = self._execute_widgets_bounded(widgets, principal)
+        widget_results = self._execute_widgets_bounded(
+            widgets, principal,
+            dashboard_id=dashboard_id,
+        )
 
         # 6. Determine Refresh Status
         statuses = {w.status for w in widget_results}
@@ -275,6 +285,8 @@ class DashboardService:
         self,
         widgets: List[WidgetDefinition],
         principal: AuthenticatedPrincipal,
+        dashboard_id: Optional[str] = None,
+        event_type: QueryLogEventType = QueryLogEventType.DASHBOARD_REFRESH,
     ) -> List[DashboardWidgetResult]:
         """Executes widgets with bounded concurrency, isolating any partial widget errors."""
         max_workers = min(
@@ -285,7 +297,11 @@ class DashboardService:
         results_dict: Dict[int, DashboardWidgetResult] = {}
 
         def _worker(idx: int, widget: WidgetDefinition) -> Tuple[int, DashboardWidgetResult]:
-            res = self._execute_single_widget(widget, principal)
+            res = self._execute_single_widget(
+                widget, principal,
+                dashboard_id=dashboard_id,
+                event_type=event_type,
+            )
             return idx, res
 
         # Run via bounded ThreadPoolExecutor
@@ -304,10 +320,13 @@ class DashboardService:
         self,
         widget: WidgetDefinition,
         principal: AuthenticatedPrincipal,
+        dashboard_id: Optional[str] = None,
+        event_type: QueryLogEventType = QueryLogEventType.DASHBOARD_REFRESH,
     ) -> DashboardWidgetResult:
         """
         Executes an individual widget through the secure analytical pipeline:
         Authorization -> SQL Compilation -> AST Validation -> Execution -> Visualization -> Anomaly.
+        Phase 13: Logs a safe DASHBOARD_REFRESH event per widget (fail-open).
         """
         display_name, unit, _ = self._visualizer._get_metric_meta(widget.metric_id)
         now = datetime.now(timezone.utc)
@@ -315,6 +334,14 @@ class DashboardService:
         # Step 1: Metric Authorization Check
         auth_decision = self._authorization.authorize_metric(principal, widget.metric_id)
         if not auth_decision.allowed:
+            # Phase 13: Log authorization failure (safe metadata only)
+            self._safe_log_widget_event(
+                principal=principal, widget=widget, dashboard_id=dashboard_id,
+                event_type=event_type,
+                status=QueryLogStatus.UNAUTHORIZED,
+                error_category="AUTHORIZATION_DENIED",
+                execution_time_ms=0.0,
+            )
             return DashboardWidgetResult(
                 widget_id=widget.widget_id,
                 metric_id=widget.metric_id,
@@ -347,6 +374,13 @@ class DashboardService:
             validated_artifact = self._validator.validate_artifact(raw_artifact)
         except (SQLAuthorizationError, AuthorizationError) as e:
             logger.info(f"Widget {widget.widget_id} authorization error: {e}")
+            self._safe_log_widget_event(
+                principal=principal, widget=widget, dashboard_id=dashboard_id,
+                event_type=event_type,
+                status=QueryLogStatus.UNAUTHORIZED,
+                error_category="SQL_AUTHORIZATION_ERROR",
+                execution_time_ms=0.0,
+            )
             return DashboardWidgetResult(
                 widget_id=widget.widget_id,
                 metric_id=widget.metric_id,
@@ -359,6 +393,13 @@ class DashboardService:
             )
         except (SQLCompilationError, SQLValidationError, Exception) as e:
             logger.error(f"Widget {widget.widget_id} compilation error: {e}")
+            self._safe_log_widget_event(
+                principal=principal, widget=widget, dashboard_id=dashboard_id,
+                event_type=event_type,
+                status=QueryLogStatus.VALIDATION_FAILED,
+                error_category="SQL_COMPILATION_OR_VALIDATION_FAILED",
+                execution_time_ms=0.0,
+            )
             return DashboardWidgetResult(
                 widget_id=widget.widget_id,
                 metric_id=widget.metric_id,
@@ -377,6 +418,13 @@ class DashboardService:
                 principal=principal,
             )
         except DatabaseNotConfiguredError:
+            self._safe_log_widget_event(
+                principal=principal, widget=widget, dashboard_id=dashboard_id,
+                event_type=event_type,
+                status=QueryLogStatus.DATABASE_UNAVAILABLE,
+                error_category="DATABASE_NOT_CONFIGURED",
+                execution_time_ms=0.0,
+            )
             return DashboardWidgetResult(
                 widget_id=widget.widget_id,
                 metric_id=widget.metric_id,
@@ -389,6 +437,13 @@ class DashboardService:
             )
         except Exception as e:
             logger.error(f"Widget {widget.widget_id} execution error: {e}")
+            self._safe_log_widget_event(
+                principal=principal, widget=widget, dashboard_id=dashboard_id,
+                event_type=event_type,
+                status=QueryLogStatus.FAILED,
+                error_category="EXECUTION_ERROR",
+                execution_time_ms=0.0,
+            )
             return DashboardWidgetResult(
                 widget_id=widget.widget_id,
                 metric_id=widget.metric_id,
@@ -425,6 +480,29 @@ class DashboardService:
             except Exception as e:
                 logger.warning(f"Widget {widget.widget_id} anomaly assessment skipped: {e}")
 
+        _widget_status = (
+            QueryLogStatus.EMPTY
+            if query_result.status == QueryResultStatus.EMPTY
+            else (
+                QueryLogStatus.SUCCESS
+                if query_result.status == QueryResultStatus.SUCCESS
+                else QueryLogStatus.FAILED
+            )
+        )
+        # Phase 13: Log successful (or empty/failed) widget execution
+        self._safe_log_widget_event(
+            principal=principal, widget=widget, dashboard_id=dashboard_id,
+            event_type=event_type,
+            status=_widget_status,
+            execution_time_ms=query_result.metadata.execution_time_ms if query_result.metadata else 0.0,
+            row_count=query_result.row_count,
+            visualization_type=viz.chart_type.value if viz and hasattr(viz, "chart_type") else None,
+            anomaly_status=(
+                anomaly_assessment.status.value
+                if anomaly_assessment and hasattr(anomaly_assessment, "status") else None
+            ),
+        )
+
         status = (
             WidgetStatus.EMPTY
             if query_result.status == QueryResultStatus.EMPTY
@@ -448,6 +526,43 @@ class DashboardService:
             status=status,
             last_updated=now,
         )
+
+    def _safe_log_widget_event(
+        self,
+        principal: AuthenticatedPrincipal,
+        widget: WidgetDefinition,
+        dashboard_id: Optional[str],
+        event_type: QueryLogEventType,
+        status: QueryLogStatus,
+        error_category: Optional[str] = None,
+        execution_time_ms: float = 0.0,
+        row_count: int = 0,
+        visualization_type: Optional[str] = None,
+        anomaly_status: Optional[str] = None,
+    ) -> None:
+        """Emits a safe widget query log event. Fail-open: never raises, never blocks widget result."""
+        try:
+            self._log_service.log_event(QueryLogEvent(
+                user_id=principal.user_id,
+                role=principal.roles[0] if principal.roles else None,
+                scope_type=principal.scoped_roles[0].scope_type.value if principal.scoped_roles else None,
+                scope_id=principal.scoped_roles[0].scope_id if principal.scoped_roles else None,
+                metric_id=widget.metric_id,
+                query_type="METRIC_QUERY",
+                dimensions=[widget.dimension] if widget.dimension else [],
+                filter_keys=list((widget.default_filters or {}).keys()),
+                event_type=event_type,
+                status=status,
+                error_category=error_category,
+                execution_time_ms=execution_time_ms,
+                row_count=row_count,
+                visualization_type=visualization_type,
+                anomaly_status=anomaly_status,
+                dashboard_id=dashboard_id,
+                widget_id=widget.widget_id,
+            ))
+        except Exception as e:
+            logger.warning(f"Dashboard widget log event failed (non-fatal): {e}")
 
 
 _singleton_dashboard_service: Optional[DashboardService] = None

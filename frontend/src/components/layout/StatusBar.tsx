@@ -1,6 +1,7 @@
 import React from 'react';
 import styles from './StatusBar.module.css';
 import { useBackendHealth } from '../../hooks/useBackendHealth';
+import { APP_PHASE } from '../../constants/phases';
 import { Database, ShieldCheck, Cpu } from 'lucide-react';
 
 export const StatusBar: React.FC = () => {
@@ -9,9 +10,9 @@ export const StatusBar: React.FC = () => {
   const getStatusText = () => {
     switch (connectionState) {
       case 'connected':
-        return 'Phase 6 Intent Engine Operational';
+        return APP_PHASE.SYSTEM_STATUS;
       case 'degraded':
-        return 'Phase 6 Intent Engine Ready (DB Unconfigured)';
+        return APP_PHASE.SYSTEM_STATUS_UNCONFIGURED;
       case 'offline':
         return 'Backend Offline';
       default:
@@ -60,9 +61,9 @@ export const StatusBar: React.FC = () => {
       </div>
 
       <div className={styles.rightGroup}>
-        <div className={styles.item} title="SQL execution connects in Phase 7 with read-only constraint">
+        <div className={styles.item} title="Read-only PostgreSQL execution with AST validation and verified results">
           <ShieldCheck size={13} color="var(--color-brand-primary)" />
-          <span>Read-Only Execution Boundary • Ready for Phase 7</span>
+          <span>{APP_PHASE.EXECUTION_BOUNDARY}</span>
         </div>
         <span className={styles.separator}>|</span>
         <div className={styles.item}>

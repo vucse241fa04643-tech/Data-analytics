@@ -21,7 +21,7 @@ export const MetricPlaceholder: React.FC<MetricPlaceholderProps> = ({
           {category}
         </span>
         <StatusBadge variant="neutral" showDot={false}>
-          Phase 8 Query Target
+          Approved Metric
         </StatusBadge>
       </div>
       <h3 style={{ fontSize: 'var(--font-size-base)', fontWeight: 'var(--font-weight-semibold)', color: 'var(--color-text-primary)', marginBottom: '12px' }}>

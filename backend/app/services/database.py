@@ -62,6 +62,10 @@ class CollegeDatabaseService:
             DatabaseStatus.CONFIGURED if settings.is_database_configured else DatabaseStatus.NOT_CONFIGURED
         )
 
+    def is_configured(self) -> bool:
+        """Returns True if the college database is configured in settings."""
+        return settings.is_database_configured
+
     def get_status(self) -> str:
         """Returns the current configuration/readiness status of the college database connection."""
         if not settings.is_database_configured:
@@ -257,3 +261,8 @@ class CollegeDatabaseService:
 
 # Global database service instance
 college_database_service = CollegeDatabaseService()
+
+
+def get_database_service() -> CollegeDatabaseService:
+    """Return the global college database service instance."""
+    return college_database_service

@@ -1,11 +1,13 @@
-"""Agent 63 - Phase 8: Agent Query API Endpoint
+"""Agent 63 - Phase 8/13: Agent Query API Endpoint
 Accepts natural language analytical questions, orchestrates intent interpretation,
 deterministic SQL compilation, AST safety validation, and safe read-only database execution.
+Phase 13: Integrates QueryLoggingService for bounded, privacy-safe analytical event logging.
 """
 
+import time
 import uuid
 from datetime import datetime, timezone, timedelta
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 
 from fastapi import APIRouter, Depends, status
 
@@ -16,6 +18,7 @@ from backend.app.dependencies.auth import get_current_principal
 from backend.app.schemas.conversation_context import ConversationContext
 from backend.app.schemas.intent import IntentRequest, IntentValidationStatus
 from backend.app.schemas.principal import AuthenticatedPrincipal
+from backend.app.schemas.query_log import QueryLogEvent, QueryLogEventType, QueryLogStatus
 from backend.app.schemas.query_result import (
     AgentQueryRequest,
     AgentQueryResponse,
@@ -28,6 +31,7 @@ from backend.app.services.conversation_store import (
 )
 from backend.app.services.execution_service import execution_service
 from backend.app.services.intent_service import IntentService, get_intent_service
+from backend.app.services.query_log_service import QueryLoggingService, get_query_log_service
 from backend.app.services.sql_compiler import SQLCompiler, get_sql_compiler
 from backend.app.services.sql_validator import SQLValidator, get_sql_validator
 
@@ -39,8 +43,23 @@ from backend.app.services.anomaly_service import (
     AnomalyDetectionService,
     get_anomaly_service,
 )
+from backend.app.services.export_artifact_store import (
+    ExportArtifact,
+    get_export_artifact_store,
+)
 
 logger = get_logger("agent63.api.agent")
+
+
+def _safe_log_event(
+    log_service: QueryLoggingService,
+    event: QueryLogEvent,
+) -> None:
+    """Wrapper ensuring logging failures are never propagated to callers (fail-open)."""
+    try:
+        log_service.log_event(event)
+    except Exception as e:
+        logger.warning(f"Query log event emit failed (non-fatal): {e}")
 
 router = APIRouter(prefix="/agent", tags=["Agent Query Execution"])
 
@@ -80,9 +99,11 @@ def execute_agent_query(
     visualization_service: VisualizationService = Depends(get_visualization_service),
     anomaly_service: AnomalyDetectionService = Depends(get_anomaly_service),
     conversation_store: ConversationContextStore = Depends(get_conversation_store),
+    log_service: QueryLoggingService = Depends(get_query_log_service),
 ) -> AgentQueryResponse:
     """Orchestrates end-to-end natural language query execution with defense-in-depth."""
     req_id = request_id_ctx_var.get()
+    _query_start_time = time.monotonic()
 
     # Step 0: Resolve & Verify Conversation Context
     context: Optional[ConversationContext] = None
@@ -119,11 +140,45 @@ def execute_agent_query(
         # If rejected for authorization/scope boundaries, return HTTP 403 Forbidden
         msg = intent_response.message or "Request is not authorized for the current user role or scope."
         err_code = "SCOPE_OUT_OF_BOUNDS" if "scope" in msg.lower() or "hod" in msg.lower() else "AUTHORIZATION_DENIED"
+        # Phase 13: Log safe authorization failure event (AFTER rejection decision)
+        _safe_log_event(log_service, QueryLogEvent(
+            request_id=req_id,
+            user_id=principal.user_id,
+            role=principal.roles[0] if principal.roles else None,
+            scope_type=principal.scoped_roles[0].scope_type.value if principal.scoped_roles else None,
+            scope_id=principal.scoped_roles[0].scope_id if principal.scoped_roles else None,
+            metric_id=(
+                intent_response.intent.metric_id
+                if intent_response.intent else None
+            ),
+            event_type=QueryLogEventType.FOLLOW_UP_QUERY if is_follow_up else QueryLogEventType.MANUAL_QUERY,
+            status=QueryLogStatus.UNAUTHORIZED,
+            error_category=err_code,
+            execution_time_ms=round((time.monotonic() - _query_start_time) * 1000, 2),
+            is_follow_up=is_follow_up,
+        ))
         err = AuthorizationError(message=msg)
         err.code = err_code
         raise err
 
     if intent_response.status != IntentValidationStatus.VALID or not intent_response.intent:
+        # Phase 13: Log intent resolution failure (safe category only)
+        _safe_log_event(log_service, QueryLogEvent(
+            request_id=req_id,
+            user_id=principal.user_id,
+            role=principal.roles[0] if principal.roles else None,
+            scope_type=principal.scoped_roles[0].scope_type.value if principal.scoped_roles else None,
+            scope_id=principal.scoped_roles[0].scope_id if principal.scoped_roles else None,
+            metric_id=(
+                intent_response.intent.metric_id
+                if intent_response.intent and hasattr(intent_response.intent, 'metric_id') else None
+            ),
+            event_type=QueryLogEventType.FOLLOW_UP_QUERY if is_follow_up else QueryLogEventType.MANUAL_QUERY,
+            status=QueryLogStatus.INTENT_UNRESOLVED,
+            error_category="INTENT_VALIDATION_FAILED",
+            execution_time_ms=round((time.monotonic() - _query_start_time) * 1000, 2),
+            is_follow_up=is_follow_up,
+        ))
         return AgentQueryResponse(
             intent=intent_response.intent.model_dump() if intent_response.intent else None,
             sql_artifact=None,
@@ -174,6 +229,22 @@ def execute_agent_query(
             )
             conversation_store.save_context(updated_ctx)
 
+        # Phase 13: Log dry-run event (no execution, no rows)
+        _safe_log_event(log_service, QueryLogEvent(
+            request_id=req_id,
+            user_id=principal.user_id,
+            role=principal.roles[0] if principal.roles else None,
+            scope_type=principal.scoped_roles[0].scope_type.value if principal.scoped_roles else None,
+            scope_id=principal.scoped_roles[0].scope_id if principal.scoped_roles else None,
+            metric_id=intent_response.intent.metric_id,
+            query_type=intent_response.intent.intent_type.value if intent_response.intent.intent_type else None,
+            dimensions=list(intent_response.intent.dimensions or []),
+            filter_keys=list(intent_response.intent.filters.keys()) if intent_response.intent.filters else [],
+            event_type=QueryLogEventType.DRY_RUN,
+            status=QueryLogStatus.SUCCESS,
+            execution_time_ms=round((time.monotonic() - _query_start_time) * 1000, 2),
+            is_follow_up=is_follow_up,
+        ))
         return AgentQueryResponse(
             intent=intent_response.intent.model_dump(),
             sql_artifact=validated_artifact.model_dump(),
@@ -245,6 +316,71 @@ def execute_agent_query(
                 f"Max turns ({settings.CONVERSATION_MAX_TURNS}) reached for conv_id='{active_conv_id}'. Context reset."
             )
             conversation_store.clear_context(active_conv_id, principal)
+
+    # Phase 13: Log successful (or empty) query event
+    # Logging occurs AFTER execution — never changes authorization or SQL decisions.
+    # Stores ONLY safe metadata: no raw SQL, no raw rows, no credentials, no conversation history.
+    _log_status = (
+        QueryLogStatus.SUCCESS
+        if query_result.status == QueryResultStatus.SUCCESS
+        else (
+            QueryLogStatus.EMPTY
+            if query_result.status == QueryResultStatus.EMPTY
+            else QueryLogStatus.FAILED
+        )
+    )
+    _safe_log_event(log_service, QueryLogEvent(
+        request_id=req_id,
+        user_id=principal.user_id,
+        role=principal.roles[0] if principal.roles else None,
+        scope_type=principal.scoped_roles[0].scope_type.value if principal.scoped_roles else None,
+        scope_id=principal.scoped_roles[0].scope_id if principal.scoped_roles else None,
+        metric_id=metric_id,
+        query_type=intent_response.intent.intent_type.value if intent_response.intent.intent_type else None,
+        dimensions=list(intent_response.intent.dimensions or []),
+        filter_keys=list(intent_response.intent.filters.keys()) if intent_response.intent.filters else [],
+        event_type=QueryLogEventType.FOLLOW_UP_QUERY if is_follow_up else QueryLogEventType.MANUAL_QUERY,
+        status=_log_status,
+        execution_time_ms=query_result.metadata.execution_time_ms if query_result.metadata else 0.0,
+        row_count=query_result.row_count,
+        visualization_type=viz.chart_type.value if viz and hasattr(viz, "chart_type") else None,
+        anomaly_status=(
+            anomaly_assessment.status.value
+            if anomaly_assessment and hasattr(anomaly_assessment, "status") else None
+        ),
+        anomaly_method=(
+            anomaly_assessment.method.value
+            if anomaly_assessment and hasattr(anomaly_assessment, "method") else None
+        ),
+        is_follow_up=is_follow_up,
+    ))
+
+    # Phase 14: Cache analytical artifact for authorized export and verification
+    if query_result.status in (QueryResultStatus.SUCCESS, QueryResultStatus.EMPTY):
+        try:
+            artifact_store = get_export_artifact_store()
+            artifact_store.save_artifact(
+                ExportArtifact(
+                    request_id=req_id,
+                    user_id=principal.user_id,
+                    role=principal.roles[0] if principal.roles else "USER",
+                    metric_id=metric_id,
+                    metric_display_name=meta[0],
+                    query_type=intent_response.intent.intent_type.value if intent_response.intent.intent_type else None,
+                    dimensions=list(intent_response.intent.dimensions or []),
+                    filters=dict(intent_response.intent.filters or {}),
+                    scope_type=principal.scoped_roles[0].scope_type.value if principal.scoped_roles else None,
+                    scope_id=principal.scoped_roles[0].scope_id if principal.scoped_roles else None,
+                    query_result=query_result,
+                    visualization_type=viz.chart_type.value if viz and hasattr(viz, "chart_type") else None,
+                    anomaly_status=(
+                        anomaly_assessment.status.value
+                        if anomaly_assessment and hasattr(anomaly_assessment, "status") else None
+                    ),
+                )
+            )
+        except Exception as e:
+            logger.warning(f"Failed to cache export artifact (non-fatal): {e}")
 
     return AgentQueryResponse(
         intent=intent_dict,

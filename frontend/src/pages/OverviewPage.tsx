@@ -37,7 +37,7 @@ export const OverviewPage: React.FC = () => {
         <div style={{ maxWidth: '800px', position: 'relative', zIndex: 2 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
             <StatusBadge variant="info">Institutional Analytics Platform</StatusBadge>
-            <StatusBadge variant="success">Phase 6: Intent Engine Active</StatusBadge>
+            <StatusBadge variant="success">Phase 14 Operational</StatusBadge>
           </div>
           <h1 style={{ fontSize: 'var(--font-size-3xl)', color: 'var(--color-brand-primary)', marginBottom: '16px' }}>
             Agent 63 – Institutional Data Intelligence
@@ -67,7 +67,7 @@ export const OverviewPage: React.FC = () => {
       </div>
 
       {/* Backend Foundation Status Card */}
-      <Card title="Backend Foundation & Runtime Telemetry" subtitle="Real-time connectivity to Phase 2 FastAPI Gateway">
+      <Card title="Backend Foundation & Runtime Telemetry" subtitle="Real-time connectivity to FastAPI Gateway">
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '16px', marginTop: '12px' }}>
           <div style={{ padding: '16px', backgroundColor: 'var(--color-bg-workspace)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--color-border-subtle)' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
@@ -87,11 +87,13 @@ export const OverviewPage: React.FC = () => {
               <Database size={18} color="var(--color-brand-primary)" />
               <span style={{ fontSize: 'var(--font-size-sm)', fontWeight: 'var(--font-weight-semibold)' }}>College PostgreSQL</span>
             </div>
-            <StatusBadge variant="warning">
-              {readinessData?.dependencies.college_database === 'configured' ? 'Configured' : 'Unconfigured (Phase 2 Default)'}
+            <StatusBadge variant={readinessData?.dependencies.college_database === 'configured' ? 'success' : 'warning'}>
+              {readinessData?.dependencies.college_database === 'configured' ? 'Configured' : 'Unconfigured'}
             </StatusBadge>
             <p style={{ fontSize: '11px', color: 'var(--color-text-muted)', marginTop: '6px' }}>
-              Awaiting live institutional read-only credentials
+              {readinessData?.dependencies.college_database === 'configured'
+                ? 'Read-only connection active'
+                : 'Awaiting live institutional read-only credentials'}
             </p>
           </div>
 
@@ -106,7 +108,7 @@ export const OverviewPage: React.FC = () => {
                 : '236 Objects Indexed (21 Schemas)'}
             </StatusBadge>
             <p style={{ fontSize: '11px', color: 'var(--color-text-muted)', marginTop: '6px' }}>
-              Phase 1 Authoritative Schema Map Active
+              Authoritative Schema Map Active (236 Objects)
             </p>
           </div>
         </div>

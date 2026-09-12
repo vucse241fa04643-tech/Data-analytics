@@ -6,6 +6,7 @@ import { StatusBadge } from '../common/StatusBadge';
 import { useBackendHealth } from '../../hooks/useBackendHealth';
 import { apiService } from '../../services/api';
 import { UserProfileResponse } from '../../types';
+import { APP_PHASE } from '../../constants/phases';
 import { Menu, User, ShieldCheck, LogOut, KeyRound } from 'lucide-react';
 
 export interface HeaderProps {
@@ -79,8 +80,11 @@ export const Header: React.FC<HeaderProps> = ({ onToggleSidebar }) => {
       case 'connected':
       case 'degraded':
         return (
-          <StatusBadge variant="success" title="Phase 6 Intent Engine active; database execution connects in Phase 7">
-            Phase 6 • Intent Engine Ready
+          <StatusBadge
+            variant="success"
+            title={`${APP_PHASE.NAME} — Real-time execution, verification, and export active`}
+          >
+            {APP_PHASE.STATUS_LABEL}
           </StatusBadge>
         );
       case 'offline':

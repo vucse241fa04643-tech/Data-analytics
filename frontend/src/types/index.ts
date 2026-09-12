@@ -286,3 +286,58 @@ export interface DashboardScheduleRequest {
   interval_minutes: number;
 }
 
+/**
+ * Phase 13 – Usage Analytics & Popular Questions Types
+ */
+export interface PopularQuestion {
+  metric_id: string;
+  label: string;
+  query_type?: string | null;
+  dimension_signature?: string | null;
+  count: number;
+  percentage?: number | null;
+  last_seen: string;
+}
+
+/**
+ * Phase 14 – Analytical Export & Official Report Verification Types
+ */
+export type ExportFormat = 'csv' | 'json';
+
+export interface ExportRequest {
+  request_id: string;
+  format: ExportFormat;
+}
+
+export type VerificationStatus = 'MATCH' | 'MISMATCH' | 'NOT_COMPARABLE' | 'NOT_VERIFIED';
+
+export interface VerificationRequest {
+  request_id: string;
+  document_id?: string | null;
+}
+
+export interface VerificationResult {
+  status: VerificationStatus;
+  metric_id: string;
+  metric_display_name: string;
+  analytical_value?: any;
+  official_value?: any;
+  unit?: string | null;
+  reporting_period?: string | null;
+  scope?: {
+    scope_type?: string | null;
+    scope_id?: string | null;
+    [key: string]: any;
+  } | null;
+  document_reference?: {
+    title?: string;
+    class?: string;
+    version?: string;
+    approved_by?: string;
+    [key: string]: any;
+  } | null;
+  reason: string;
+  disclaimer: string;
+  verified_at: string;
+}
+

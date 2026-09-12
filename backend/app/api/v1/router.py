@@ -4,7 +4,7 @@ Aggregates all version 1 routes.
 """
 
 from fastapi import APIRouter
-from backend.app.api.v1 import health, auth, intent, agent, dashboard
+from backend.app.api.v1 import health, auth, intent, agent, dashboard, analytics
 
 api_v1_router = APIRouter()
 
@@ -23,3 +23,5 @@ api_v1_router.include_router(agent.router)
 # Role-based dashboard endpoints mounted under /dashboard
 api_v1_router.include_router(dashboard.router)
 
+# Phase 13: Usage analytics and popular-questions endpoint: /api/v1/analytics/popular-questions
+api_v1_router.include_router(analytics.router)

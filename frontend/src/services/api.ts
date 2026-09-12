@@ -14,6 +14,9 @@ import {
   DashboardCatalogResponse,
   DashboardResponse,
   DashboardScheduleItem,
+  PopularQuestion,
+  ExportFormat,
+  VerificationResult,
 } from '../types';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
@@ -504,6 +507,124 @@ class ApiService {
     if (!response.ok) {
       throw new ApiError('Failed to cancel schedule.', response.status);
     }
+  }
+
+  /**
+   * Retrieves privacy-safe, role-filtered aggregated popular analytical questions.
+   * Target: GET /api/v1/analytics/popular-questions
+   */
+  async getPopularQuestions(limit: number = 10, windowHours?: number): Promise<PopularQuestion[]> {
+    if (!this.token) {
+      return [];
+    }
+
+    const params = new URLSearchParams();
+    if (limit) params.append('limit', limit.toString());
+    if (windowHours) params.append('window_hours', windowHours.toString());
+
+    const queryStr = params.toString() ? `?${params.toString()}` : '';
+    try {
+      const response = await fetch(`${this.baseUrl}/api/v1/analytics/popular-questions${queryStr}`, {
+        method: 'GET',
+        headers: {
+          'Accept': 'application/json',
+          'Authorization': `Bearer ${this.token}`,
+        },
+      });
+
+      if (!response.ok) {
+        return [];
+      }
+      return response.json();
+    } catch {
+      return [];
+    }
+  }
+
+  /**
+   * Exports an authorized analytical query result as CSV or JSON file blob.
+   * Target: POST /api/v1/analytics/export
+   */
+  async exportResult(requestId: string, format: ExportFormat = 'csv'): Promise<{ blob: Blob; filename: string }> {
+    if (!this.token) {
+      throw new ApiError('Authentication required to export results.', 401, 'AUTHENTICATION_REQUIRED');
+    }
+
+    const response = await fetch(`${this.baseUrl}/api/v1/analytics/export`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${this.token}`,
+      },
+      body: JSON.stringify({ request_id: requestId, format }),
+    });
+
+    if (!response.ok) {
+      let msg = 'Export failed.';
+      let code: string | undefined;
+      try {
+        const body = await response.json();
+        if (body?.detail) msg = body.detail;
+        if (body?.error?.message) {
+          msg = body.error.message;
+          code = body.error.code;
+        }
+      } catch {
+        // ignore
+      }
+      throw new ApiError(msg, response.status, code);
+    }
+
+    // Extract filename from Content-Disposition header if available
+    const disposition = response.headers.get('Content-Disposition');
+    let filename = `agent63_export_${requestId.substring(0, 8)}.${format}`;
+    if (disposition && disposition.includes('filename=')) {
+      const match = disposition.match(/filename="?([^"]+)"?/);
+      if (match && match[1]) {
+        filename = match[1];
+      }
+    }
+
+    const blob = await response.blob();
+    return { blob, filename };
+  }
+
+  /**
+   * Deterministically verifies an analytical query result against registered official institutional reports.
+   * Target: POST /api/v1/analytics/verify
+   */
+  async verifyResult(requestId: string, documentId?: string): Promise<VerificationResult> {
+    if (!this.token) {
+      throw new ApiError('Authentication required to verify results.', 401, 'AUTHENTICATION_REQUIRED');
+    }
+
+    const response = await fetch(`${this.baseUrl}/api/v1/analytics/verify`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        'Authorization': `Bearer ${this.token}`,
+      },
+      body: JSON.stringify({ request_id: requestId, document_id: documentId || null }),
+    });
+
+    if (!response.ok) {
+      let msg = 'Verification failed.';
+      let code: string | undefined;
+      try {
+        const body = await response.json();
+        if (body?.detail) msg = body.detail;
+        if (body?.error?.message) {
+          msg = body.error.message;
+          code = body.error.code;
+        }
+      } catch {
+        // ignore
+      }
+      throw new ApiError(msg, response.status, code);
+    }
+
+    return response.json();
   }
 
   getBaseUrl(): string {

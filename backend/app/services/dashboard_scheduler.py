@@ -33,6 +33,8 @@ from backend.app.services.identity_repository import (
     IdentityRepository,
     get_identity_repository,
 )
+from backend.app.schemas.query_log import QueryLogEvent, QueryLogEventType, QueryLogStatus
+from backend.app.services.query_log_service import QueryLoggingService, get_query_log_service
 
 logger = get_logger("agent63.services.scheduler")
 
@@ -45,10 +47,12 @@ class DashboardSchedulerService:
         dashboard_service: Optional[DashboardService] = None,
         registry: Optional[DashboardRegistryService] = None,
         identity_repo: Optional[IdentityRepository] = None,
+        log_service: Optional[QueryLoggingService] = None,
     ):
         self._dashboard_service = dashboard_service or get_dashboard_service()
         self._registry = registry or get_dashboard_registry_service()
         self._identity_repo = identity_repo or get_identity_repository()
+        self._log_service = log_service or get_query_log_service()
 
         self._schedules: Dict[str, DashboardScheduleItem] = {}
         self._lock = threading.RLock()
@@ -287,6 +291,26 @@ class DashboardSchedulerService:
                 schedule.last_run_at = now
                 schedule.next_run_at = now + timedelta(minutes=schedule.interval_minutes)
                 schedule.last_status = f"SUCCESS ({resp.refresh_status})"
+            # Phase 13: Log scheduled refresh event (safe metadata only, fail-open)
+            try:
+                self._log_service.log_event(QueryLogEvent(
+                    user_id=principal.user_id,
+                    role=principal.roles[0] if principal.roles else None,
+                    scope_type=(
+                        principal.scoped_roles[0].scope_type.value
+                        if principal.scoped_roles else None
+                    ),
+                    scope_id=(
+                        principal.scoped_roles[0].scope_id
+                        if principal.scoped_roles else None
+                    ),
+                    event_type=QueryLogEventType.SCHEDULED_DASHBOARD_REFRESH,
+                    status=QueryLogStatus.SUCCESS,
+                    dashboard_id=schedule.dashboard_id,
+                    execution_time_ms=0.0,
+                ))
+            except Exception as log_err:
+                logger.warning(f"Scheduled refresh log event failed (non-fatal): {log_err}")
             logger.info(
                 f"Scheduled refresh completed successfully for dashboard='{schedule.dashboard_id}' (status={resp.refresh_status})"
             )
@@ -296,6 +320,27 @@ class DashboardSchedulerService:
                 schedule.last_run_at = now
                 schedule.next_run_at = now + timedelta(minutes=schedule.interval_minutes)
                 schedule.last_status = f"FAILED: {str(e)[:50]}"
+            # Phase 13: Log failure event (safe category only, no exception details)
+            try:
+                self._log_service.log_event(QueryLogEvent(
+                    user_id=principal.user_id,
+                    role=principal.roles[0] if principal.roles else None,
+                    scope_type=(
+                        principal.scoped_roles[0].scope_type.value
+                        if principal.scoped_roles else None
+                    ),
+                    scope_id=(
+                        principal.scoped_roles[0].scope_id
+                        if principal.scoped_roles else None
+                    ),
+                    event_type=QueryLogEventType.SCHEDULED_DASHBOARD_REFRESH,
+                    status=QueryLogStatus.FAILED,
+                    error_category="SCHEDULED_REFRESH_EXECUTION_FAILED",
+                    dashboard_id=schedule.dashboard_id,
+                    execution_time_ms=0.0,
+                ))
+            except Exception as log_err:
+                logger.warning(f"Scheduled refresh failure log event failed (non-fatal): {log_err}")
 
 
 _singleton_scheduler: Optional[DashboardSchedulerService] = None
