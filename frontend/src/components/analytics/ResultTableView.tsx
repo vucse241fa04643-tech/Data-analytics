@@ -3,6 +3,7 @@ import { Card } from '../ui/Card';
 import { StatusBadge } from '../common/StatusBadge';
 import { Table, Clock, Layers } from 'lucide-react';
 import { ExecutionMetadata, QueryResult } from '../../types';
+import { formatColumnHeader, formatCtcNumber } from '../../utils/formatters';
 
 interface ResultTableViewProps {
   result: QueryResult;
@@ -17,6 +18,46 @@ export const ResultTableView: React.FC<ResultTableViewProps> = ({
 }) => {
   const isNumericValue = (val: any) => {
     return typeof val === 'number';
+  };
+
+  const getHeaderLabel = (col: string) => {
+    const clean = col.toLowerCase().trim();
+    if (clean === 'students_count') {
+      return 'students';
+    }
+    if (clean === 'metric_value') {
+      if (title.toLowerCase().includes('attendance')) {
+        return 'Attendance (%)';
+      }
+      if (title.toLowerCase().includes('ctc') || title.toLowerCase().includes('package')) {
+        return 'CTC (₹ lakh/year)';
+      }
+      return 'Metric Value';
+    }
+    return formatColumnHeader(col);
+  };
+
+  const formatCellValue = (val: any, col: string) => {
+    if (val === null) {
+      return <em style={{ color: 'var(--color-text-muted)', fontStyle: 'italic' }}>NULL</em>;
+    }
+    const isNum = isNumericValue(val);
+    if (isNum) {
+      const colClean = col.toLowerCase();
+      if (colClean.includes('ctc') || (title.toLowerCase().includes('ctc') && colClean === 'metric_value')) {
+        return formatCtcNumber(val).fullStr;
+      }
+      const formatted = Number.isInteger(val) ? val.toLocaleString() : Number(val.toFixed(2)).toString();
+      if (title.toLowerCase().includes('attendance') && (colClean === 'metric_value' || colClean.includes('pct') || colClean.includes('percent'))) {
+        return `${formatted}%`;
+      }
+      return formatted;
+    }
+    const str = String(val);
+    if (str.includes('students_count')) {
+      return str.replace(/students_count/g, 'students');
+    }
+    return str;
   };
 
   return (
@@ -113,7 +154,7 @@ export const ResultTableView: React.FC<ResultTableViewProps> = ({
                         whiteSpace: 'nowrap',
                       }}
                     >
-                      {col.replace(/_/g, ' ')}
+                      {getHeaderLabel(col)}
                     </th>
                   );
                 })}
@@ -145,13 +186,7 @@ export const ResultTableView: React.FC<ResultTableViewProps> = ({
                           whiteSpace: 'nowrap',
                         }}
                       >
-                        {val === null ? (
-                          <em style={{ color: 'var(--color-text-muted)', fontStyle: 'italic' }}>NULL</em>
-                        ) : isNum ? (
-                          Number.isInteger(val) ? val.toLocaleString() : Number(val.toFixed(2)).toString()
-                        ) : (
-                          String(val)
-                        )}
+                        {formatCellValue(val, col)}
                       </td>
                     );
                   })}

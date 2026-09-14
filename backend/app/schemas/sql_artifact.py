@@ -65,6 +65,10 @@ class SQLArtifact(BaseModel):
         default=100,
         description="Enforced maximum row count limit",
     )
+    page: Optional[int] = Field(
+        default=None,
+        description="Page number for paginated list queries",
+    )
     read_only: bool = Field(
         default=True,
         description="Strictly true for all generated institutional SQL artifacts",

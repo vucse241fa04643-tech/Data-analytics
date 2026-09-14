@@ -190,6 +190,57 @@ export const ExportControls: React.FC<ExportControlsProps> = ({
             )}
             <span>Export JSON</span>
           </button>
+
+          <button
+            type="button"
+            onClick={() => handleExport('pdf')}
+            disabled={isExportDisabled || exportingFormat !== null}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '5px 12px',
+              fontSize: '12px',
+              fontWeight: 'var(--font-weight-medium)',
+              backgroundColor: 'var(--color-bg-workspace)',
+              color: 'var(--color-text-primary)',
+              border: '1px solid var(--color-border-subtle)',
+              borderRadius: 'var(--radius-sm)',
+              cursor: isExportDisabled || exportingFormat !== null ? 'not-allowed' : 'pointer',
+              transition: 'all 0.15s ease',
+              opacity: isExportDisabled || exportingFormat !== null ? 0.5 : 1,
+            }}
+            title={rowCount === 0 ? 'No records available to export' : 'Download institutional PDF report'}
+            onMouseOver={(e) => {
+              if (!isExportDisabled && exportingFormat === null) {
+                e.currentTarget.style.backgroundColor = 'var(--color-bg-surface)';
+                e.currentTarget.style.borderColor = 'var(--color-brand-secondary)';
+                e.currentTarget.style.color = 'var(--color-brand-secondary)';
+              }
+            }}
+            onMouseOut={(e) => {
+              e.currentTarget.style.backgroundColor = 'var(--color-bg-workspace)';
+              e.currentTarget.style.borderColor = 'var(--color-border-subtle)';
+              e.currentTarget.style.color = 'var(--color-text-primary)';
+            }}
+          >
+            {exportingFormat === 'pdf' ? (
+              <span
+                style={{
+                  display: 'inline-block',
+                  width: '12px',
+                  height: '12px',
+                  border: '2px solid var(--color-brand-secondary)',
+                  borderTopColor: 'transparent',
+                  borderRadius: '50%',
+                  animation: 'spin 1s linear infinite',
+                }}
+              />
+            ) : (
+              <FileText size={13} color="var(--color-brand-secondary)" />
+            )}
+            <span>Export PDF</span>
+          </button>
         </div>
       </div>
 

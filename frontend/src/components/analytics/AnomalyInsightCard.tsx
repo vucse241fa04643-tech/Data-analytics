@@ -2,12 +2,15 @@ import React, { useState } from 'react';
 import { Card } from '../ui/Card';
 import { AnomalyAssessment, AnomalySeverity } from '../../types';
 import { AlertTriangle, CheckCircle, Info, ChevronDown, ChevronUp, ShieldAlert } from 'lucide-react';
+import { useAuth } from '../../context/AuthContext';
+import { formatScopeDisplay } from '../../utils/formatters';
 
 interface AnomalyInsightCardProps {
   anomaly?: AnomalyAssessment | null;
 }
 
 export const AnomalyInsightCard: React.FC<AnomalyInsightCardProps> = ({ anomaly }) => {
+  const { user } = useAuth();
   const [showDetails, setShowDetails] = useState(false);
 
   if (!anomaly) {
@@ -222,7 +225,7 @@ export const AnomalyInsightCard: React.FC<AnomalyInsightCardProps> = ({ anomaly 
               borderRadius: '4px',
             }}
           >
-            Scope: {anomaly.supporting_scope}
+            Scope: {formatScopeDisplay(anomaly.supporting_scope, user?.roles)}
           </span>
         )}
 

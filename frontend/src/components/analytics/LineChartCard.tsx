@@ -10,6 +10,7 @@ import {
 } from 'recharts';
 import { Card } from '../ui/Card';
 import { TrendingUp } from 'lucide-react';
+import { formatMetricUnit, isCtcMetric, formatCtcNumber } from '../../utils/formatters';
 
 interface LineChartCardProps {
   title: string;
@@ -34,30 +35,19 @@ export const LineChartCard: React.FC<LineChartCardProps> = ({
   const textPrimary = '#0F172A';
   const textMuted = '#64748B';
 
-  const formatUnit = (u?: string | null) => {
-    if (!u) return '';
-    const clean = u.trim().toLowerCase();
-    if (clean === 'percentage' || clean === 'percent' || clean === '%') return '%';
-    if (clean === 'count' || clean === 'integer' || clean === 'number' || clean === 'none') return '';
-    if (clean === 'students') return ' students';
-    if (clean === 'marks') return ' marks';
-    if (clean === 'credits') return ' credits';
-    if (clean === 'cgpa') return ' CGPA';
-    if (clean === 'lpa') return ' LPA';
-    return ` ${u}`;
-  };
-
-  const unitSuffix = formatUnit(unit);
+  const isCtc = isCtcMetric(unit, title);
+  const unitSuffix = isCtc ? ' lakh/year' : formatMetricUnit(unit);
 
   const CustomTooltip = ({ active, payload, label }: any) => {
     if (active && payload && payload.length) {
       const val = payload[0].value;
-      const formattedVal =
-        typeof val === 'number'
-          ? Number.isInteger(val)
-            ? val.toLocaleString()
-            : val.toFixed(2)
-          : val;
+      const formattedVal = isCtc
+        ? formatCtcNumber(val).fullStr
+        : typeof val === 'number'
+        ? Number.isInteger(val)
+          ? val.toLocaleString()
+          : val.toFixed(2)
+        : val;
 
       return (
         <div
@@ -130,7 +120,9 @@ export const LineChartCard: React.FC<LineChartCardProps> = ({
               stroke={textMuted}
               fontSize={11}
               tickLine={false}
-              tickFormatter={(val) => `${val}${unitSuffix}`}
+              tickFormatter={(val) =>
+                isCtc ? `₹${(val >= 1000 ? val / 100000 : val).toFixed(1)}L` : `${val}${unitSuffix}`
+              }
             />
             <Tooltip content={<CustomTooltip />} />
             <Line

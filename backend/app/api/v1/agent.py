@@ -16,7 +16,7 @@ from backend.app.core.errors import AuthorizationError, DatabaseNotConfiguredErr
 from backend.app.core.logging import get_logger, request_id_ctx_var
 from backend.app.dependencies.auth import get_current_principal
 from backend.app.schemas.conversation_context import ConversationContext
-from backend.app.schemas.intent import IntentRequest, IntentValidationStatus
+from backend.app.schemas.intent import IntentRequest, IntentType, IntentValidationStatus
 from backend.app.schemas.principal import AuthenticatedPrincipal
 from backend.app.schemas.query_log import QueryLogEvent, QueryLogEventType, QueryLogStatus
 from backend.app.schemas.query_result import (
@@ -202,10 +202,82 @@ def execute_agent_query(
     # Step 3: AST Safety Validation
     validated_artifact = sql_validator.validate_artifact(raw_artifact)
 
+    is_student_list = (intent_response.intent.intent_type == IntentType.STUDENT_LIST)
+    is_student_user = principal.has_role("STUDENT") and not principal.has_any_role(
+        "PRINCIPAL", "HOD", "DEAN", "IQAC"
+    )
+    is_hod_user = principal.has_role("HOD") and not principal.has_any_role(
+        "PRINCIPAL", "IQAC", "DEAN", "CAMPUS_ADMIN"
+    )
+
+    hod_dept_code = ""
+    scope_info: Dict[str, Any] = {}
+    if is_hod_user:
+        from backend.app.services.identity_resolution import get_identity_resolution_service
+        id_svc = get_identity_resolution_service()
+        hod_dept = id_svc.resolve_hod_department(principal)
+        if hod_dept:
+            dept_id, hod_dept_code, dept_name = hod_dept
+        else:
+            hod_scopes = principal.get_scopes_for_role("HOD")
+            dept_id = hod_scopes[0].scope_id if hod_scopes else None
+            if dept_id:
+                from backend.app.services.sql_compiler import normalize_department_scope
+                _, hod_dept_code = normalize_department_scope(dept_id)
+            else:
+                dept_id = None
+                hod_dept_code = "UNKNOWN"
+        scope_info = {
+            "scope_type": "DEPARTMENT",
+            "scope_id": dept_id,
+            "display": f"HOD / {hod_dept_code} Department",
+        }
+    elif is_student_user or (intent_response.intent.filters and intent_response.intent.filters.get("student_id") == "SELF"):
+        scope_info = {
+            "scope_type": "SELF",
+            "scope_id": principal.person_id or (principal.scoped_roles[0].scope_id if principal.scoped_roles else None),
+            "display": "Student SELF",
+        }
+    elif principal.has_any_role("PRINCIPAL", "IQAC", "MANAGEMENT"):
+        scope_info = {
+            "scope_type": "INSTITUTION",
+            "scope_id": None,
+            "display": "Institutional",
+        }
+    elif principal.scoped_roles:
+        sr = principal.scoped_roles[0]
+        scope_info = {
+            "scope_type": sr.scope_type.value,
+            "scope_id": sr.scope_id,
+            "display": f"{sr.scope_type.value.capitalize()}" + (f" ({sr.scope_id})" if sr.scope_id else ""),
+        }
+
+    # Enrich scope display for comparison queries across multiple departments
+    comp_label = ""
+    dept_filters = (intent_response.intent.filters or {}).get("department")
+    if intent_response.intent.intent_type == IntentType.COMPARISON_QUERY or (
+        isinstance(dept_filters, list) and len(dept_filters) >= 2
+    ):
+        comp_label = " vs ".join(str(d) for d in dept_filters) if isinstance(dept_filters, list) else ""
+        if comp_label:
+            if scope_info.get("scope_type") == "INSTITUTION":
+                scope_info["display"] = f"Institutional ({comp_label})"
+            elif scope_info.get("display"):
+                scope_info["display"] = f"{scope_info['display']} ({comp_label})"
+
     # Step 4: Check if dry-run requested
     if payload.dry_run:
         logger.info("Dry-run requested: skipping database execution.")
-        meta = visualization_service._get_metric_meta(intent_response.intent.metric_id)
+        if is_student_list:
+            meta = (
+                (f"HOD / {hod_dept_code} Department Student Records", "Department student-level record retrieval")
+                if is_hod_user
+                else ("Authorized Student Records", "Student-level record retrieval")
+            )
+        else:
+            meta = visualization_service._get_metric_meta(intent_response.intent.metric_id)
+            if comp_label:
+                meta = (f"{meta[0]} ({comp_label})", meta[1], meta[2])
 
         # Update Conversation Context for dry-run execution
         new_turn = (context.turn_count + 1) if context else 1
@@ -230,6 +302,11 @@ def execute_agent_query(
             conversation_store.save_context(updated_ctx)
 
         # Phase 13: Log dry-run event (no execution, no rows)
+        _filter_keys = (
+            list(intent_response.intent.student_filters.keys())
+            if is_student_list and intent_response.intent.student_filters
+            else list(intent_response.intent.filters.keys()) if intent_response.intent.filters else []
+        )
         _safe_log_event(log_service, QueryLogEvent(
             request_id=req_id,
             user_id=principal.user_id,
@@ -239,7 +316,7 @@ def execute_agent_query(
             metric_id=intent_response.intent.metric_id,
             query_type=intent_response.intent.intent_type.value if intent_response.intent.intent_type else None,
             dimensions=list(intent_response.intent.dimensions or []),
-            filter_keys=list(intent_response.intent.filters.keys()) if intent_response.intent.filters else [],
+            filter_keys=_filter_keys,
             event_type=QueryLogEventType.DRY_RUN,
             status=QueryLogStatus.SUCCESS,
             execution_time_ms=round((time.monotonic() - _query_start_time) * 1000, 2),
@@ -256,6 +333,7 @@ def execute_agent_query(
             metric_display_name=meta[0],
             conversation_id=active_conv_id,
             is_follow_up=is_follow_up,
+            scope=scope_info,
         )
 
     # Step 5: Read-only Database Execution and Result Validation
@@ -268,26 +346,65 @@ def execute_agent_query(
     # Step 6: Deterministic Visualization Selection & Explanation Synthesis
     intent_dict = intent_response.intent.model_dump()
     metric_id = intent_response.intent.metric_id
-    viz = visualization_service.select_visualization(
-        query_result=query_result,
-        intent=intent_dict,
-        metric_id=metric_id,
-    )
-    explanation = visualization_service.generate_explanation(
-        query_result=query_result,
-        intent=intent_dict,
-        metric_id=metric_id,
-    )
-    meta = visualization_service._get_metric_meta(metric_id)
 
-    # Step 7: Deterministic Anomaly Detection (Phase 11)
-    anomaly_assessment = None
-    if settings.ANOMALY_DETECTION_ENABLED:
-        anomaly_assessment = anomaly_service.assess_result(
+    is_student_user = principal.has_role("STUDENT") and not principal.has_any_role(
+        "PRINCIPAL", "HOD", "DEAN", "IQAC"
+    )
+
+    if is_student_list:
+        viz = None
+        explanation = None
+        anomaly_assessment = None
+        meta = (
+            (f"HOD / {hod_dept_code} Department Student Records", "Department student-level record retrieval")
+            if is_hod_user
+            else ("Authorized Student Records", "Student-level record retrieval")
+        )
+    else:
+        viz = visualization_service.select_visualization(
             query_result=query_result,
             intent=intent_dict,
             metric_id=metric_id,
         )
+        explanation = visualization_service.generate_explanation(
+            query_result=query_result,
+            intent=intent_dict,
+            metric_id=metric_id,
+        )
+        meta = visualization_service._get_metric_meta(metric_id)
+        dept_filters = (intent_response.intent.filters or {}).get("department")
+        if intent_response.intent.intent_type == IntentType.COMPARISON_QUERY or (
+            isinstance(dept_filters, list) and len(dept_filters) >= 2
+        ):
+            comp_label = " vs ".join(str(d) for d in dept_filters) if isinstance(dept_filters, list) else ""
+            if comp_label:
+                meta = (f"{meta[0]} ({comp_label})", meta[1], meta[2])
+
+        if is_hod_user and viz:
+            viz.description = f"Scope: HOD / {hod_dept_code} Department"
+
+        if is_student_user and metric_id in ("attendance.percentage", "attendance.raw_percentage"):
+            if intent_response.intent.intent_type == IntentType.BREAKDOWN_QUERY:
+                meta = ("Student SELF / Subject-wise Attendance", "%", "attendance percentage by course")
+                if viz:
+                    viz.title = "Student SELF / Subject-wise Attendance"
+                    viz.description = "Subject-wise course attendance breakdown for authenticated student."
+                    viz.unit = "%"
+            else:
+                meta = ("Student SELF / Attendance Percentage", "%", "personal attendance percentage")
+                if viz:
+                    viz.title = "Student SELF / Attendance Percentage"
+                    viz.description = "Student self attendance percentage."
+                    viz.unit = "%"
+
+        # Step 7: Deterministic Anomaly Detection (Phase 11)
+        anomaly_assessment = None
+        if settings.ANOMALY_DETECTION_ENABLED and not is_student_user:
+            anomaly_assessment = anomaly_service.assess_result(
+                query_result=query_result,
+                intent=intent_dict,
+                metric_id=metric_id,
+            )
 
     # Step 8: Update Conversation Context upon Successful Execution
     if query_result.status == QueryResultStatus.SUCCESS:
@@ -318,8 +435,6 @@ def execute_agent_query(
             conversation_store.clear_context(active_conv_id, principal)
 
     # Phase 13: Log successful (or empty) query event
-    # Logging occurs AFTER execution — never changes authorization or SQL decisions.
-    # Stores ONLY safe metadata: no raw SQL, no raw rows, no credentials, no conversation history.
     _log_status = (
         QueryLogStatus.SUCCESS
         if query_result.status == QueryResultStatus.SUCCESS
@@ -328,6 +443,11 @@ def execute_agent_query(
             if query_result.status == QueryResultStatus.EMPTY
             else QueryLogStatus.FAILED
         )
+    )
+    _filter_keys = (
+        list(intent_response.intent.student_filters.keys())
+        if is_student_list and intent_response.intent.student_filters
+        else list(intent_response.intent.filters.keys()) if intent_response.intent.filters else []
     )
     _safe_log_event(log_service, QueryLogEvent(
         request_id=req_id,
@@ -338,7 +458,7 @@ def execute_agent_query(
         metric_id=metric_id,
         query_type=intent_response.intent.intent_type.value if intent_response.intent.intent_type else None,
         dimensions=list(intent_response.intent.dimensions or []),
-        filter_keys=list(intent_response.intent.filters.keys()) if intent_response.intent.filters else [],
+        filter_keys=_filter_keys,
         event_type=QueryLogEventType.FOLLOW_UP_QUERY if is_follow_up else QueryLogEventType.MANUAL_QUERY,
         status=_log_status,
         execution_time_ms=query_result.metadata.execution_time_ms if query_result.metadata else 0.0,
@@ -355,8 +475,8 @@ def execute_agent_query(
         is_follow_up=is_follow_up,
     ))
 
-    # Phase 14: Cache analytical artifact for authorized export and verification
-    if query_result.status in (QueryResultStatus.SUCCESS, QueryResultStatus.EMPTY):
+    # Cache analytical artifact for authorized export and verification
+    if not is_student_list and query_result.status in (QueryResultStatus.SUCCESS, QueryResultStatus.EMPTY):
         try:
             artifact_store = get_export_artifact_store()
             artifact_store.save_artifact(
@@ -396,4 +516,5 @@ def execute_agent_query(
         conversation_id=active_conv_id,
         is_follow_up=is_follow_up,
         anomaly=anomaly_assessment,
+        scope=scope_info,
     )

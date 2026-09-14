@@ -165,11 +165,15 @@ class AnomalyDetectionService:
         - Returns one of three states: NO_ANOMALY, ANOMALY_DETECTED, ASSESSMENT_UNAVAILABLE.
         """
         display_name, unit = self._get_metric_meta(metric_id)
-        scope = (
-            intent.get("filters", {}).get("department")
-            or intent.get("filters", {}).get("academic_year")
-            or "Institutional"
-        )
+        raw_scope = intent.get("filters", {}).get("department")
+        if isinstance(raw_scope, list):
+            scope = " vs ".join(str(d) for d in raw_scope)
+        else:
+            scope = (
+                raw_scope
+                or intent.get("filters", {}).get("academic_year")
+                or "Institutional"
+            )
 
         # 1. Verification of Metric Capability
         if metric_id not in SUPPORTED_ANOMALY_METRICS:

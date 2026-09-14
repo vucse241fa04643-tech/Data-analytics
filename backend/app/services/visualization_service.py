@@ -48,29 +48,47 @@ def _format_unit_symbol(unit: Optional[str]) -> str:
     u = unit.strip().lower()
     if u in ("percentage", "percent", "%"):
         return "%"
-    if u in ("count", "integer", "number", "none"):
+    if u in ("count", "integer", "number", "none", "kpi_unit"):
         return ""
-    if u == "students":
+    if u in ("students", "students_count"):
         return " students"
+    if u == "offerings_count":
+        return " course offerings"
     if u == "marks":
         return " marks"
     if u == "credits":
         return " credits"
     if u == "cgpa":
         return " CGPA"
-    if u == "lpa":
-        return " LPA"
+    if u in ("inr_lakhs_per_annum", "lpa"):
+        return " lakh/year"
+    if u in ("level_scale", "scale_1_to_3"):
+        return ""
+    if u == "score_0_to_100":
+        return "/100"
     return f" {unit}"
 
 
 def _format_value_with_unit(value: Any, unit_sym: str) -> str:
-    """Formats numeric or string value with appropriate unit placement."""
+    """Formats numeric or string value with appropriate human-readable unit placement."""
     if value is None:
         return "N/A"
+    u_sym = unit_sym.strip().lower() if unit_sym else ""
+    if "lakh/year" in u_sym or "inr" in u_sym or "lpa" in u_sym:
+        try:
+            num = float(value)
+            if num >= 1000.0:
+                lakhs = num / 100000.0
+                return f"₹{lakhs:.2f} lakh/year"
+            return f"₹{num:.2f} lakh/year"
+        except (ValueError, TypeError):
+            return f"₹{value} lakh/year"
+
     if isinstance(value, float):
         formatted = f"{value:.2f}".rstrip("0").rstrip(".")
     else:
         formatted = str(value)
+
     if unit_sym.startswith("%"):
         return f"{formatted}{unit_sym}"
     return f"{formatted}{unit_sym}"
@@ -173,6 +191,17 @@ class VisualizationService:
         # RULE A: 1 numeric metric with 1 result row -> KPI
         if query_result.row_count == 1 and len(numeric_cols) >= 1 and len(dimension_cols) == 0:
             val_col = numeric_cols[0]
+            is_self = False
+            if intent and isinstance(intent, dict):
+                raw_filters = intent.get("filters") or intent.get("student_filters") or {}
+                if raw_filters.get("student_id") == "SELF":
+                    is_self = True
+
+            kpi_desc = (
+                f"Personal self-scoped attendance KPI for {display_name}."
+                if is_self
+                else f"Single-value institutional KPI for {display_name}."
+            )
             return VisualizationDescriptor(
                 recommended=True,
                 chart_type=ChartType.KPI,
@@ -180,7 +209,7 @@ class VisualizationService:
                 y_field=val_col,
                 title=display_name,
                 unit=raw_unit,
-                description=f"Single-value institutional KPI for {display_name}.",
+                description=kpi_desc,
             )
 
         # Also Rule A edge case: 1 row with 1 dimension and 1 numeric (e.g. filtered to CSE only)
@@ -221,14 +250,121 @@ class VisualizationService:
             avg_len = sum(len(l) for l in sample_labels) / max(len(sample_labels), 1)
             use_horizontal = avg_len > 12 or len(sample_labels) > 6
 
+            is_comparison = False
+            comparison_label = ""
+            if intent and isinstance(intent, dict):
+                i_type = intent.get("intent_type")
+                r_filters = intent.get("filters") or {}
+                dept_val = r_filters.get("department")
+
+                if i_type == "BASELINE_COMPARISON":
+                    op = intent.get("operator") or ("<" if any(w in (intent.get("reasoning_summary") or "").lower() for w in ["below", "lower", "under"]) else ">")
+                    direction_word = "Below" if op == "<" else "Above"
+                    clean_m = "Attendance" if "attendance" in (m_id or "").lower() else display_name
+                    is_dept_base = intent.get("baseline") == "DEPARTMENT"
+                    base_label = "Department" if is_dept_base else "Institutional"
+                    dim_entity = "Departments" if dim_col == "department" else (dim_col.replace("_", " ").title() + "s" if not dim_col.endswith("s") else dim_col.replace("_", " ").title())
+                    v_title = f"{dim_entity} {direction_word} {base_label} {clean_m}"
+                    v_desc = f"{base_label} baseline comparison of {display_name} for qualifying {dim_entity.lower()}."
+                    return VisualizationDescriptor(
+                        recommended=True,
+                        chart_type=ChartType.BAR,
+                        x_field=dim_col,
+                        y_field=val_col,
+                        title=v_title,
+                        unit=raw_unit,
+                        description=v_desc,
+                    )
+
+                if i_type == "THRESHOLD_QUERY":
+                    th = intent.get("threshold") or (intent.get("filters") or {}).get("threshold")
+                    op = intent.get("operator") or ("<" if any(w in (intent.get("reasoning_summary") or "").lower() for w in ["below", "lower", "under"]) else ">")
+                    clean_m = "Attendance" if "attendance" in (m_id or "").lower() else display_name
+                    th_str = f" ({op} {th}{unit_sym})" if th is not None else ""
+                    dim_entity = "Departments" if dim_col == "department" else (dim_col.replace("_", " ").title() + "s" if not dim_col.endswith("s") else dim_col.replace("_", " ").title())
+                    v_title = f"{dim_entity} with {clean_m}{th_str}"
+                    v_desc = f"Threshold analysis of {display_name} across qualifying {dim_entity.lower()}."
+                    return VisualizationDescriptor(
+                        recommended=True,
+                        chart_type=ChartType.BAR,
+                        x_field=dim_col,
+                        y_field=val_col,
+                        title=v_title,
+                        unit=raw_unit,
+                        description=v_desc,
+                    )
+
+                if i_type == "RANKING_QUERY":
+                    u_order = intent.get("order") or (intent.get("filters") or {}).get("order")
+                    u_limit = intent.get("limit") or (intent.get("filters") or {}).get("limit")
+                    is_lowest = str(u_order or "").lower() in ("asc", "lowest", "bottom")
+                    clean_m = "Attendance" if "attendance" in (m_id or "").lower() else display_name
+                    dim_entity = "Departments" if dim_col == "department" else (dim_col.replace("_", " ").title() + "s" if not dim_col.endswith("s") else dim_col.replace("_", " ").title())
+                    dim_entity_sing = "Department" if dim_col == "department" else dim_col.replace("_", " ").title()
+                    if u_limit and int(u_limit) == 1 and query_result.row_count == 1:
+                        dim_val = str(query_result.rows[0].get(dim_col, ""))
+                        rank_word = "Lowest" if is_lowest else "Highest"
+                        return VisualizationDescriptor(
+                            recommended=True,
+                            chart_type=ChartType.KPI,
+                            x_field=dim_col,
+                            y_field=val_col,
+                            title=f"{rank_word} {clean_m} ({dim_val})",
+                            unit=raw_unit,
+                            description=f"{dim_entity_sing} with the {rank_word.lower()} {clean_m.lower()}.",
+                        )
+                    elif u_limit:
+                        rank_word = "Bottom" if is_lowest else "Top"
+                        v_title = f"{rank_word} {u_limit} {dim_entity} by {clean_m}"
+                        v_desc = f"Ranked {dim_entity.lower()} by {display_name}."
+                        return VisualizationDescriptor(
+                            recommended=True,
+                            chart_type=ChartType.BAR,
+                            x_field=dim_col,
+                            y_field=val_col,
+                            title=v_title,
+                            unit=raw_unit,
+                            description=v_desc,
+                        )
+
+                if i_type == "TREND_QUERY":
+                    clean_m = "Attendance" if "attendance" in (m_id or "").lower() else display_name
+                    return VisualizationDescriptor(
+                        recommended=True,
+                        chart_type=ChartType.LINE,
+                        x_field=dim_col,
+                        y_field=val_col,
+                        title=f"{clean_m} Trend by Academic Year",
+                        unit=raw_unit,
+                        description=f"Chronological trend of {display_name} by academic year.",
+                    )
+
+                if i_type == "COMPARISON_QUERY" or (isinstance(dept_val, list) and len(dept_val) >= 2):
+                    is_comparison = True
+                    if isinstance(dept_val, list) and len(dept_val) >= 2:
+                        comparison_label = " vs ".join(str(d) for d in dept_val)
+                    else:
+                        comparison_label = " vs ".join(sample_labels)
+
+            v_title = (
+                f"{display_name} ({comparison_label})"
+                if is_comparison
+                else f"{display_name} by {dim_col.replace('_', ' ').title()}"
+            )
+            v_desc = (
+                f"Comparative analysis of {display_name} between {comparison_label}."
+                if is_comparison
+                else f"Categorical comparison of {display_name} across {dim_col.replace('_', ' ')}."
+            )
+
             return VisualizationDescriptor(
                 recommended=True,
                 chart_type=ChartType.HORIZONTAL_BAR if use_horizontal else ChartType.BAR,
                 x_field=dim_col,
                 y_field=val_col,
-                title=f"{display_name} by {dim_col.replace('_', ' ').title()}",
+                title=v_title,
                 unit=raw_unit,
-                description=f"Categorical comparison of {display_name} across {dim_col.replace('_', ' ')}.",
+                description=v_desc,
             )
 
         # RULE D: Multiple dimensions or ambiguous semantics -> Table
@@ -273,6 +409,61 @@ class VisualizationService:
                     clean_k = k.replace("_id", "").replace("_code", "").replace("_", " ").title()
                     scope_clauses.append(f"{clean_k}: {v}")
         scope_str = f" ({', '.join(scope_clauses)})" if scope_clauses else ""
+
+        # Specialized analytical operations explanations
+        if intent and isinstance(intent, dict):
+            i_type = intent.get("intent_type")
+            if i_type == "BASELINE_COMPARISON":
+                dim_k = dimension_cols[0] if dimension_cols else "department"
+                dim_entity = "departments" if dim_k == "department" else (dim_k.replace("_", " ") + "s" if not dim_k.endswith("s") else dim_k.replace("_", " "))
+                is_dept_base = intent.get("baseline") == "DEPARTMENT"
+                base_type_label = "department" if is_dept_base else "institutional"
+                if query_result.rows:
+                    first_r = query_result.rows[0]
+                    dim_v = str(first_r.get(dim_k, ""))
+                    m_val = first_r.get("metric_value")
+                    b_val = first_r.get("baseline_value")
+                    diff_val = first_r.get("difference")
+                    clean_m = "attendance" if "attendance" in (m_id or "").lower() else display_name.lower()
+                    op = intent.get("operator") or ("<" if any(w in (intent.get("reasoning_summary") or "").lower() for w in ["below", "lower", "under"]) else ">")
+                    dir_word = "below" if op == "<" or (diff_val is not None and float(diff_val) < 0) else "above"
+                    diff_str = f"{float(diff_val):.2f}" if diff_val is not None else "0.00"
+                    pts_label = "percentage points" if unit_sym == "%" else unit_sym
+                    return (
+                        f"{dim_v} is {dir_word} the {base_type_label} {clean_m} level. {dim_v} {clean_m} is {_format_value_with_unit(m_val, unit_sym)}, "
+                        f"compared with a {base_type_label} baseline of {_format_value_with_unit(b_val, unit_sym)}, a difference of {diff_str} {pts_label}."
+                    )
+                else:
+                    return f"No {dim_entity} were found satisfying the requested baseline comparison criteria."
+
+            if i_type == "RANKING_QUERY":
+                u_order = intent.get("order") or (intent.get("filters") or {}).get("order")
+                u_limit = intent.get("limit") or (intent.get("filters") or {}).get("limit")
+                is_lowest = str(u_order or "").lower() in ("asc", "lowest", "bottom")
+                clean_m = "attendance" if "attendance" in (m_id or "").lower() else display_name.lower()
+                dim_k = dimension_cols[0] if dimension_cols else "department"
+                dim_entity = "departments" if dim_k == "department" else (dim_k.replace("_", " ") + "s" if not dim_k.endswith("s") else dim_k.replace("_", " "))
+                if (u_limit and int(u_limit) == 1) or query_result.row_count == 1:
+                    first_r = query_result.rows[0]
+                    dim_v = str(first_r.get(dim_k, ""))
+                    m_val = first_r.get("metric_value") or (first_r.get(numeric_cols[0]) if numeric_cols else None)
+                    rank_word = "lowest" if is_lowest else "highest"
+                    return f"{dim_v} has the {rank_word} current {clean_m} among the returned {dim_entity} at {_format_value_with_unit(m_val, unit_sym)}."
+
+            if i_type == "TREND_QUERY":
+                if not query_result.rows or len(query_result.rows) < 2:
+                    return "Insufficient historical data is available for this analysis."
+                first_r = query_result.rows[0]
+                last_r = query_result.rows[-1]
+                dim_k = dimension_cols[0] if dimension_cols else "academic_year"
+                first_t = first_r.get(dim_k)
+                last_t = last_r.get(dim_k)
+                first_v = _format_value_with_unit(first_r.get("metric_value"), unit_sym)
+                last_v = _format_value_with_unit(last_r.get("metric_value"), unit_sym)
+                return (
+                    f"{display_name} trend across {len(query_result.rows)} academic periods spans from "
+                    f"{first_v} ({first_t}) to {last_v} ({last_t})."
+                )
 
         # Case 1: Exactly 1 row, 1 numeric value (Rule A single KPI)
         if query_result.row_count == 1:
@@ -325,6 +516,18 @@ class VisualizationService:
                     return (
                         f"All {len(valid_rows)} reported {dim_col.replace('_', ' ')} categories have "
                         f"a {display_name} of {max_val}."
+                    )
+
+                is_comp = False
+                if intent and isinstance(intent, dict):
+                    i_type = intent.get("intent_type")
+                    dept_val = (intent.get("filters") or {}).get("department")
+                    if i_type == "COMPARISON_QUERY" or (isinstance(dept_val, list) and len(dept_val) >= 2):
+                        is_comp = True
+
+                if is_comp and len(valid_rows) == 2:
+                    return (
+                        f"{display_name} comparison: {max_dim} is {max_val} compared to {min_dim} at {min_val}."
                     )
 
                 return (

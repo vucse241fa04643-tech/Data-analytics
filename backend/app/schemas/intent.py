@@ -17,6 +17,12 @@ class IntentType(str, Enum):
     TREND_QUERY = "TREND_QUERY"
     RANKING_QUERY = "RANKING_QUERY"
     BREAKDOWN_QUERY = "BREAKDOWN_QUERY"
+    STUDENT_LIST = "STUDENT_LIST"
+    BASELINE_COMPARISON = "BASELINE_COMPARISON"
+    THRESHOLD_QUERY = "THRESHOLD_QUERY"
+    CHANGE_QUERY = "CHANGE_QUERY"
+    DIRECT_METRIC = "DIRECT_METRIC"
+    BREAKDOWN = "BREAKDOWN"
     CLARIFICATION_NEEDED = "CLARIFICATION_NEEDED"
     OUT_OF_SCOPE = "OUT_OF_SCOPE"
     UNSUPPORTED = "UNSUPPORTED"
@@ -87,6 +93,45 @@ class StructuredIntent(BaseModel):
         default_factory=list,
         description="Suggested clarification prompts if query is ambiguous",
     )
+    student_filters: Dict[str, Any] = Field(
+        default_factory=dict,
+        description="Structured key-value filtering constraints for STUDENT_LIST operations",
+    )
+    requested_fields: List[str] = Field(
+        default_factory=list,
+        description="Explicitly requested student fields from approved catalog",
+    )
+    operator: Optional[str] = Field(
+        default=None,
+        description="Comparison operator, e.g. '<', '>', '<=', '>=', '='",
+    )
+    threshold: Optional[float] = Field(
+        default=None,
+        description="Numeric threshold value for filtering",
+    )
+    baseline: Optional[str] = Field(
+        default=None,
+        description="Baseline reference identifier, e.g. 'INSTITUTION'",
+    )
+    order: Optional[str] = Field(
+        default=None,
+        description="Sorting direction for ranking or ordering, e.g. 'ASC', 'DESC'",
+    )
+    limit: Optional[int] = Field(
+        default=None,
+        description="Bounded row limit for top/bottom operations",
+    )
+    page: int = Field(
+        default=1,
+        ge=1,
+        description="Pagination page index (1-based)",
+    )
+    page_size: int = Field(
+        default=25,
+        ge=1,
+        le=50,
+        description="Pagination page size (max bounded to 50)",
+    )
 
     @model_validator(mode="before")
     @classmethod
@@ -101,7 +146,7 @@ class StructuredIntent(BaseModel):
         return values
 
 
-    @field_validator("filters")
+    @field_validator("filters", "student_filters")
     @classmethod
     def validate_filters_not_raw_sql(cls, v: Dict[str, Any]) -> Dict[str, Any]:
         """Defensive barrier against SQL injection or raw clauses in filters."""

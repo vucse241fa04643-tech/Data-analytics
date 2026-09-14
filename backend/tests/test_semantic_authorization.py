@@ -116,14 +116,30 @@ def test_hod_restricted_to_assigned_department_scope(authz_service, repo):
     assert dec_ece.reason_code == "SCOPE_OUT_OF_BOUNDS"
 
 
-def test_counsellor_quarantined_from_general_analytics(authz_service, repo):
+def test_counsellor_mentee_scoped_access(authz_service, repo):
+    """COUNSELLOR has mentee-scoped access to attendance and assessment metrics only.
+    General institutional analytics (placement, outcomes, quality, academics) remain denied.
+    """
     counsellor = repo.resolve_principal("00000000-0000-0000-0000-000000000012")  # test_counsellor
     assert counsellor is not None
 
-    # Counsellor lacks attendance.read and analytics.read
-    dec = authz_service.authorize_metric(counsellor, "attendance.percentage")
-    assert dec.allowed is False
-    assert dec.reason_code == "INSUFFICIENT_PERMISSIONS"
+    # Counsellor can access attendance (scoped to assigned mentees by SQL compiler)
+    dec_att = authz_service.authorize_metric(counsellor, "attendance.percentage")
+    assert dec_att.allowed is True, "COUNSELLOR must be allowed attendance.percentage (mentee-scoped)"
+    assert dec_att.reason_code == "AUTHORIZED"
+
+    # Counsellor can access assessment marks (scoped to assigned mentees by SQL compiler)
+    dec_assess = authz_service.authorize_metric(counsellor, "assessment.average_total_marks")
+    assert dec_assess.allowed is True, "COUNSELLOR must be allowed assessment.average_total_marks (mentee-scoped)"
+
+    # Counsellor is DENIED placement metrics (outside permitted domains)
+    dec_placement = authz_service.authorize_metric(counsellor, "placement.placed_students_count")
+    assert dec_placement.allowed is False, "COUNSELLOR must NOT access placement metrics"
+    assert dec_placement.reason_code == "INSUFFICIENT_PERMISSIONS"
+
+    # Counsellor is DENIED general academic strength
+    dec_acad = authz_service.authorize_metric(counsellor, "academics.active_student_strength")
+    assert dec_acad.allowed is False, "COUNSELLOR must NOT access general academic metrics"
 
 
 def test_placement_officer_authorized_for_placement_metrics(authz_service, repo):
@@ -138,3 +154,42 @@ def test_placement_officer_authorized_for_placement_metrics(authz_service, repo)
     dec_stu = authz_service.authorize_metric(student, "placement.placed_students_count")
     assert dec_stu.allowed is False
     assert dec_stu.reason_code == "INSUFFICIENT_PERMISSIONS"
+
+
+def test_management_authorized_for_institution_metrics(authz_service, repo):
+    """
+    MANAGEMENT role possesses institution-level analytical read permissions
+    across academics, attendance, assessment, placement, outcomes, quality.
+    """
+    mgmt_user = repo.get_user_by_username("test_management")
+    assert mgmt_user is not None
+    principal = repo.resolve_principal(mgmt_user["user_id"])
+    assert principal is not None
+    assert "MANAGEMENT" in principal.roles
+
+    # Verify approved metrics across institutional domains
+    for metric_id in [
+        "academics.active_student_strength",
+        "attendance.percentage",
+        "assessment.course_pass_percentage",
+        "placement.placed_students_count",
+        "placement.average_ctc",
+        "quality.kpi_latest_value",
+    ]:
+        dec = authz_service.authorize_metric(principal, metric_id)
+        assert dec.allowed is True, f"MANAGEMENT must be allowed metric {metric_id}"
+        assert dec.reason_code == "AUTHORIZED"
+
+
+def test_management_denied_operational_student_lists(authz_service, repo):
+    """
+    MANAGEMENT role is restricted strictly to aggregate analytics and
+    cannot access operational student-level records / cohort listings.
+    """
+    mgmt_user = repo.get_user_by_username("test_management")
+    principal = repo.resolve_principal(mgmt_user["user_id"])
+    assert principal is not None
+
+    dec = authz_service.authorize_student_list(principal, {"department": "CSE"})
+    assert dec.allowed is False
+    assert dec.reason_code == "SCOPE_OUT_OF_BOUNDS"

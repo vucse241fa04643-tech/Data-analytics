@@ -16,10 +16,10 @@ export interface SidebarProps {
 
 export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
   const primaryNav = [
-    { label: 'Overview', path: '/', icon: <LayoutDashboard size={18} /> },
-    { label: 'Agent 63', path: '/agent', icon: <MessageSquare size={18} />, badge: 'Active' },
-    { label: 'Role Dashboards', path: '/dashboards', icon: <Shield size={18} />, badge: 'Active' },
-    { label: 'Analytics', path: '/analytics', icon: <BarChart2 size={18} />, badge: 'Active' },
+    { label: 'Strategic Intelligence', path: '/', icon: <LayoutDashboard size={18} /> },
+    { label: 'Ask Agent 63', path: '/agent', icon: <MessageSquare size={18} />, badge: 'Active' },
+    { label: 'Standing Dashboards', path: '/dashboards', icon: <Shield size={18} />, badge: 'Active' },
+    { label: 'Analytics Workspace', path: '/analytics', icon: <BarChart2 size={18} />, badge: 'Active' },
   ];
 
   return (

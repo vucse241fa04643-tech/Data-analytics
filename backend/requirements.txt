@@ -25,4 +25,7 @@ sqlglot>=25.0.0
 # Safe PostgreSQL Database Connectivity (Phase 8)
 psycopg[binary]>=3.1.0
 
+# Institutional PDF Export
+reportlab>=4.0.0
+
 

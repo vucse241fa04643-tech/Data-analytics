@@ -250,6 +250,10 @@ class ExportService:
             encoded_bytes = self._serialize_json(artifact)
             media_type = "application/json"
             filename = f"agent63_{safe_metric_slug}_{timestamp_str}.json"
+        elif export_format == ExportFormat.PDF:
+            encoded_bytes = self._serialize_pdf(artifact)
+            media_type = "application/pdf"
+            filename = f"agent63_{safe_metric_slug}_{timestamp_str}.pdf"
         else:
             raise ValueError(f"Unsupported export format: {export_format}")
 
@@ -316,6 +320,318 @@ class ExportService:
 
         json_str = response.model_dump_json(indent=2)
         return json_str.encode("utf-8")
+
+    def _serialize_pdf(self, artifact: ExportArtifact) -> bytes:
+        """
+        Serializes analytical result to a clean, professional institutional PDF.
+        Deterministic, robust, and zero raw SQL or sensitive credential exposure.
+        """
+        import io
+        import html
+        from reportlab.lib.pagesizes import letter
+        from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, HRFlowable
+        from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+        from reportlab.lib import colors
+
+        buffer = io.BytesIO()
+        doc = SimpleDocTemplate(
+            buffer,
+            pagesize=letter,
+            leftMargin=36,
+            rightMargin=36,
+            topMargin=36,
+            bottomMargin=36,
+        )
+
+        styles = getSampleStyleSheet()
+
+        title_style = ParagraphStyle(
+            "DocTitle",
+            parent=styles["Normal"],
+            fontName="Helvetica-Bold",
+            fontSize=18,
+            leading=22,
+            textColor=colors.HexColor("#1E3A8A"),
+        )
+        subtitle_style = ParagraphStyle(
+            "DocSubtitle",
+            parent=styles["Normal"],
+            fontName="Helvetica",
+            fontSize=11,
+            leading=14,
+            textColor=colors.HexColor("#475569"),
+        )
+        h2_style = ParagraphStyle(
+            "H2",
+            parent=styles["Normal"],
+            fontName="Helvetica-Bold",
+            fontSize=11,
+            leading=15,
+            textColor=colors.HexColor("#1E293B"),
+            spaceBefore=6,
+            spaceAfter=4,
+        )
+        meta_label_style = ParagraphStyle(
+            "MetaLabel",
+            parent=styles["Normal"],
+            fontName="Helvetica-Bold",
+            fontSize=9,
+            leading=12,
+            textColor=colors.HexColor("#475569"),
+        )
+        meta_val_style = ParagraphStyle(
+            "MetaVal",
+            parent=styles["Normal"],
+            fontName="Helvetica",
+            fontSize=9,
+            leading=12,
+            textColor=colors.HexColor("#0F172A"),
+        )
+        kpi_label_style = ParagraphStyle(
+            "KpiLabel",
+            parent=styles["Normal"],
+            fontName="Helvetica-Bold",
+            fontSize=10,
+            leading=13,
+            textColor=colors.HexColor("#1E3A8A"),
+        )
+        kpi_val_style = ParagraphStyle(
+            "KpiVal",
+            parent=styles["Normal"],
+            fontName="Helvetica-Bold",
+            fontSize=18,
+            leading=22,
+            textColor=colors.HexColor("#1E3A8A"),
+        )
+        cell_header_style = ParagraphStyle(
+            "CellHeader",
+            parent=styles["Normal"],
+            fontName="Helvetica-Bold",
+            fontSize=8,
+            leading=10,
+            textColor=colors.HexColor("#0F172A"),
+        )
+        cell_style = ParagraphStyle(
+            "Cell",
+            parent=styles["Normal"],
+            fontName="Helvetica",
+            fontSize=8,
+            leading=10,
+            textColor=colors.HexColor("#1E293B"),
+        )
+        footer_style = ParagraphStyle(
+            "Footer",
+            parent=styles["Normal"],
+            fontName="Helvetica",
+            fontSize=8,
+            leading=11,
+            textColor=colors.HexColor("#64748B"),
+        )
+
+        story = []
+
+        # 1. Header Banner
+        story.append(Paragraph("AGENT 63", title_style))
+        story.append(Paragraph("Institutional Analytics Report", subtitle_style))
+        story.append(Spacer(1, 6))
+        story.append(HRFlowable(width="100%", thickness=1.5, color=colors.HexColor("#1E3A8A"), spaceAfter=8))
+
+        # 2. Metadata Grid
+        scope_display = artifact.scope_type or "INSTITUTION"
+        if artifact.scope_id:
+            scope_display += f" ({artifact.scope_id})"
+
+        query_desc = artifact.metric_display_name
+        if artifact.dimensions:
+            query_desc += f" by {', '.join(artifact.dimensions)}"
+
+        meta_rows = [
+            [
+                Paragraph("Result Title:", meta_label_style),
+                Paragraph(html.escape(artifact.metric_display_name), meta_val_style),
+                Paragraph("Generated At:", meta_label_style),
+                Paragraph(datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC"), meta_val_style),
+            ],
+            [
+                Paragraph("Query:", meta_label_style),
+                Paragraph(html.escape(query_desc), meta_val_style),
+                Paragraph("Scope:", meta_label_style),
+                Paragraph(html.escape(scope_display), meta_val_style),
+            ],
+            [
+                Paragraph("Request Trace ID:", meta_label_style),
+                Paragraph(html.escape(artifact.request_id), meta_val_style),
+                Paragraph("Verification Status:", meta_label_style),
+                Paragraph("Read-Only PostgreSQL Verified", meta_val_style),
+            ],
+            [
+                Paragraph("User Role:", meta_label_style),
+                Paragraph(html.escape(artifact.role), meta_val_style),
+                Paragraph("Governance:", meta_label_style),
+                Paragraph("Read-Only / SQL Validated", meta_val_style),
+            ],
+        ]
+
+        meta_table = Table(meta_rows, colWidths=[95, 175, 95, 175])
+        meta_table.setStyle(TableStyle([
+            ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#F8FAFC")),
+            ("BOX", (0, 0), (-1, -1), 0.5, colors.HexColor("#E2E8F0")),
+            ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+            ("TOPPADDING", (0, 0), (-1, -1), 3),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
+            ("LEFTPADDING", (0, 0), (-1, -1), 6),
+            ("RIGHTPADDING", (0, 0), (-1, -1), 6),
+        ]))
+        story.append(meta_table)
+        story.append(Spacer(1, 10))
+
+        # 3. Main KPI Highlight (when 1 row or explicitly KPI)
+        rows = artifact.query_result.rows
+        columns = artifact.query_result.columns
+        is_kpi = (len(rows) == 1 and len(columns) <= 3) or (artifact.visualization_type or "").lower() == "kpi"
+
+        if is_kpi and len(rows) == 1:
+            row0 = rows[0]
+            kpi_val = None
+            kpi_col = None
+            for c in columns:
+                if c.lower() in ("metric_value", "value", "count", "percentage", "average_ctc", "highest_ctc"):
+                    kpi_val = row0.get(c)
+                    kpi_col = c
+                    break
+            if kpi_val is None:
+                for c in columns:
+                    if isinstance(row0.get(c), (int, float)):
+                        kpi_val = row0.get(c)
+                        kpi_col = c
+                        break
+
+            if kpi_val is not None:
+                formatted_kpi = str(kpi_val)
+                if "ctc" in artifact.metric_id.lower() or "ctc" in (kpi_col or "").lower():
+                    try:
+                        num = float(kpi_val)
+                        lakh = num / 100000 if num >= 1000 else num
+                        formatted_kpi = f"₹{lakh:.2f} lakh/year"
+                    except Exception:
+                        pass
+                elif "attendance" in artifact.metric_id.lower() or "percentage" in (kpi_col or "").lower():
+                    try:
+                        num = float(kpi_val)
+                        formatted_kpi = f"{num:.2f}%" if not num.is_integer() else f"{int(num)}%"
+                    except Exception:
+                        pass
+                elif isinstance(kpi_val, float):
+                    formatted_kpi = f"{kpi_val:.2f}"
+
+                kpi_table = Table([
+                    [
+                        Paragraph(f"<b>Key Metric:</b> {html.escape(artifact.metric_display_name)}", kpi_label_style),
+                        Paragraph(f"<b>{html.escape(formatted_kpi)}</b>", kpi_val_style),
+                    ]
+                ], colWidths=[340, 200])
+                kpi_table.setStyle(TableStyle([
+                    ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#EFF6FF")),
+                    ("BOX", (0, 0), (-1, -1), 1, colors.HexColor("#93C5FD")),
+                    ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+                    ("TOPPADDING", (0, 0), (-1, -1), 7),
+                    ("BOTTOMPADDING", (0, 0), (-1, -1), 7),
+                    ("LEFTPADDING", (0, 0), (-1, -1), 10),
+                    ("RIGHTPADDING", (0, 0), (-1, -1), 10),
+                ]))
+                story.append(kpi_table)
+                story.append(Spacer(1, 10))
+
+        # 4. Result Data Table or Empty State
+        if len(rows) == 0:
+            empty_table = Table([[
+                Paragraph(
+                    "<b>Result Status:</b> No matching institutional records were found for this query in the authorized scope.",
+                    cell_style,
+                )
+            ]], colWidths=[540])
+            empty_table.setStyle(TableStyle([
+                ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#F8FAFC")),
+                ("BOX", (0, 0), (-1, -1), 0.5, colors.HexColor("#E2E8F0")),
+                ("TOPPADDING", (0, 0), (-1, -1), 10),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 10),
+                ("LEFTPADDING", (0, 0), (-1, -1), 10),
+                ("RIGHTPADDING", (0, 0), (-1, -1), 10),
+            ]))
+            story.append(empty_table)
+            story.append(Spacer(1, 10))
+        else:
+            story.append(Paragraph(f"Analytical Result Records ({len(rows)} row{'s' if len(rows) != 1 else ''})", h2_style))
+            clean_headers = []
+            for col in columns:
+                label = "students" if col == "students_count" else col.replace("_", " ").title()
+                clean_headers.append(Paragraph(html.escape(label), cell_header_style))
+
+            max_display_rows = 500
+            display_rows = rows[:max_display_rows]
+
+            table_data = [clean_headers]
+            for r in display_rows:
+                row_cells = []
+                for col in columns:
+                    val = r.get(col)
+                    val_str = "NULL" if val is None else str(val)
+                    if ("ctc" in col.lower() or "ctc" in artifact.metric_id.lower()) and isinstance(val, (int, float)):
+                        lakh = val / 100000 if val >= 1000 else val
+                        val_str = f"₹{lakh:.2f} lakh/year"
+                    elif "students_count" in val_str:
+                        val_str = val_str.replace("students_count", "students")
+                    row_cells.append(Paragraph(html.escape(val_str), cell_style))
+                table_data.append(row_cells)
+
+            col_width = 540.0 / max(len(columns), 1)
+            col_widths = [col_width] * len(columns)
+
+            result_table = Table(table_data, colWidths=col_widths, repeatRows=1)
+            result_table.setStyle(TableStyle([
+                ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#F1F5F9")),
+                ("BOX", (0, 0), (-1, -1), 0.5, colors.HexColor("#CBD5E1")),
+                ("INNERGRID", (0, 0), (-1, -1), 0.5, colors.HexColor("#E2E8F0")),
+                ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.HexColor("#FFFFFF"), colors.HexColor("#F8FAFC")]),
+                ("VALIGN", (0, 0), (-1, -1), "TOP"),
+                ("TOPPADDING", (0, 0), (-1, -1), 3),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
+                ("LEFTPADDING", (0, 0), (-1, -1), 4),
+                ("RIGHTPADDING", (0, 0), (-1, -1), 4),
+            ]))
+            story.append(result_table)
+            story.append(Spacer(1, 10))
+
+            if len(rows) > max_display_rows:
+                story.append(Paragraph(
+                    f"<i>Note: Displaying first {max_display_rows} of {len(rows)} records. For complete dataset, export as CSV or JSON.</i>",
+                    footer_style,
+                ))
+                story.append(Spacer(1, 6))
+
+        # 5. Governance & Verification Footer
+        gov_table = Table([[
+            Paragraph(
+                "<b>Governance & Verification Information:</b><br/>"
+                "• <b>Execution:</b> Read-Only PostgreSQL Transaction with strict 1000-row & 2MB boundaries.<br/>"
+                "• <b>Validation:</b> Deterministic AST SQLGlot validation. Zero arbitrary SQL execution.<br/>"
+                "• <b>Security:</b> Strict role-scoped authorization enforced. Confidential credentials, passwords, and raw SQL are excluded.<br/>"
+                "• <b>Data Integrity:</b> Sourced directly from verified college database tables. No synthetic records.",
+                footer_style,
+            )
+        ]], colWidths=[540])
+        gov_table.setStyle(TableStyle([
+            ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#F8FAFC")),
+            ("BOX", (0, 0), (-1, -1), 0.5, colors.HexColor("#E2E8F0")),
+            ("TOPPADDING", (0, 0), (-1, -1), 6),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 6),
+            ("LEFTPADDING", (0, 0), (-1, -1), 8),
+            ("RIGHTPADDING", (0, 0), (-1, -1), 8),
+        ]))
+        story.append(gov_table)
+
+        doc.build(story)
+        return buffer.getvalue()
 
     def _log_export_event(
         self,

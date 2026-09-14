@@ -1,0 +1,196 @@
+.agentCoreContainer {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 76px;
+  height: 76px;
+  user-select: none;
+}
+
+.coreGlow {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(37, 99, 235, 0.18) 0%, rgba(37, 99, 235, 0) 70%);
+  transition: all 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+  pointer-events: none;
+}
+
+.outerRing {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  border: 1px dashed rgba(37, 99, 235, 0.25);
+  transition: all 0.6s ease;
+  pointer-events: none;
+}
+
+.midRing {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 58px;
+  height: 58px;
+  border-radius: 50%;
+  border: 1.5px solid rgba(37, 99, 235, 0.35);
+  transition: all 0.5s ease;
+  pointer-events: none;
+}
+
+.innerOrb {
+  position: relative;
+  z-index: 2;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #ffffff 0%, #eff6ff 100%);
+  border: 1.5px solid rgba(191, 219, 254, 0.85);
+  box-shadow: 0 4px 14px rgba(37, 99, 235, 0.12), inset 0 1px 2px rgba(255, 255, 255, 0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.4s ease;
+}
+
+.insignia {
+  font-family: var(--font-family-sans, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif);
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: -0.04em;
+  color: var(--color-brand-primary, #0f2744);
+  line-height: 1;
+  transition: color 0.3s ease;
+}
+
+/* State: IDLE */
+.idle .outerRing {
+  animation: rotateOuter 24s linear infinite;
+}
+
+.idle .midRing {
+  animation: pulseMid 4s ease-in-out infinite;
+}
+
+/* State: LISTENING */
+.listening .coreGlow {
+  width: 80px;
+  height: 80px;
+  background: radial-gradient(circle, rgba(14, 165, 233, 0.3) 0%, rgba(14, 165, 233, 0) 70%);
+}
+
+.listening .outerRing {
+  border-color: rgba(14, 165, 233, 0.5);
+  border-style: solid;
+  animation: expandListening 1.8s ease-in-out infinite;
+}
+
+.listening .innerOrb {
+  border-color: rgba(56, 189, 248, 0.9);
+  box-shadow: 0 0 16px rgba(14, 165, 233, 0.25);
+}
+
+/* State: PROCESSING */
+.processing .coreGlow {
+  width: 85px;
+  height: 85px;
+  background: radial-gradient(circle, rgba(37, 99, 235, 0.35) 0%, rgba(37, 99, 235, 0) 75%);
+  animation: pulseGlow 1.2s ease-in-out infinite;
+}
+
+.processing .outerRing {
+  border-color: rgba(37, 99, 235, 0.6);
+  border-style: dashed;
+  animation: rotateOuter 3s linear infinite;
+}
+
+.processing .midRing {
+  border-color: rgba(37, 99, 235, 0.8);
+  border-top-color: transparent;
+  animation: rotateMid 1.8s linear infinite reverse;
+}
+
+.processing .insignia {
+  color: #2563eb;
+}
+
+/* State: RESULT READY */
+.result_ready .coreGlow {
+  width: 72px;
+  height: 72px;
+  background: radial-gradient(circle, rgba(16, 185, 129, 0.25) 0%, rgba(16, 185, 129, 0) 70%);
+}
+
+.result_ready .outerRing {
+  border-color: rgba(16, 185, 129, 0.4);
+}
+
+.result_ready .midRing {
+  border-color: rgba(16, 185, 129, 0.6);
+}
+
+.result_ready .innerOrb {
+  border-color: rgba(110, 231, 183, 0.9);
+  box-shadow: 0 0 14px rgba(16, 185, 129, 0.2);
+}
+
+/* Animations */
+@keyframes rotateOuter {
+  from {
+    transform: translate(-50%, -50%) rotate(0deg);
+  }
+  to {
+    transform: translate(-50%, -50%) rotate(360deg);
+  }
+}
+
+@keyframes rotateMid {
+  from {
+    transform: translate(-50%, -50%) rotate(0deg);
+  }
+  to {
+    transform: translate(-50%, -50%) rotate(360deg);
+  }
+}
+
+@keyframes pulseMid {
+  0%, 100% {
+    transform: translate(-50%, -50%) scale(1);
+    opacity: 0.6;
+  }
+  50% {
+    transform: translate(-50%, -50%) scale(1.04);
+    opacity: 0.9;
+  }
+}
+
+@keyframes expandListening {
+  0%, 100% {
+    transform: translate(-50%, -50%) scale(1);
+    opacity: 0.5;
+  }
+  50% {
+    transform: translate(-50%, -50%) scale(1.08);
+    opacity: 0.9;
+  }
+}
+
+@keyframes pulseGlow {
+  0%, 100% {
+    opacity: 0.6;
+    transform: translate(-50%, -50%) scale(0.95);
+  }
+  50% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1.08);
+  }
+}

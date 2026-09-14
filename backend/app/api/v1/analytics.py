@@ -20,6 +20,7 @@ from backend.app.core.errors import AuthorizationError
 from backend.app.core.logging import get_logger
 from backend.app.dependencies.auth import get_current_principal
 from backend.app.schemas.export import (
+    ExportFormat,
     ExportRequest,
     VerificationRequest,
     VerificationResult,
@@ -97,7 +98,7 @@ def get_popular_questions(
     "/export",
     summary="Export analytical query result",
     description=(
-        "Exports an already-executed, validated analytical result as CSV or JSON. "
+        "Exports an already-executed, validated analytical result as CSV, JSON, or PDF. "
         "Strictly server-side: references an authorized request_id. "
         "Re-authorizes principal on every request (fail-closed). "
         "Applies CSV formula injection defense and preserves distinct NULLs."
@@ -121,6 +122,52 @@ def export_analytical_result(
         encoded_bytes, media_type, filename = export_service.export_result(
             request_id=payload.request_id,
             export_format=payload.format,
+            principal=principal,
+        )
+    except AuthorizationError:
+        raise
+    except ValueError as e:
+        msg = str(e)
+        if "not found" in msg.lower() or "expired" in msg.lower():
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=msg)
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=msg)
+
+    return Response(
+        content=encoded_bytes,
+        media_type=media_type,
+        headers={
+            "Content-Disposition": f'attachment; filename="{filename}"',
+            "Access-Control-Expose-Headers": "Content-Disposition",
+        },
+    )
+
+
+@router.post(
+    "/export/pdf",
+    summary="Export analytical query result as PDF",
+    description=(
+        "Exports an already-executed, validated analytical result as an institutional PDF report. "
+        "Strictly server-side: references an authorized request_id. "
+        "Re-authorizes principal on every request (fail-closed)."
+    ),
+)
+def export_analytical_result_pdf(
+    payload: ExportRequest,
+    principal: AuthenticatedPrincipal = Depends(get_current_principal),
+    export_service: ExportService = Depends(get_export_service),
+) -> Response:
+    """
+    Exports an authorized analytical result as an institutional PDF.
+    Re-uses identical authorization, ownership validation, and boundaries as CSV/JSON.
+    """
+    logger.info(
+        f"PDF Export requested: user='{principal.username}' request_id='{payload.request_id}'"
+    )
+
+    try:
+        encoded_bytes, media_type, filename = export_service.export_result(
+            request_id=payload.request_id,
+            export_format=ExportFormat.PDF,
             principal=principal,
         )
     except AuthorizationError:

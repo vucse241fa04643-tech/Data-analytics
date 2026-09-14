@@ -121,6 +121,9 @@ class ExecutionService:
                 execution_time_ms=exec_time_ms,
                 statement_timeout_ms=settings.COLLEGE_DB_STATEMENT_TIMEOUT,
                 expected_columns=artifact.columns,
+                page=getattr(artifact, "page", None) or (1 if artifact.query_type == "STUDENT_LIST" else None),
+                page_size=artifact.limit,
+                result_type=artifact.query_type,
             )
 
             # Step 5: Audit logging

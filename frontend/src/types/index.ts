@@ -43,6 +43,7 @@ export type IntentType =
   | 'TREND_QUERY'
   | 'RANKING_QUERY'
   | 'BREAKDOWN_QUERY'
+  | 'STUDENT_LIST'
   | 'CLARIFICATION_NEEDED'
   | 'OUT_OF_SCOPE'
   | 'UNSUPPORTED';
@@ -60,6 +61,10 @@ export interface StructuredIntent {
   secondary_metric_ids?: string[];
   dimensions?: string[];
   filters?: Record<string, any>;
+  student_filters?: Record<string, any>;
+  requested_fields?: string[];
+  page?: number;
+  page_size?: number;
   time_context?: TimeContext;
   reasoning_summary?: string | null;
   clarification_questions?: string[];
@@ -102,6 +107,40 @@ export interface TokenResponse {
   expires_in: number;
 }
 
+export interface SignUpPayload {
+  username: string;
+  password: string;
+  confirm_password: string;
+}
+
+export interface CreateAccountPayload {
+  full_name: string;
+  username?: string;
+  role: string;
+  department?: string;
+  password: string;
+  confirm_password: string;
+}
+
+export interface ForgotPasswordPayload {
+  identifier: string;
+}
+
+export interface AuthMessageResponse {
+  message: string;
+  status?: string;
+  account_type?: 'self_service' | 'privileged_request' | string;
+  request_id?: string | null;
+}
+
+export interface DepartmentItem {
+  code: string;
+  name: string;
+  department_id: string;
+}
+
+
+
 /**
  * Phase 8 – Query Execution Types
  */
@@ -115,10 +154,15 @@ export interface ExecutionMetadata {
   executed_at: string;
   metric_id?: string | null;
   statement_timeout_ms?: number | null;
+  page?: number | null;
+  page_size?: number | null;
+  has_more?: boolean | null;
+  total_count?: number | null;
 }
 
 export interface QueryResult {
   status: QueryResultStatus;
+  result_type?: 'ANALYTICAL_METRIC' | 'STUDENT_LIST';
   columns: string[];
   rows: Record<string, any>[];
   row_count: number;
@@ -162,6 +206,12 @@ export interface AgentQueryResponse {
   is_follow_up?: boolean;
   clarification_questions?: string[];
   anomaly?: AnomalyAssessment | null;
+  scope?: {
+    scope_type?: string;
+    scope_id?: string | null;
+    display?: string;
+    [key: string]: any;
+  } | null;
 }
 
 /**
@@ -302,7 +352,7 @@ export interface PopularQuestion {
 /**
  * Phase 14 – Analytical Export & Official Report Verification Types
  */
-export type ExportFormat = 'csv' | 'json';
+export type ExportFormat = 'csv' | 'json' | 'pdf';
 
 export interface ExportRequest {
   request_id: string;

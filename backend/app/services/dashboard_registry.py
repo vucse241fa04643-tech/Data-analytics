@@ -27,7 +27,7 @@ DASHBOARD_REGISTRY: Dict[str, DashboardDefinition] = {
         dashboard_id="principal_executive",
         title="Principal Institutional Overview",
         description="Executive institutional-wide dashboard monitoring core academic, attendance, placement, and quality metrics.",
-        allowed_roles=["PRINCIPAL", "ADMIN"],
+        allowed_roles=["PRINCIPAL", "ADMIN", "MANAGEMENT"],
         default_role="PRINCIPAL",
         widgets=[
             WidgetDefinition(

@@ -11,6 +11,12 @@ from pydantic import BaseModel, Field
 from backend.app.core.errors import IntentValidationError
 from backend.app.core.logging import get_logger
 from backend.app.schemas.intent import IntentType, IntentValidationStatus, StructuredIntent
+from backend.app.schemas.student_catalog import (
+    ALLOWED_STUDENT_FILTER_KEYS,
+    APPROVED_STUDENT_FIELDS,
+    DEFAULT_STUDENT_PROJECTION,
+    STRICTLY_PROHIBITED_FIELDS,
+)
 from backend.app.services.semantic_registry import (
     SemanticRegistryService,
     get_semantic_registry_service,
@@ -160,6 +166,10 @@ class IntentValidator:
                 message="The requested analytical operation cannot be mapped to supported institutional query archetypes.",
             )
 
+        # 3.5 STUDENT_LIST capability validation
+        if intent.intent_type == IntentType.STUDENT_LIST:
+            return self._validate_student_list_intent(intent)
+
         # 4. Metric ID Validation
         if not intent.metric_id:
             return IntentValidationResult(
@@ -300,8 +310,10 @@ class IntentValidator:
 
         # 8c. Validate that each filter key is explicitly permitted for this metric
         allowed_filters = self.get_allowed_filter_keys_for_metric(metric)
+        allowed_modifiers = {"limit", "order", "sort", "direction", "threshold", "operator", "baseline", "band", "scope"}
         for k in intent.filters.keys():
-            if k.lower() not in allowed_filters:
+            k_lower = k.lower()
+            if k_lower not in allowed_filters and k_lower not in allowed_modifiers:
                 logger.warning(
                     f"Filter key '{k}' is not permitted for metric '{intent.metric_id}'"
                 )
@@ -312,10 +324,131 @@ class IntentValidator:
                     message=f"Filter key '{k}' is not permitted for metric '{intent.metric_id}'. Allowed filters/dimensions: {sorted(list(allowed_filters))}",
                 )
 
+        # 8d. Validate threshold query parameters if present
+        if intent.intent_type == IntentType.THRESHOLD_QUERY or intent.threshold is not None:
+            if intent.operator:
+                allowed_operators = {"<", "<=", ">", ">=", "="}
+                if intent.operator not in allowed_operators:
+                    return IntentValidationResult(
+                        is_valid=False,
+                        status=IntentValidationStatus.REJECTED,
+                        error_code="INVALID_OPERATOR",
+                        message=f"Operator '{intent.operator}' is not permitted. Allowed operators: {sorted(list(allowed_operators))}",
+                    )
+            th_val = intent.threshold
+            if th_val is None and intent.filters:
+                th_val = intent.filters.get("threshold")
+            if th_val is not None:
+                try:
+                    num_val = float(th_val)
+                    unit = (metric.get("unit") or "").lower()
+                    if unit in ("percentage", "percent", "%"):
+                        if num_val < 0.0 or num_val > 100.0:
+                            return IntentValidationResult(
+                                is_valid=False,
+                                status=IntentValidationStatus.REJECTED,
+                                error_code="INVALID_THRESHOLD",
+                                message=f"Threshold value {num_val} is outside valid percentage range [0, 100].",
+                            )
+                except (ValueError, TypeError):
+                    return IntentValidationResult(
+                        is_valid=False,
+                        status=IntentValidationStatus.REJECTED,
+                        error_code="INVALID_THRESHOLD",
+                        message=f"Threshold value '{th_val}' is not a valid numeric value.",
+                    )
+
         return IntentValidationResult(
             is_valid=True,
             status=IntentValidationStatus.VALID,
             message="Intent successfully validated against Phase 4 Semantic Catalog.",
+            validated_intent=intent,
+        )
+
+    def _validate_student_list_intent(self, intent: StructuredIntent) -> IntentValidationResult:
+        """Validates structured parameters for STUDENT_LIST capability."""
+        # Consolidate filters: merge any standard filters into student_filters if present
+        filters = dict(intent.student_filters or intent.filters or {})
+
+        # 1. Anti-SQL injection and raw database syntax defense
+        sql_injection_patterns = [
+            "select", "insert", "update", "delete", "drop", "truncate",
+            "alter", "--", ";", "/*", "*/", "xp_", "union", "exec",
+        ]
+        for k, v in filters.items():
+            combined = f"{k} {v}".lower()
+            for pattern in sql_injection_patterns:
+                if f" {pattern} " in f" {combined} " or pattern in combined.split() or pattern in [k.lower(), str(v).lower()]:
+                    logger.warning(f"SQL pattern detected in student filter: {k}={v}")
+                    return IntentValidationResult(
+                        is_valid=False,
+                        status=IntentValidationStatus.REJECTED,
+                        error_code="SQL_SYNTAX_REJECTED",
+                        message="Filters must be structured key-values. SQL clauses or mutation keywords are strictly prohibited.",
+                    )
+            if "." in k or k.startswith("v_") or k.startswith("tbl_"):
+                logger.warning(f"Student filter key '{k}' references a raw database table or schema.")
+                return IntentValidationResult(
+                    is_valid=False,
+                    status=IntentValidationStatus.REJECTED,
+                    error_code="FILTER_NOT_PERMITTED",
+                    message=f"Filter key '{k}' references a raw database object. Arbitrary table references are prohibited.",
+                )
+
+        # 2. Check allowed filter keys
+        for k in filters.keys():
+            k_clean = k.lower().strip()
+            if k_clean not in ALLOWED_STUDENT_FILTER_KEYS:
+                logger.warning(f"Student filter key '{k}' is not an approved filter parameter.")
+                return IntentValidationResult(
+                    is_valid=False,
+                    status=IntentValidationStatus.REJECTED,
+                    error_code="INVALID_FILTER",
+                    message=f"Filter '{k}' is not an approved student filter parameter.",
+                )
+
+        # 3. Check for confidential or restricted keywords in filter values
+        for k, v in filters.items():
+            f_str = f"{k} {v}".lower()
+            if any(denied in f_str for denied in ["confidential", "counselling", "medical", "disciplinary", "password"]):
+                return IntentValidationResult(
+                    is_valid=False,
+                    status=IntentValidationStatus.REJECTED,
+                    error_code="RESTRICTED_RESOURCE",
+                    message="Requested student filter references strictly quarantined institutional domains.",
+                )
+
+        # 4. Validate requested fields against approved catalog
+        fields = intent.requested_fields or []
+        for f in fields:
+            f_clean = f.lower().strip()
+            if f_clean in STRICTLY_PROHIBITED_FIELDS:
+                return IntentValidationResult(
+                    is_valid=False,
+                    status=IntentValidationStatus.REJECTED,
+                    error_code="RESTRICTED_FIELD",
+                    message=f"That student field '{f}' is restricted and cannot be displayed for your role.",
+                )
+            if f_clean not in APPROVED_STUDENT_FIELDS:
+                return IntentValidationResult(
+                    is_valid=False,
+                    status=IntentValidationStatus.REJECTED,
+                    error_code="INVALID_FIELD",
+                    message=f"Student field '{f}' is not in the approved student record field catalog.",
+                )
+
+        # 5. Normalize pagination parameters
+        intent.page = max(1, intent.page)
+        intent.page_size = max(1, min(50, intent.page_size))
+        intent.student_filters = filters
+        if not intent.metric_id:
+            intent.metric_id = "student.list"
+            intent.primary_metric_id = "student.list"
+
+        return IntentValidationResult(
+            is_valid=True,
+            status=IntentValidationStatus.VALID,
+            message="Student record retrieval intent validated safely.",
             validated_intent=intent,
         )
 

@@ -12,14 +12,15 @@ import { AnalyticalSummaryCard } from '../components/analytics/AnalyticalSummary
 import { AnomalyInsightCard } from '../components/analytics/AnomalyInsightCard';
 import { ResultTableView } from '../components/analytics/ResultTableView';
 import { QueryDetailsAccordion } from '../components/analytics/QueryDetailsAccordion';
-import { PopularQuestionsPanel } from '../components/analytics/PopularQuestionsPanel';
 import { ExportControls } from '../components/analytics/ExportControls';
 import { VerificationCard } from '../components/analytics/VerificationCard';
+import { StudentRecordTable } from '../components/analytics/StudentRecordTable';
 import { APP_PHASE } from '../constants/phases';
+import { useAuth } from '../context/AuthContext';
+import { formatScopeDisplay } from '../utils/formatters';
 import {
   MessageSquare,
   Send,
-  Sparkles,
   ShieldCheck,
   AlertCircle,
   Loader2,
@@ -40,26 +41,6 @@ export const AgentPage: React.FC = () => {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [errorCode, setErrorCode] = useState<string | null>(null);
   const [conversationId, setConversationId] = useState<string | null>(null);
-
-  // Authoritative approved semantic catalog metrics
-  const exampleQuestions = [
-    {
-      domain: 'Attendance',
-      prompt: 'What is the average attendance percentage for CSE students?',
-    },
-    {
-      domain: 'Performance',
-      prompt: 'Compare course pass percentage between CSE and ECE for academic year 2024–2025.',
-    },
-    {
-      domain: 'Student Strength',
-      prompt: 'Show active student strength by department.',
-    },
-    {
-      domain: 'Attainment Trend',
-      prompt: 'What is the course pass percentage trend over academic years?',
-    },
-  ];
 
   const handleResetConversation = async () => {
     if (conversationId) {
@@ -132,13 +113,32 @@ export const AgentPage: React.FC = () => {
   const metricDisplayName = queryResponse?.metric_display_name || viz?.title;
   const metricId = metadata?.metric_id || queryResponse?.intent?.metric_id;
 
+  const { user } = useAuth();
+
+  const isStudentList = queryResponse?.intent?.intent_type === 'STUDENT_LIST' || result?.result_type === 'STUDENT_LIST';
+  const isSelfQuery = queryResponse?.intent?.student_filters?.student_id === 'SELF' || queryResponse?.intent?.filters?.student_id === 'SELF';
+
   // Extract scope for display
   const scopeValue = (() => {
-    if (!queryResponse?.intent?.filters) return null;
-    const f = queryResponse.intent.filters;
-    const entries = Object.entries(f).filter(([k, v]) => v !== null && k !== 'is_active');
-    if (entries.length === 0) return 'Institutional';
-    return entries.map(([k, v]) => `${k.replace(/_/g, ' ')}: ${v}`).join(', ');
+    const rawDisplay = (() => {
+      if (queryResponse?.scope?.display) return queryResponse.scope.display;
+      if (queryResponse?.scope?.scope_type === 'SELF' || isSelfQuery) {
+        return (user?.roles || []).includes('COUNSELLOR') ? 'My Mentees' : 'Student SELF';
+      }
+      if (queryResponse?.scope?.scope_type === 'DEPARTMENT') {
+        return `HOD / ${queryResponse.scope.scope_id || 'Department'}`;
+      }
+      const rawFilters = queryResponse?.intent?.student_filters || queryResponse?.intent?.filters;
+      if (!rawFilters) return null;
+      if (rawFilters.student_id === 'SELF') {
+        return (user?.roles || []).includes('COUNSELLOR') ? 'My Mentees' : 'Student SELF';
+      }
+      const entries = Object.entries(rawFilters).filter(([k, v]) => v !== null && k !== 'is_active');
+      if (entries.length === 0) return 'Institutional';
+      return entries.map(([k, v]) => `${k.replace(/_/g, ' ')}: ${v}`).join(', ');
+    })();
+
+    return formatScopeDisplay(rawDisplay, user?.roles, queryResponse?.scope?.scope_type);
   })();
 
   return (
@@ -346,133 +346,146 @@ export const AgentPage: React.FC = () => {
                 </div>
               )}
 
-              {/* 2 & 3. RESULT SUMMARY & APPROPRIATE VISUALIZATION */}
-              {viz && result && (
-                <div>
-                  {viz.chart_type === 'kpi' && result.rows.length > 0 && (
-                    <KpiCard
-                      title={viz.title || metricDisplayName || 'Institutional Metric'}
-                      value={result.rows[0][viz.y_field || result.columns[0]]}
-                      unit={viz.unit}
-                      description={viz.description}
-                      subtitle={scopeValue ? `Scope: ${scopeValue}` : undefined}
+              {/* Dedicated Student Record Presentation */}
+              {isStudentList && result && (
+                <StudentRecordTable
+                  result={result}
+                  scope={scopeValue}
+                />
+              )}
+
+              {/* Analytical KPI, Charts & Summaries (Excluded for STUDENT_LIST) */}
+              {!isStudentList && (
+                <>
+                  {/* 2 & 3. RESULT SUMMARY & APPROPRIATE VISUALIZATION */}
+                  {viz && result && (
+                    <div>
+                      {viz.chart_type === 'kpi' && result.rows.length > 0 && (
+                        <KpiCard
+                          title={viz.title || metricDisplayName || 'Institutional Metric'}
+                          value={result.rows[0][viz.y_field || result.columns[0]]}
+                          unit={viz.unit}
+                          description={viz.description}
+                          subtitle={scopeValue ? `Scope: ${scopeValue}` : undefined}
+                        />
+                      )}
+
+                      {(viz.chart_type === 'bar' || viz.chart_type === 'horizontal_bar') &&
+                        viz.x_field &&
+                        viz.y_field &&
+                        result.rows.length > 0 && (
+                          <BarChartCard
+                            title={viz.title || `${metricDisplayName} Comparison`}
+                            data={result.rows}
+                            xField={viz.x_field}
+                            yField={viz.y_field}
+                            unit={viz.unit}
+                            isHorizontal={viz.chart_type === 'horizontal_bar'}
+                            description={viz.description}
+                          />
+                        )}
+
+                      {viz.chart_type === 'line' &&
+                        viz.x_field &&
+                        viz.y_field &&
+                        result.rows.length > 0 && (
+                          <LineChartCard
+                            title={viz.title || `${metricDisplayName} Over Time`}
+                            data={result.rows}
+                            xField={viz.x_field}
+                            yField={viz.y_field}
+                            unit={viz.unit}
+                            description={viz.description}
+                          />
+                        )}
+
+                      {/* Visualization Unavailable Banner if chart_type is table or none for non-empty results */}
+                      {!viz.recommended && result.status === 'SUCCESS' && result.rows.length > 0 && (
+                        <div
+                          style={{
+                            padding: '10px 14px',
+                            backgroundColor: '#f8fafc',
+                            border: '1px solid #e2e8f0',
+                            borderRadius: 'var(--radius-sm)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '8px',
+                            fontSize: 'var(--font-size-xs)',
+                            color: 'var(--color-text-secondary)',
+                          }}
+                        >
+                          <Info size={16} color="var(--color-brand-secondary)" />
+                          <span>
+                            Visualization is not available for this result shape. Full tabular data is presented below.
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* 3.1 EMPTY RESULT STATE (SUCCESS WITH 0 ROWS) */}
+                  {result && result.rows.length === 0 && (
+                    <div
+                      style={{
+                        padding: '24px 20px',
+                        backgroundColor: 'var(--color-bg-workspace)',
+                        border: '1px solid var(--color-border-subtle)',
+                        borderRadius: 'var(--radius-md)',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        textAlign: 'center',
+                        gap: '8px',
+                        margin: '8px 0',
+                      }}
+                    >
+                      <Database size={28} color="var(--color-text-muted)" />
+                      <div style={{ fontWeight: 'var(--font-weight-semibold)', color: 'var(--color-text-primary)' }}>
+                        No Matching Institutional Records Found
+                      </div>
+                      <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-secondary)', maxWidth: '520px' }}>
+                        The query executed successfully and safely against read-only PostgreSQL, but the college database contains no matching records for the specified criteria.
+                      </div>
+                    </div>
+                  )}
+
+                  {/* 3.5 DETERMINISTIC ANOMALY ASSESSMENT (PHASE 11) */}
+                  {queryResponse.anomaly && !isSelfQuery && result && result.rows.length > 0 && (
+                    <AnomalyInsightCard anomaly={queryResponse.anomaly} />
+                  )}
+
+                  {/* 4. ANALYTICAL SUMMARY */}
+                  {explanation && result && result.rows.length > 0 && (
+                    <AnalyticalSummaryCard explanation={explanation} />
+                  )}
+
+                  {/* 5. RESULT TABLE (Universal Accessible Representation) */}
+                  {result && result.rows.length > 0 && (
+                    <ResultTableView
+                      result={result}
+                      metadata={metadata}
+                      title={metricDisplayName ? `${metricDisplayName} — Tabular Records` : 'Result Table'}
                     />
                   )}
 
-                  {(viz.chart_type === 'bar' || viz.chart_type === 'horizontal_bar') &&
-                    viz.x_field &&
-                    viz.y_field &&
-                    result.rows.length > 0 && (
-                      <BarChartCard
-                        title={viz.title || `${metricDisplayName} Comparison`}
-                        data={result.rows}
-                        xField={viz.x_field}
-                        yField={viz.y_field}
-                        unit={viz.unit}
-                        isHorizontal={viz.chart_type === 'horizontal_bar'}
-                        description={viz.description}
-                      />
-                    )}
-
-                  {viz.chart_type === 'line' &&
-                    viz.x_field &&
-                    viz.y_field &&
-                    result.rows.length > 0 && (
-                      <LineChartCard
-                        title={viz.title || `${metricDisplayName} Over Time`}
-                        data={result.rows}
-                        xField={viz.x_field}
-                        yField={viz.y_field}
-                        unit={viz.unit}
-                        description={viz.description}
-                      />
-                    )}
-
-                  {/* Visualization Unavailable Banner if chart_type is table or none for non-empty results */}
-                  {!viz.recommended && result.status === 'SUCCESS' && result.rows.length > 0 && (
-                    <div
-                      style={{
-                        padding: '10px 14px',
-                        backgroundColor: '#f8fafc',
-                        border: '1px solid #e2e8f0',
-                        borderRadius: 'var(--radius-sm)',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '8px',
-                        fontSize: 'var(--font-size-xs)',
-                        color: 'var(--color-text-secondary)',
-                      }}
-                    >
-                      <Info size={16} color="var(--color-brand-secondary)" />
-                      <span>
-                        Visualization is not available for this result shape. Full tabular data is presented below.
-                      </span>
-                    </div>
+                  {/* 5.5 PHASE 14 EXPORT CONTROLS */}
+                  {queryResponse.request_id && result && (
+                    <ExportControls
+                      requestId={queryResponse.request_id}
+                      rowCount={result.rows.length}
+                    />
                   )}
-                </div>
-              )}
 
-              {/* 3.1 EMPTY RESULT STATE (SUCCESS WITH 0 ROWS) */}
-              {result && result.rows.length === 0 && (
-                <div
-                  style={{
-                    padding: '24px 20px',
-                    backgroundColor: 'var(--color-bg-workspace)',
-                    border: '1px solid var(--color-border-subtle)',
-                    borderRadius: 'var(--radius-md)',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    textAlign: 'center',
-                    gap: '8px',
-                    margin: '8px 0',
-                  }}
-                >
-                  <Database size={28} color="var(--color-text-muted)" />
-                  <div style={{ fontWeight: 'var(--font-weight-semibold)', color: 'var(--color-text-primary)' }}>
-                    No Matching Institutional Records Found
-                  </div>
-                  <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-secondary)', maxWidth: '520px' }}>
-                    The query executed successfully and safely against read-only PostgreSQL, but the college database contains no matching records for the specified criteria.
-                  </div>
-                </div>
-              )}
-
-              {/* 3.5 DETERMINISTIC ANOMALY ASSESSMENT (PHASE 11) */}
-              {queryResponse.anomaly && result && result.rows.length > 0 && (
-                <AnomalyInsightCard anomaly={queryResponse.anomaly} />
-              )}
-
-              {/* 4. ANALYTICAL SUMMARY */}
-              {explanation && result && result.rows.length > 0 && (
-                <AnalyticalSummaryCard explanation={explanation} />
-              )}
-
-              {/* 5. RESULT TABLE (Universal Accessible Representation) */}
-              {result && result.rows.length > 0 && (
-                <ResultTableView
-                  result={result}
-                  metadata={metadata}
-                  title={metricDisplayName ? `${metricDisplayName} — Tabular Records` : 'Result Table'}
-                />
-              )}
-
-              {/* 5.5 PHASE 14 EXPORT CONTROLS */}
-              {queryResponse.request_id && result && (
-                <ExportControls
-                  requestId={queryResponse.request_id}
-                  rowCount={result.rows.length}
-                />
-              )}
-
-              {/* 5.6 PHASE 14 OFFICIAL REPORT VERIFICATION */}
-              {queryResponse.request_id && (
-                <VerificationCard
-                  requestId={queryResponse.request_id}
-                  hasResult={Boolean(result && result.rows.length > 0)}
-                  rowCount={result?.rows.length ?? 0}
-                />
+                  {/* 5.6 PHASE 14 OFFICIAL REPORT VERIFICATION */}
+                  {queryResponse.request_id && !isSelfQuery && (
+                    <VerificationCard
+                      requestId={queryResponse.request_id}
+                      hasResult={Boolean(result && result.rows.length > 0)}
+                      rowCount={result?.rows.length ?? 0}
+                    />
+                  )}
+                </>
               )}
 
               {/* 6. QUERY DETAILS & AUDIT ACCORDION */}
@@ -510,58 +523,8 @@ export const AgentPage: React.FC = () => {
           )}
         </div>
 
-        {/* Bottom Section: Query Input & Example Chips */}
+        {/* Bottom Section: Query Input */}
         <div style={{ borderTop: '1px solid var(--color-border-subtle)', paddingTop: 'var(--spacing-md)', marginTop: 'auto' }}>
-          {/* Phase 13: Popular Analytical Questions Panel */}
-          <PopularQuestionsPanel
-            onSelectQuestion={(q) => setInputValue(q)}
-            disabled={isLoading}
-          />
-
-          {/* Example Query Chips */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '10px' }}>
-            <Sparkles size={14} color="var(--color-brand-secondary)" />
-            <span style={{ fontSize: 'var(--font-size-xs)', fontWeight: 'var(--font-weight-medium)', color: 'var(--color-text-secondary)' }}>
-              Institutional Analytics Queries:
-            </span>
-          </div>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginBottom: '14px' }}>
-            {exampleQuestions.map((q, idx) => (
-              <button
-                key={idx}
-                type="button"
-                onClick={() => setInputValue(q.prompt)}
-                style={{
-                  fontSize: 'var(--font-size-xs)',
-                  padding: '6px 12px',
-                  backgroundColor: 'var(--color-bg-workspace)',
-                  border: '1px solid var(--color-border-subtle)',
-                  borderRadius: 'var(--radius-full)',
-                  color: 'var(--color-text-primary)',
-                  cursor: 'pointer',
-                  textAlign: 'left',
-                  transition: 'all 0.15s ease',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                }}
-                onMouseOver={(e) => {
-                  e.currentTarget.style.backgroundColor = 'var(--color-bg-surface)';
-                  e.currentTarget.style.borderColor = 'var(--color-brand-secondary)';
-                }}
-                onMouseOut={(e) => {
-                  e.currentTarget.style.backgroundColor = 'var(--color-bg-workspace)';
-                  e.currentTarget.style.borderColor = 'var(--color-border-subtle)';
-                }}
-              >
-                <span style={{ fontWeight: 'var(--font-weight-semibold)', color: 'var(--color-brand-primary)' }}>
-                  [{q.domain}]
-                </span>
-                <span>{q.prompt}</span>
-              </button>
-            ))}
-          </div>
-
           {/* Form Input Area */}
           <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
             <div style={{ display: 'flex', gap: '8px' }}>

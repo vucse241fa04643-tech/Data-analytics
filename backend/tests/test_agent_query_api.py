@@ -191,3 +191,52 @@ def test_post_agent_query_out_of_scope_intent():
         assert "outside the scope of Agent 63" in data["message"]
     finally:
         app.dependency_overrides.pop(get_intent_service, None)
+
+
+def test_post_agent_query_compare_attendance_cse_and_ece_regression():
+    """
+    Regression Test:
+    User query: 'Compare attendance between CSE and ECE.'
+    Verifies that:
+    1. Intent extracts COMPARISON_QUERY with department filter ['CSE', 'ECE']
+    2. Both CSE and ECE are present in the query result (row count == 2)
+    3. CSE = 82.02% and ECE = 81.36% are accurately returned from PostgreSQL
+    4. Visualization recommended is 'bar' (not KPI single-department fallback)
+    5. Visualization title accurately reflects multi-department comparison:
+       'Adjusted Attendance Percentage (CSE vs ECE)'
+    6. Scope display accurately indicates 'Institutional (CSE vs ECE)'
+    """
+    token = get_auth_token("test_management")
+    headers = {"Authorization": f"Bearer {token}"}
+
+    res = client.post(
+        "/api/v1/agent/query",
+        headers=headers,
+        json={"prompt": "Compare attendance between CSE and ECE."},
+    )
+
+    assert res.status_code == 200, f"Query failed: {res.text}"
+    data = res.json()
+
+    # Verify Intent
+    assert data["intent"]["intent_type"] == "COMPARISON_QUERY"
+    assert data["intent"]["dimensions"] == ["department"]
+    assert data["intent"]["filters"]["department"] == ["CSE", "ECE"]
+
+    # Verify Result Rows (both CSE and ECE present)
+    assert data["result"]["status"] == "SUCCESS"
+    assert data["result"]["row_count"] == 2
+    rows = data["result"]["rows"]
+    dept_map = {r["department"]: float(r["metric_value"]) for r in rows}
+    assert "CSE" in dept_map, "CSE must be present in result"
+    assert "ECE" in dept_map, "ECE must be present in result"
+    assert dept_map["CSE"] == pytest.approx(82.02, abs=0.05)
+    assert dept_map["ECE"] == pytest.approx(81.36, abs=0.05)
+
+    # Verify Visualization & Metadata
+    assert data["visualization"]["chart_type"] == "bar"
+    assert data["visualization"]["title"] == "Adjusted Attendance Percentage (CSE vs ECE)"
+    assert data["metric_display_name"] == "Adjusted Attendance Percentage (CSE vs ECE)"
+    assert data["scope"]["display"] == "Institutional (CSE vs ECE)"
+    assert "82.02" in data["explanation"]
+    assert "81.36" in data["explanation"]

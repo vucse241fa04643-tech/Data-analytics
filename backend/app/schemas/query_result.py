@@ -27,11 +27,16 @@ class ExecutionMetadata(BaseModel):
     executed_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), description="UTC timestamp of execution")
     metric_id: Optional[str] = Field(default=None, description="Semantic metric ID associated with execution")
     statement_timeout_ms: Optional[int] = Field(default=None, description="Applied PostgreSQL statement timeout")
+    page: Optional[int] = Field(default=None, description="Pagination current page index")
+    page_size: Optional[int] = Field(default=None, description="Pagination requested page size")
+    has_more: Optional[bool] = Field(default=None, description="Whether additional records exist beyond current page")
+    total_count: Optional[int] = Field(default=None, description="Safely calculated record count if supported")
 
 
 class QueryResult(BaseModel):
     """Safe, validated, and normalized result set from read-only execution."""
     status: QueryResultStatus = Field(..., description="Result status (SUCCESS, EMPTY, ERROR, DATABASE_NOT_CONFIGURED)")
+    result_type: str = Field(default="ANALYTICAL_METRIC", description="Result archetype: 'ANALYTICAL_METRIC' or 'STUDENT_LIST'")
     columns: List[str] = Field(default_factory=list, description="Ordered column names")
     rows: List[Dict[str, Any]] = Field(default_factory=list, description="Validated row dictionaries with column keys")
     row_count: int = Field(default=0, ge=0, description="Total count of validated rows")
@@ -78,4 +83,5 @@ class AgentQueryResponse(BaseModel):
     is_follow_up: bool = Field(default=False, description="Whether this query inherited context from a prior turn")
     clarification_questions: List[str] = Field(default_factory=list, description="Clarification options if follow-up is ambiguous")
     anomaly: Optional[AnomalyAssessment] = Field(default=None, description="Deterministic anomaly detection assessment")
+    scope: Optional[Dict[str, Any]] = Field(default=None, description="Authorized data scope information (e.g. {'scope_type': 'SELF', 'display': 'Student SELF'})")
 

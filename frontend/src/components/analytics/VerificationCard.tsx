@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { apiService } from '../../services/api';
 import type { VerificationResult, VerificationStatus } from '../../types';
 import { ShieldCheck, CheckCircle2, AlertTriangle, HelpCircle, FileCheck2, AlertCircle } from 'lucide-react';
+import { formatMetricValueWithUnit } from '../../utils/formatters';
 
 interface VerificationCardProps {
   requestId: string;
@@ -239,10 +240,7 @@ export const VerificationCard: React.FC<VerificationCardProps> = ({
                     color: 'var(--color-text-primary)',
                   }}
                 >
-                  {result.analytical_value !== undefined && result.analytical_value !== null
-                    ? String(result.analytical_value)
-                    : 'N/A'}
-                  {result.unit ? ` ${result.unit}` : ''}
+                  {formatMetricValueWithUnit(result.analytical_value, result.unit, { title: result.metric_display_name })}
                 </span>
               </div>
               <div>
@@ -257,10 +255,7 @@ export const VerificationCard: React.FC<VerificationCardProps> = ({
                     color: 'var(--color-text-primary)',
                   }}
                 >
-                  {result.official_value !== undefined && result.official_value !== null
-                    ? String(result.official_value)
-                    : 'N/A'}
-                  {result.unit ? ` ${result.unit}` : ''}
+                  {formatMetricValueWithUnit(result.official_value, result.unit, { title: result.metric_display_name })}
                 </span>
               </div>
             </div>

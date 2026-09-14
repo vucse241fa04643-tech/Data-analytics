@@ -145,7 +145,7 @@ export const AnalyticsPage: React.FC = () => {
             <h1 style={{ fontSize: 'var(--font-size-2xl)', color: 'var(--color-text-primary)', margin: 0 }}>
               Institutional Analytics Workspace
             </h1>
-            <StatusBadge variant="success">Phase 14 Operational</StatusBadge>
+            <StatusBadge variant="success">Operational</StatusBadge>
           </div>
           <p style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-text-muted)', margin: 0 }}>
             Structured dimensional analysis, KPI aggregation, verified visualizations, and institutional exports.

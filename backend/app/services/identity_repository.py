@@ -75,7 +75,19 @@ ROLE_PERMISSIONS_MAP: Dict[str, Set[str]] = {
         "outcomes.read",
     },
     "COUNSELLOR": {
-        "counselling.read",  # strictly quarantined from general institutional analytics
+        "counselling.read",
+        "attendance.read",   # permitted ONLY for assigned mentees (enforced by authorization layer)
+        "assessment.read",   # permitted ONLY for assigned mentees (enforced by authorization layer)
+    },
+    "MANAGEMENT": {
+        "analytics.read",
+        "academics.read",
+        "attendance.read",
+        "assessment.read",
+        "outcomes.read",
+        "placement.read",
+        "quality.read",
+        "export.create",
     },
     "ADMIN": {
         "system.admin",
@@ -105,6 +117,29 @@ class IdentityRepository(ABC):
     @abstractmethod
     def resolve_principal(self, user_id: str) -> Optional[AuthenticatedPrincipal]:
         """Resolves the complete authenticated principal with current trusted roles and permissions."""
+        pass
+
+    @abstractmethod
+    def get_user_by_email(self, email: str) -> Optional[Dict[str, Any]]:
+        """Retrieves user record by registered email address."""
+        pass
+
+    @abstractmethod
+    def register_user(
+        self,
+        username: str,
+        email: str,
+        password_hash: str,
+        scoped_roles: List[ScopedRoleAssignment],
+        person_id: Optional[str] = None,
+        is_active: bool = True,
+    ) -> Dict[str, Any]:
+        """Registers a new institutional user into identity persistence."""
+        pass
+
+    @abstractmethod
+    def update_user_password(self, user_id: str, new_password_hash: str) -> bool:
+        """Updates stored credential hash for an institutional user."""
         pass
 
 
@@ -190,6 +225,46 @@ class InMemoryIdentityRepository(IdentityRepository):
             permissions=permissions,
         )
 
+    def get_user_by_email(self, email: str) -> Optional[Dict[str, Any]]:
+        clean_email = email.strip().lower()
+        for u in self._users.values():
+            if u.get("email", "").lower() == clean_email:
+                return u
+        return None
+
+    def register_user(
+        self,
+        username: str,
+        email: str,
+        password_hash: str,
+        scoped_roles: List[ScopedRoleAssignment],
+        person_id: Optional[str] = None,
+        is_active: bool = True,
+    ) -> Dict[str, Any]:
+        clean_username = username.strip().lower()
+        if clean_username in self._username_index:
+            raise ValueError(f"Username '{username}' already exists.")
+        user_id = str(uuid.uuid4())
+        user_dict = {
+            "user_id": user_id,
+            "username": username.strip(),
+            "email": email.strip().lower(),
+            "person_id": person_id,
+            "is_active": is_active,
+            "is_service_account": False,
+        }
+        self._users[user_id] = user_dict
+        self._username_index[clean_username] = user_id
+        self._user_roles[user_id] = scoped_roles
+        self._credentials[user_id] = password_hash
+        return user_dict
+
+    def update_user_password(self, user_id: str, new_password_hash: str) -> bool:
+        if user_id in self._users:
+            self._credentials[user_id] = new_password_hash
+            return True
+        return False
+
 
 class UnavailableIdentityRepository(IdentityRepository):
     """
@@ -223,6 +298,23 @@ class UnavailableIdentityRepository(IdentityRepository):
             "database is not configured or unavailable."
         )
         return None
+
+    def get_user_by_email(self, email: str) -> Optional[Dict[str, Any]]:
+        return None
+
+    def register_user(
+        self,
+        username: str,
+        email: str,
+        password_hash: str,
+        scoped_roles: List[ScopedRoleAssignment],
+        person_id: Optional[str] = None,
+        is_active: bool = True,
+    ) -> Dict[str, Any]:
+        raise RuntimeError("Identity registration unavailable: database not configured.")
+
+    def update_user_password(self, user_id: str, new_password_hash: str) -> bool:
+        return False
 
 
 # Global singleton repository
@@ -395,11 +487,12 @@ def _seed_default_test_fixtures(repo: InMemoryIdentityRepository) -> None:
             ],
             "is_active": True,
         },
-        # 10. Student: Strictly self scope
+        # 10. Student: Strictly self scope (linked to seeded student 1: Deepak Kumar, 22CSEA001)
         {
             "user_id": "00000000-0000-0000-0000-000000000010",
             "username": "test_student_1",
             "email": "221fa04001@vignan.ac.in",
+            "person_id": "a6300000-0020-4000-8000-000000000001",
             "scoped_roles": [
                 ScopedRoleAssignment(
                     role="STUDENT",
@@ -409,11 +502,12 @@ def _seed_default_test_fixtures(repo: InMemoryIdentityRepository) -> None:
             ],
             "is_active": True,
         },
-        # 11. Student 2: Different student self scope
+        # 11. Student 2: Different student self scope (linked to seeded student 2: Manish Gupta, 22CSEB001)
         {
             "user_id": "00000000-0000-0000-0000-000000000011",
             "username": "test_student_2",
             "email": "221fa04002@vignan.ac.in",
+            "person_id": "a6300000-0020-4000-8000-000000000002",
             "scoped_roles": [
                 ScopedRoleAssignment(
                     role="STUDENT",
@@ -423,13 +517,19 @@ def _seed_default_test_fixtures(repo: InMemoryIdentityRepository) -> None:
             ],
             "is_active": True,
         },
-        # 12. Counsellor: Medical/confidential scope (quarantined from analytics)
+        # 12. Counsellor: Mentee-scoped counselling support (attendance/assessment for assigned mentees only)
+        # person_id links to the faculty record used as mentor_faculty_id in studentlife.mentorship
         {
             "user_id": "00000000-0000-0000-0000-000000000012",
             "username": "test_counsellor",
             "email": "counsellor@vignan.ac.in",
+            "person_id": "a6300000-0011-4000-8000-000000000001",  # Dr. Ramesh Kumar, faculty-001
             "scoped_roles": [
-                ScopedRoleAssignment(role="COUNSELLOR", scope_type=ScopeType.SELF)
+                ScopedRoleAssignment(
+                    role="COUNSELLOR",
+                    scope_type=ScopeType.SELF,
+                    scope_id="a6300000-0011-4000-8000-000000000001",
+                )
             ],
             "is_active": True,
         },
@@ -443,6 +543,16 @@ def _seed_default_test_fixtures(repo: InMemoryIdentityRepository) -> None:
             ],
             "is_active": False,
         },
+        # 14. Management: Executive institutional leadership (DEVELOPMENT/TEST ONLY)
+        {
+            "user_id": "00000000-0000-0000-0000-000000000014",
+            "username": "test_management",
+            "email": "management@vignan.ac.in",
+            "scoped_roles": [
+                ScopedRoleAssignment(role="MANAGEMENT", scope_type=ScopeType.INSTITUTION)
+            ],
+            "is_active": True,
+        },
     ]
 
     for f in fixtures:
@@ -452,5 +562,6 @@ def _seed_default_test_fixtures(repo: InMemoryIdentityRepository) -> None:
             email=f["email"],
             password_hash=default_hash,
             scoped_roles=f["scoped_roles"],
+            person_id=f.get("person_id"),
             is_active=f["is_active"],
         )

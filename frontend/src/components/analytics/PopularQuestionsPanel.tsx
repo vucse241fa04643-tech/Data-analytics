@@ -19,8 +19,22 @@ export const PopularQuestionsPanel: React.FC<PopularQuestionsPanelProps> = ({
   const fetchPopular = async () => {
     setIsLoading(true);
     try {
-      const results = await apiService.getPopularQuestions(6);
-      setPopularQuestions(results);
+      const results = await apiService.getPopularQuestions(12);
+      // Deduplicate entries using metric/query identity while preserving aggregated privacy-safe behavior
+      const seen = new Map<string, PopularQuestion>();
+      for (const q of results) {
+        const key = `${q.metric_id}|${q.dimension_signature || ''}|${q.query_type || ''}|${(q.label || '').trim().toLowerCase()}`;
+        if (!seen.has(key)) {
+          seen.set(key, { ...q });
+        } else {
+          const existing = seen.get(key)!;
+          existing.count += q.count;
+          if (q.last_seen && (!existing.last_seen || q.last_seen > existing.last_seen)) {
+            existing.last_seen = q.last_seen;
+          }
+        }
+      }
+      setPopularQuestions(Array.from(seen.values()).slice(0, 6));
     } catch {
       setPopularQuestions([]);
     } finally {

@@ -17,6 +17,11 @@ import {
   PopularQuestion,
   ExportFormat,
   VerificationResult,
+  SignUpPayload,
+  CreateAccountPayload,
+  ForgotPasswordPayload,
+  AuthMessageResponse,
+  DepartmentItem,
 } from '../types';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
@@ -148,6 +153,140 @@ class ApiService {
     } catch (err: any) {
       if (err instanceof ApiError) throw err;
       throw new ApiError('Network error during authentication.', 0);
+    }
+  }
+
+  /**
+   * Self-service institutional registration.
+   * Target: POST /api/v1/auth/signup
+   */
+  async signup(payload: SignUpPayload): Promise<AuthMessageResponse> {
+    try {
+      const response = await fetch(`${this.baseUrl}/api/v1/auth/signup`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
+        body: JSON.stringify(payload),
+      });
+
+      if (!response.ok) {
+        let msg = 'Registration failed. Please check your inputs.';
+        try {
+          const body = await response.json();
+          if (body?.error?.message) {
+            msg = body.error.message;
+          } else if (body?.detail) {
+            msg = typeof body.detail === 'string' ? body.detail : msg;
+          }
+        } catch {
+          // ignore parse errors
+        }
+        throw new ApiError(msg, response.status);
+      }
+
+      return response.json();
+    } catch (err: any) {
+      if (err instanceof ApiError) throw err;
+      throw new ApiError('Network error during registration.', 0);
+    }
+  }
+
+  /**
+   * Institutional account creation with role selection.
+   * Target: POST /api/v1/auth/create-account
+   */
+  async createAccount(payload: CreateAccountPayload): Promise<AuthMessageResponse> {
+    try {
+      const response = await fetch(`${this.baseUrl}/api/v1/auth/create-account`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
+        body: JSON.stringify(payload),
+      });
+
+      if (!response.ok) {
+        let msg = 'Account creation failed. Please check your inputs.';
+        try {
+          const body = await response.json();
+          if (body?.error?.message) {
+            msg = body.error.message;
+          } else if (body?.detail) {
+            msg = typeof body.detail === 'string' ? body.detail : msg;
+          }
+        } catch {
+          // ignore parse errors
+        }
+        throw new ApiError(msg, response.status);
+      }
+
+      return response.json();
+    } catch (err: any) {
+      if (err instanceof ApiError) throw err;
+      throw new ApiError('Network error during account creation.', 0);
+    }
+  }
+
+  /**
+   * Submits a password reset request.
+   * Target: POST /api/v1/auth/forgot-password
+   */
+  async forgotPassword(payload: ForgotPasswordPayload): Promise<AuthMessageResponse> {
+    try {
+      const response = await fetch(`${this.baseUrl}/api/v1/auth/forgot-password`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
+        body: JSON.stringify(payload),
+      });
+
+      if (!response.ok) {
+        let msg = 'Failed to submit password reset request.';
+        try {
+          const body = await response.json();
+          if (body?.error?.message) {
+            msg = body.error.message;
+          } else if (body?.detail) {
+            msg = typeof body.detail === 'string' ? body.detail : msg;
+          }
+        } catch {
+          // ignore parse errors
+        }
+        throw new ApiError(msg, response.status);
+      }
+
+      return response.json();
+    } catch (err: any) {
+      if (err instanceof ApiError) throw err;
+      throw new ApiError('Network error during password reset request.', 0);
+    }
+  }
+
+  /**
+   * Retrieves authoritative college departments.
+   * Target: GET /api/v1/auth/departments
+   */
+  async getDepartments(): Promise<DepartmentItem[]> {
+    try {
+      const response = await fetch(`${this.baseUrl}/api/v1/auth/departments`, {
+        method: 'GET',
+        headers: {
+          'Accept': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        return [];
+      }
+
+      return response.json();
+    } catch {
+      return [];
     }
   }
 

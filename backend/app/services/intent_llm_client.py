@@ -106,9 +106,27 @@ def build_groq_strict_json_schema() -> Dict[str, Any]:
                 "type": "object",
                 "description": "Verified dimensional filtering key-value constraints",
                 "properties": {
-                    "department": {"anyOf": [{"type": "string"}, {"type": "null"}]},
-                    "department_code": {"anyOf": [{"type": "string"}, {"type": "null"}]},
-                    "department_id": {"anyOf": [{"type": "string"}, {"type": "null"}]},
+                    "department": {
+                        "anyOf": [
+                            {"type": "string"},
+                            {"type": "array", "items": {"type": "string"}},
+                            {"type": "null"},
+                        ]
+                    },
+                    "department_code": {
+                        "anyOf": [
+                            {"type": "string"},
+                            {"type": "array", "items": {"type": "string"}},
+                            {"type": "null"},
+                        ]
+                    },
+                    "department_id": {
+                        "anyOf": [
+                            {"type": "string"},
+                            {"type": "array", "items": {"type": "string"}},
+                            {"type": "null"},
+                        ]
+                    },
                     "academic_year": {"anyOf": [{"type": "string"}, {"type": "null"}]},
                     "programme": {"anyOf": [{"type": "string"}, {"type": "null"}]},
                     "programme_code": {"anyOf": [{"type": "string"}, {"type": "null"}]},
@@ -320,6 +338,16 @@ class GroqIntentClient(IntentLLMClient):
         except groq.InternalServerError as srv_err:
             logger.error(f"Groq upstream internal server error: {type(srv_err).__name__}")
             raise GroqError("Agent 63's intent service upstream provider is temporarily unavailable.")
+        except groq.BadRequestError as bad_req:
+            logger.warning(f"Groq provider bad request / schema validation failure: {str(bad_req)}")
+            return StructuredIntent(
+                intent_type=IntentType.CLARIFICATION_NEEDED,
+                primary_metric_id=None,
+                reasoning_summary="Natural language query could not be translated into a valid analytical intent.",
+                clarification_questions=[
+                    "Could you please rephrase your request or specify the metric or department you wish to analyze?"
+                ],
+            )
         except TimeoutError:
             logger.error(f"Groq API request exceeded timeout of {self._timeout_seconds}s")
             raise GroqTimeoutError(f"Groq request exceeded configured timeout of {self._timeout_seconds}s.")

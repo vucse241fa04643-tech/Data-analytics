@@ -93,6 +93,18 @@ class AuthorizationError(AppException):
         )
 
 
+class RegistrationError(AppException):
+    """Raised when institutional self-registration or account creation fails validation."""
+    def __init__(self, message: str = "Registration failed.", details: Optional[Dict[str, Any]] = None):
+        super().__init__(
+            code="REGISTRATION_FAILED",
+            message=message,
+            status_code=status.HTTP_400_BAD_REQUEST,
+            details=details,
+        )
+
+
+
 class ServiceUnavailableError(AppException):
     def __init__(self, message: str = "Service unavailable.", details: Optional[Dict[str, Any]] = None):
         super().__init__(

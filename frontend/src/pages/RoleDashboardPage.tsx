@@ -12,6 +12,8 @@ import { BarChartCard } from '../components/analytics/BarChartCard';
 import { LineChartCard } from '../components/analytics/LineChartCard';
 import { ResultTableView } from '../components/analytics/ResultTableView';
 import { AnomalyInsightCard } from '../components/analytics/AnomalyInsightCard';
+import { useAuth } from '../context/AuthContext';
+import { formatScopeDisplay } from '../utils/formatters';
 import {
   RefreshCw,
   Calendar,
@@ -25,6 +27,7 @@ import {
 } from 'lucide-react';
 
 export const RoleDashboardPage: React.FC = () => {
+  const { user } = useAuth();
   const [catalog, setCatalog] = useState<DashboardCatalogItem[]>([]);
   const [activeDashboardId, setActiveDashboardId] = useState<string | null>(null);
   const [dashboard, setDashboard] = useState<DashboardResponse | null>(null);
@@ -187,7 +190,7 @@ export const RoleDashboardPage: React.FC = () => {
                   fontWeight: 600,
                 }}
               >
-                {dashboard.scope.display}
+                {formatScopeDisplay(dashboard.scope.display, user?.roles, dashboard.scope.scope_type)}
               </span>
             )}
           </div>

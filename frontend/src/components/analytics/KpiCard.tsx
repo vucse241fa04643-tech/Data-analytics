@@ -3,6 +3,8 @@ import { Card } from '../ui/Card';
 import { StatusBadge } from '../common/StatusBadge';
 import { CheckCircle2 } from 'lucide-react';
 
+import { formatMetricUnit, isCtcMetric, formatCtcNumber } from '../../utils/formatters';
+
 interface KpiCardProps {
   title: string;
   value: number | string;
@@ -18,27 +20,23 @@ export const KpiCard: React.FC<KpiCardProps> = ({
   description,
   subtitle,
 }) => {
-  // Format unit symbol cleanly
-  const formatUnit = (u?: string | null) => {
-    if (!u) return '';
-    const clean = u.trim().toLowerCase();
-    if (clean === 'percentage' || clean === 'percent' || clean === '%') return '%';
-    if (clean === 'count' || clean === 'integer' || clean === 'number' || clean === 'none') return '';
-    if (clean === 'students') return ' students';
-    if (clean === 'marks') return ' marks';
-    if (clean === 'credits') return ' credits';
-    if (clean === 'cgpa') return ' CGPA';
-    if (clean === 'lpa') return ' LPA';
-    return ` ${u}`;
-  };
+  const isCtc = isCtcMetric(unit, title);
+  let formattedValue: string;
+  let formattedUnit: string;
 
-  const formattedUnit = formatUnit(unit);
-  const formattedValue =
-    typeof value === 'number'
-      ? Number.isInteger(value)
-        ? value.toLocaleString()
-        : Number(value.toFixed(2)).toString()
-      : String(value);
+  if (isCtc) {
+    const ctc = formatCtcNumber(value);
+    formattedValue = ctc.numStr;
+    formattedUnit = ' lakh/year';
+  } else {
+    formattedUnit = formatMetricUnit(unit);
+    formattedValue =
+      typeof value === 'number'
+        ? Number.isInteger(value)
+          ? value.toLocaleString()
+          : Number(value.toFixed(2)).toString()
+        : String(value);
+  }
 
   return (
     <Card

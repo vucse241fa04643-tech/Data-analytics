@@ -388,7 +388,17 @@ class QueryLoggingService:
                 if event.scope_id not in allowed_dept_ids:
                     return False
 
+        # COUNSELLOR mentee-scope enforcement:
+        # Counsellors can only see popular patterns from SELF-scoped queries (mentee-level).
+        # Institution-wide or department-level events are hidden from counsellors.
+        if principal.has_role("COUNSELLOR") and not principal.has_any_role(
+            "PRINCIPAL", "HOD", "DEAN", "IQAC", "CAMPUS_ADMIN"
+        ):
+            if event.scope_type and event.scope_type != ScopeType.SELF.value:
+                return False
+
         return True
+
 
     def _is_metric_authorized(
         self, metric_id: str, principal: AuthenticatedPrincipal

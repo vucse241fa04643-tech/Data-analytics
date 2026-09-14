@@ -1,11 +1,11 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import styles from './Header.module.css';
 import { InstitutionLogo } from '../branding/InstitutionLogo';
 import { AccreditationBadges } from '../branding/AccreditationBadges';
 import { StatusBadge } from '../common/StatusBadge';
 import { useBackendHealth } from '../../hooks/useBackendHealth';
-import { apiService } from '../../services/api';
-import { UserProfileResponse } from '../../types';
+import { useAuth } from '../../context/AuthContext';
 import { APP_PHASE } from '../../constants/phases';
 import { Menu, User, ShieldCheck, LogOut, KeyRound } from 'lucide-react';
 
@@ -15,64 +15,14 @@ export interface HeaderProps {
 
 export const Header: React.FC<HeaderProps> = ({ onToggleSidebar }) => {
   const { connectionState } = useBackendHealth();
-  const [userProfile, setUserProfile] = useState<UserProfileResponse | null>(null);
-  const [showAuthModal, setShowAuthModal] = useState(false);
-  const [usernameInput, setUsernameInput] = useState('');
-  const [passwordInput, setPasswordInput] = useState('');
-  const [authError, setAuthError] = useState<string | null>(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-
-  const loadUserProfile = async () => {
-    try {
-      const profile = await apiService.getCurrentUser();
-      setUserProfile(profile);
-    } catch {
-      setUserProfile(null);
-    }
-  };
-
-  useEffect(() => {
-    loadUserProfile();
-
-    const handleAuthChange = () => {
-      loadUserProfile();
-    };
-
-    const handleOpenAuth = () => {
-      setShowAuthModal(true);
-    };
-
-    window.addEventListener('agent63_auth_change', handleAuthChange);
-    window.addEventListener('agent63_open_auth', handleOpenAuth);
-    return () => {
-      window.removeEventListener('agent63_auth_change', handleAuthChange);
-      window.removeEventListener('agent63_open_auth', handleOpenAuth);
-    };
-  }, []);
-
-  const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setAuthError(null);
-    setIsSubmitting(true);
-    try {
-      await apiService.login(usernameInput, passwordInput);
-      await loadUserProfile();
-      window.dispatchEvent(new Event('agent63_auth_change'));
-      setShowAuthModal(false);
-      setUsernameInput('');
-      setPasswordInput('');
-    } catch (err: any) {
-      setAuthError(err.message || 'Authentication failed. Please verify credentials.');
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
+  const { user: userProfile, logout } = useAuth();
+  const navigate = useNavigate();
+  const [showProfileModal, setShowProfileModal] = useState(false);
 
   const handleLogout = async () => {
-    await apiService.logout();
-    setUserProfile(null);
-    window.dispatchEvent(new Event('agent63_auth_change'));
-    setShowAuthModal(false);
+    await logout();
+    setShowProfileModal(false);
+    navigate('/login', { replace: true });
   };
 
   const getStatusBadge = () => {
@@ -130,7 +80,7 @@ export const Header: React.FC<HeaderProps> = ({ onToggleSidebar }) => {
           {getStatusBadge()}
         </div>
 
-        {/* Right: Accreditations & User Profile */}
+        {/* Right: Accreditations, User Profile, & Logout */}
         <div className={styles.rightSection}>
           <div className={styles.accreditationsWrapper}>
             <AccreditationBadges />
@@ -139,8 +89,8 @@ export const Header: React.FC<HeaderProps> = ({ onToggleSidebar }) => {
           <button
             type="button"
             className={styles.userPill}
-            onClick={() => setShowAuthModal(true)}
-            title={userProfile ? `Institutional User: ${userProfile.username}` : 'Manage Institutional Authentication'}
+            onClick={() => setShowProfileModal(true)}
+            title={userProfile ? `Institutional User: ${userProfile.username} (${userProfile.roles.join(', ')})` : 'Institutional Identity'}
             style={{ cursor: 'pointer', background: 'none', border: '1px solid var(--color-border-subtle)', textAlign: 'left' }}
             aria-label="Institutional User Profile and RBAC Status"
           >
@@ -150,20 +100,32 @@ export const Header: React.FC<HeaderProps> = ({ onToggleSidebar }) => {
                 {userProfile?.username || 'Institutional User'}
               </span>
               <span className={styles.userRole}>
-                {userProfile ? 'Authenticated • RBAC Active' : 'Authenticated • RBAC Active'}
+                {userProfile?.roles?.length ? `${userProfile.roles.join(', ')} • RBAC Active` : 'Authenticated • RBAC Active'}
               </span>
             </div>
             <ShieldCheck size={14} color="var(--color-brand-secondary)" />
           </button>
+
+          {/* Quick Sign Out Action */}
+          <button
+            type="button"
+            className={styles.logoutBtn}
+            onClick={handleLogout}
+            title="Sign out of Agent 63 session"
+            aria-label="Sign out of Agent 63 session"
+          >
+            <LogOut size={15} />
+            <span>Sign Out</span>
+          </button>
         </div>
       </header>
 
-      {/* Institutional Authentication Dialog */}
-      {showAuthModal && (
+      {/* Institutional User Profile Modal */}
+      {showProfileModal && (
         <div
           role="dialog"
           aria-modal="true"
-          aria-labelledby="auth-modal-title"
+          aria-labelledby="profile-modal-title"
           style={{
             position: 'fixed',
             top: 0,
@@ -177,7 +139,7 @@ export const Header: React.FC<HeaderProps> = ({ onToggleSidebar }) => {
             zIndex: 1000,
             backdropFilter: 'blur(2px)',
           }}
-          onClick={() => setShowAuthModal(false)}
+          onClick={() => setShowProfileModal(false)}
         >
           <div
             style={{
@@ -195,13 +157,13 @@ export const Header: React.FC<HeaderProps> = ({ onToggleSidebar }) => {
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 'var(--spacing-md)' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <KeyRound size={20} color="var(--color-brand-primary)" />
-                <h3 id="auth-modal-title" style={{ fontSize: 'var(--font-size-base)', fontWeight: 'var(--font-weight-semibold)', color: 'var(--color-text-primary)' }}>
-                  Institutional Authentication
+                <h3 id="profile-modal-title" style={{ fontSize: 'var(--font-size-base)', fontWeight: 'var(--font-weight-semibold)', color: 'var(--color-text-primary)' }}>
+                  Institutional Identity & Session
                 </h3>
               </div>
               <button
                 type="button"
-                onClick={() => setShowAuthModal(false)}
+                onClick={() => setShowProfileModal(false)}
                 style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '18px', color: 'var(--color-text-muted)' }}
                 aria-label="Close dialog"
               >
@@ -209,124 +171,52 @@ export const Header: React.FC<HeaderProps> = ({ onToggleSidebar }) => {
               </button>
             </div>
 
-            {userProfile ? (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                <div style={{ padding: '12px', backgroundColor: 'var(--color-bg-workspace)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--color-border-subtle)' }}>
-                  <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-muted)' }}>Authenticated User</div>
-                  <div style={{ fontSize: 'var(--font-size-sm)', fontWeight: 'var(--font-weight-bold)', color: 'var(--color-brand-primary)' }}>
-                    {userProfile.username}
-                  </div>
-                  <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-secondary)', marginTop: '4px' }}>
-                    Roles: {userProfile.roles.join(', ')}
-                  </div>
-                  <div style={{ fontSize: '11px', color: 'var(--color-brand-secondary)', marginTop: '4px' }}>
-                    RBAC Enforcement Boundary Active (Phase 5)
-                  </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+              <div style={{ padding: '12px', backgroundColor: 'var(--color-bg-workspace)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--color-border-subtle)' }}>
+                <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-muted)' }}>Authenticated Account</div>
+                <div style={{ fontSize: 'var(--font-size-sm)', fontWeight: 'var(--font-weight-bold)', color: 'var(--color-brand-primary)', marginTop: '2px' }}>
+                  {userProfile?.username || 'Authenticated Principal'}
                 </div>
-
-                <button
-                  type="button"
-                  onClick={handleLogout}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: '8px',
-                    padding: '10px',
-                    backgroundColor: 'var(--color-bg-surface)',
-                    border: '1px solid var(--color-border-strong)',
-                    borderRadius: 'var(--radius-sm)',
-                    fontSize: 'var(--font-size-sm)',
-                    color: 'var(--color-danger, #b91c1c)',
-                    cursor: 'pointer',
-                    fontWeight: 'var(--font-weight-medium)',
-                  }}
-                >
-                  <LogOut size={16} />
-                  Sign Out Session
-                </button>
-              </div>
-            ) : (
-              <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                <p style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-secondary)', margin: 0 }}>
-                  Enter your Vignan institutional credentials to authenticate your session and enable query intent analysis.
-                </p>
-
-                {authError && (
-                  <div style={{ padding: '8px 12px', backgroundColor: '#fef2f2', border: '1px solid #fecaca', borderRadius: 'var(--radius-sm)', fontSize: 'var(--font-size-xs)', color: '#b91c1c' }}>
-                    {authError}
+                {userProfile?.email && (
+                  <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-secondary)', marginTop: '2px' }}>
+                    {userProfile.email}
                   </div>
                 )}
-
-                <div>
-                  <label htmlFor="auth-username" style={{ display: 'block', fontSize: 'var(--font-size-xs)', fontWeight: 'var(--font-weight-medium)', marginBottom: '4px', color: 'var(--color-text-primary)' }}>
-                    Institutional Username
-                  </label>
-                  <input
-                    id="auth-username"
-                    type="text"
-                    required
-                    value={usernameInput}
-                    onChange={(e) => setUsernameInput(e.target.value)}
-                    placeholder="e.g. test_principal"
-                    style={{
-                      width: '100%',
-                      padding: '8px 12px',
-                      borderRadius: 'var(--radius-sm)',
-                      border: '1px solid var(--color-border-strong)',
-                      fontSize: 'var(--font-size-sm)',
-                      backgroundColor: 'var(--color-bg-surface)',
-                    }}
-                  />
+                <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-secondary)', marginTop: '6px' }}>
+                  <strong>Assigned Roles:</strong> {userProfile?.roles?.join(', ') || 'N/A'}
                 </div>
-
-                <div>
-                  <label htmlFor="auth-password" style={{ display: 'block', fontSize: 'var(--font-size-xs)', fontWeight: 'var(--font-weight-medium)', marginBottom: '4px', color: 'var(--color-text-primary)' }}>
-                    Password
-                  </label>
-                  <input
-                    id="auth-password"
-                    type="password"
-                    required
-                    value={passwordInput}
-                    onChange={(e) => setPasswordInput(e.target.value)}
-                    placeholder="••••••••"
-                    style={{
-                      width: '100%',
-                      padding: '8px 12px',
-                      borderRadius: 'var(--radius-sm)',
-                      border: '1px solid var(--color-border-strong)',
-                      fontSize: 'var(--font-size-sm)',
-                      backgroundColor: 'var(--color-bg-surface)',
-                    }}
-                  />
+                <div style={{ fontSize: '11px', color: 'var(--color-brand-secondary)', marginTop: '4px' }}>
+                  RBAC Enforcement Boundary Active (Server-side Authorized)
                 </div>
+              </div>
 
-                <div style={{ display: 'flex', gap: '8px', marginTop: '8px' }}>
-                  <button
-                    type="submit"
-                    disabled={isSubmitting}
-                    style={{
-                      width: '100%',
-                      padding: '10px',
-                      backgroundColor: 'var(--color-brand-primary)',
-                      color: '#ffffff',
-                      border: 'none',
-                      borderRadius: 'var(--radius-sm)',
-                      fontSize: 'var(--font-size-sm)',
-                      fontWeight: 'var(--font-weight-medium)',
-                      cursor: isSubmitting ? 'not-allowed' : 'pointer',
-                    }}
-                  >
-                    {isSubmitting ? 'Authenticating...' : 'Sign In'}
-                  </button>
-                </div>
-              </form>
-            )}
+              <button
+                type="button"
+                onClick={handleLogout}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '8px',
+                  padding: '10px',
+                  backgroundColor: 'var(--color-bg-surface)',
+                  border: '1px solid var(--color-danger-border)',
+                  borderRadius: 'var(--radius-sm)',
+                  fontSize: 'var(--font-size-sm)',
+                  color: 'var(--color-danger)',
+                  cursor: 'pointer',
+                  fontWeight: 'var(--font-weight-medium)',
+                  transition: 'all var(--transition-fast)',
+                }}
+              >
+                <LogOut size={16} />
+                Sign Out Session
+              </button>
+            </div>
           </div>
         </div>
       )}
     </>
   );
 };
-
+export default Header;

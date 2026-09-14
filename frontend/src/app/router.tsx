@@ -1,14 +1,24 @@
-import { createBrowserRouter } from 'react-router-dom';
+import { createBrowserRouter, Navigate } from 'react-router-dom';
 import { AppShell } from '../components/layout/AppShell';
+import { ProtectedRoute } from '../components/layout/ProtectedRoute';
 import { OverviewPage } from '../pages/OverviewPage';
 import { AgentPage } from '../pages/AgentPage';
 import { AnalyticsPage } from '../pages/AnalyticsPage';
 import { RoleDashboardPage } from '../pages/RoleDashboardPage';
+import { LoginPage } from '../pages/LoginPage';
 
 export const router = createBrowserRouter([
   {
+    path: '/login',
+    element: <LoginPage />,
+  },
+  {
     path: '/',
-    element: <AppShell />,
+    element: (
+      <ProtectedRoute>
+        <AppShell />
+      </ProtectedRoute>
+    ),
     children: [
       {
         index: true,
@@ -27,5 +37,9 @@ export const router = createBrowserRouter([
         element: <RoleDashboardPage />,
       },
     ],
+  },
+  {
+    path: '*',
+    element: <Navigate to="/" replace />,
   },
 ]);

@@ -21,6 +21,12 @@
   overflow-y: auto;
 }
 
+.mainContentExecutive {
+  padding: 0;
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
 @media (max-width: 1024px) {
   .mainContent {
     padding: var(--spacing-lg) var(--spacing-xl);

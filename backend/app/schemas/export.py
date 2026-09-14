@@ -48,6 +48,7 @@ class ExportFormat(str, Enum):
     """Supported analytical export serialization formats."""
     CSV = "csv"
     JSON = "json"
+    PDF = "pdf"
 
 
 class ExportRequest(BaseModel):
@@ -62,7 +63,7 @@ class ExportRequest(BaseModel):
     )
     format: ExportFormat = Field(
         default=ExportFormat.CSV,
-        description="Desired export file format (csv or json).",
+        description="Desired export file format (csv, json, or pdf).",
     )
 
 

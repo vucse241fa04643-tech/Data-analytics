@@ -49,7 +49,7 @@ export const StatusBar: React.FC = () => {
           </span>
         </div>
         <span className={styles.separator}>|</span>
-        <div className={styles.item} title="Authoritative Phase 1 Schema Registry">
+        <div className={styles.item} title="Authoritative Schema Registry">
           <Cpu size={13} />
           <span>
             Schema Registry:{' '}
