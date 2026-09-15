@@ -30,7 +30,6 @@ from backend.app.core.logging import get_logger
 from backend.app.schemas.principal import AuthenticatedPrincipal, ScopedRoleAssignment, ScopeType
 from backend.app.services.identity_repository import (
     IdentityRepository,
-    InMemoryIdentityRepository,
     get_identity_repository,
 )
 from backend.app.services.password import PasswordManager, get_password_manager
@@ -247,9 +246,9 @@ class AuthenticationService:
         clean_username = username.strip().lower()
         user_record = self._identity_repo.get_user_by_username(clean_username)
 
-        # In-memory repo credential check (or future DB credential table)
+        # Repository-based credential hash lookup
         stored_hash: Optional[str] = None
-        if user_record and isinstance(self._identity_repo, InMemoryIdentityRepository):
+        if user_record:
             stored_hash = self._identity_repo.get_credential_hash(user_record["user_id"])
 
         # Constant-time dummy verification if user not found to prevent timing enumeration

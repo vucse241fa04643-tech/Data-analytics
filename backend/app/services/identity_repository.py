@@ -125,6 +125,11 @@ class IdentityRepository(ABC):
         pass
 
     @abstractmethod
+    def get_credential_hash(self, user_id: str) -> Optional[str]:
+        """Retrieves stored password hash for internal verification only."""
+        pass
+
+    @abstractmethod
     def register_user(
         self,
         username: str,
@@ -302,6 +307,9 @@ class UnavailableIdentityRepository(IdentityRepository):
     def get_user_by_email(self, email: str) -> Optional[Dict[str, Any]]:
         return None
 
+    def get_credential_hash(self, user_id: str) -> Optional[str]:
+        return None
+
     def register_user(
         self,
         username: str,
@@ -317,6 +325,187 @@ class UnavailableIdentityRepository(IdentityRepository):
         return False
 
 
+class DatabaseIdentityRepository(IdentityRepository):
+    """
+    Production-safe database-backed implementation of IdentityRepository.
+    Directly queries identity.app_user, identity.user_role, identity.role,
+    and identity.auth_credential using CollegeDatabaseService.
+    """
+
+    def __init__(self, db_service: Optional[Any] = None):
+        self._db = db_service
+
+    @property
+    def db(self) -> Any:
+        if self._db is None:
+            from backend.app.services.database import college_database_service
+            self._db = college_database_service
+        return self._db
+
+    def get_user_by_username(self, username: str) -> Optional[Dict[str, Any]]:
+        sql = """
+        SELECT user_id, username, email, person_id, is_active, is_service_account
+        FROM identity.app_user
+        WHERE lower(username) = lower(:username)
+        LIMIT 1;
+        """
+        try:
+            _, rows, _, _ = self.db.execute_query(sql, {"username": username.strip()})
+            if not rows:
+                return None
+            row = rows[0]
+            return {
+                "user_id": str(row["user_id"]),
+                "username": row["username"],
+                "email": row["email"],
+                "person_id": str(row["person_id"]) if row.get("person_id") else None,
+                "is_active": bool(row["is_active"]),
+                "is_service_account": bool(row.get("is_service_account", False)),
+            }
+        except Exception as exc:
+            logger.error("Database user lookup failed for username '%s': %s", username, exc)
+            return None
+
+    def get_user_by_id(self, user_id: str) -> Optional[Dict[str, Any]]:
+        sql = """
+        SELECT user_id, username, email, person_id, is_active, is_service_account
+        FROM identity.app_user
+        WHERE user_id = :user_id::uuid
+        LIMIT 1;
+        """
+        try:
+            _, rows, _, _ = self.db.execute_query(sql, {"user_id": str(user_id)})
+            if not rows:
+                return None
+            row = rows[0]
+            return {
+                "user_id": str(row["user_id"]),
+                "username": row["username"],
+                "email": row["email"],
+                "person_id": str(row["person_id"]) if row.get("person_id") else None,
+                "is_active": bool(row["is_active"]),
+                "is_service_account": bool(row.get("is_service_account", False)),
+            }
+        except Exception as exc:
+            logger.error("Database user lookup failed for user_id '%s': %s", user_id, exc)
+            return None
+
+    def get_user_by_email(self, email: str) -> Optional[Dict[str, Any]]:
+        sql = """
+        SELECT user_id, username, email, person_id, is_active, is_service_account
+        FROM identity.app_user
+        WHERE lower(email) = lower(:email)
+        LIMIT 1;
+        """
+        try:
+            _, rows, _, _ = self.db.execute_query(sql, {"email": email.strip()})
+            if not rows:
+                return None
+            row = rows[0]
+            return {
+                "user_id": str(row["user_id"]),
+                "username": row["username"],
+                "email": row["email"],
+                "person_id": str(row["person_id"]) if row.get("person_id") else None,
+                "is_active": bool(row["is_active"]),
+                "is_service_account": bool(row.get("is_service_account", False)),
+            }
+        except Exception as exc:
+            logger.error("Database user lookup failed for email '%s': %s", email, exc)
+            return None
+
+    def get_scoped_roles(self, user_id: str) -> List[ScopedRoleAssignment]:
+        sql = """
+        SELECT r.code AS role_code, ur.scope_type, ur.scope_id
+        FROM identity.user_role ur
+        JOIN identity.role r ON ur.role_id = r.role_id
+        WHERE ur.user_id = :user_id::uuid
+          AND ur.valid_from <= CURRENT_DATE
+          AND (ur.valid_to IS NULL OR ur.valid_to >= CURRENT_DATE);
+        """
+        try:
+            _, rows, _, _ = self.db.execute_query(sql, {"user_id": str(user_id)})
+            scoped_roles: List[ScopedRoleAssignment] = []
+            for r in rows:
+                try:
+                    scope_type = ScopeType(r["scope_type"])
+                except ValueError:
+                    logger.warning("Unrecognized scope_type '%s' for user %s", r.get("scope_type"), user_id)
+                    continue
+                scoped_roles.append(
+                    ScopedRoleAssignment(
+                        role=r["role_code"],
+                        scope_type=scope_type,
+                        scope_id=str(r["scope_id"]) if r.get("scope_id") else None,
+                    )
+                )
+            return scoped_roles
+        except Exception as exc:
+            logger.error("Database scoped role lookup failed for user_id '%s': %s", user_id, exc)
+            return []
+
+    def resolve_principal(self, user_id: str) -> Optional[AuthenticatedPrincipal]:
+        user = self.get_user_by_id(user_id)
+        if not user:
+            return None
+
+        scoped_roles = self.get_scoped_roles(user_id)
+        role_codes = list({sr.role.upper() for sr in scoped_roles})
+
+        # Resolve complete permissions from authoritative role permissions map
+        permissions: Set[str] = set()
+        for role_code in role_codes:
+            perms = ROLE_PERMISSIONS_MAP.get(role_code, set())
+            permissions.update(perms)
+
+        return AuthenticatedPrincipal(
+            user_id=user["user_id"],
+            username=user["username"],
+            email=user["email"],
+            person_id=user.get("person_id"),
+            is_active=user["is_active"],
+            is_service_account=user.get("is_service_account", False),
+            roles=role_codes,
+            scoped_roles=scoped_roles,
+            permissions=permissions,
+        )
+
+    def get_credential_hash(self, user_id: str) -> Optional[str]:
+        sql = """
+        SELECT password_hash
+        FROM identity.auth_credential
+        WHERE user_id = :user_id::uuid
+        LIMIT 1;
+        """
+        try:
+            _, rows, _, _ = self.db.execute_query(sql, {"user_id": str(user_id)})
+            if rows and rows[0].get("password_hash"):
+                return str(rows[0]["password_hash"])
+        except Exception as exc:
+            logger.error("Database credential lookup failed for user_id '%s': %s", user_id, exc)
+        return None
+
+    def register_user(
+        self,
+        username: str,
+        email: str,
+        password_hash: str,
+        scoped_roles: List[ScopedRoleAssignment],
+        person_id: Optional[str] = None,
+        is_active: bool = True,
+    ) -> Dict[str, Any]:
+        raise NotImplementedError(
+            "Direct user registration is not supported through read-only CollegeDatabaseService. "
+            "Use the dedicated provisioning script."
+        )
+
+    def update_user_password(self, user_id: str, new_password_hash: str) -> bool:
+        raise NotImplementedError(
+            "Direct password update is not supported through read-only CollegeDatabaseService. "
+            "Use the dedicated provisioning script."
+        )
+
+
 # Global singleton repository
 _identity_repository: Optional[IdentityRepository] = None
 
@@ -328,22 +517,33 @@ def get_identity_repository() -> IdentityRepository:
     CRITICAL SECURITY INVARIANTS:
     1. Production runtime must NEVER silently use in-memory test fixtures.
     2. If APP_ENV == 'production' or ALLOW_TEST_FIXTURES is False:
-       Returns UnavailableIdentityRepository (fail-closed) unless a real college database
-       identity repository is explicitly configured and connected.
+       Returns DatabaseIdentityRepository if college database is configured.
+       Returns UnavailableIdentityRepository (fail-closed) if unconfigured or unavailable.
     3. Test suites may explicitly inject an InMemoryIdentityRepository using set_identity_repository().
+    4. If APP_ENV != 'production' and ALLOW_TEST_FIXTURES is True:
+       Falls back to InMemoryIdentityRepository with verified test fixtures for development and test isolation.
     """
     global _identity_repository
     if _identity_repository is not None:
         return _identity_repository
 
+    from backend.app.services.database import college_database_service
+
+    is_db_configured = settings.is_database_configured and college_database_service.is_configured()
+
     # In production or whenever test fixtures are disabled:
     if settings.APP_ENV == "production" or not settings.ALLOW_TEST_FIXTURES:
-        logger.warning(
-            "Production/fail-closed mode active (ALLOW_TEST_FIXTURES=False or APP_ENV=production). "
-            "Real college database identity provider is not configured. Failing closed."
-        )
-        _identity_repository = UnavailableIdentityRepository()
-        return _identity_repository
+        if is_db_configured:
+            logger.info("Initializing production DatabaseIdentityRepository connected to college database.")
+            _identity_repository = DatabaseIdentityRepository(college_database_service)
+            return _identity_repository
+        else:
+            logger.warning(
+                "Production/fail-closed mode active (ALLOW_TEST_FIXTURES=False or APP_ENV=production) "
+                "and college database is NOT configured. Failing closed."
+            )
+            _identity_repository = UnavailableIdentityRepository()
+            return _identity_repository
 
     # In-memory test fixtures ONLY allowable in explicit testing/development mode with ALLOW_TEST_FIXTURES=True
     logger.info("Initializing TEST-ONLY InMemoryIdentityRepository with non-production test fixtures.")

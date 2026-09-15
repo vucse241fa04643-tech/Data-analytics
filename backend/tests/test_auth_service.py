@@ -276,6 +276,7 @@ def test_production_configuration_rejects_test_fixtures(monkeypatch):
         AUTH_ENABLED=True,
         JWT_SECRET="production-cryptographically-secure-key-at-least-32-chars-ok",
         ALLOW_TEST_FIXTURES=False,
+        COLLEGE_DB_HOST="",
     )
     monkeypatch.setattr("backend.app.core.config.settings", prod_settings)
     monkeypatch.setattr("backend.app.services.identity_repository.settings", prod_settings)
