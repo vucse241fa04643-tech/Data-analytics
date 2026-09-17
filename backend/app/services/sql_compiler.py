@@ -120,7 +120,7 @@ BASE_OBJECT_RELATIONS: Dict[str, Dict[str, Any]] = {
             "student": (
                 "JOIN people.student s ON s.student_id = a.student_id",
                 ["people.student"],
-                ["student_id", "person_id"],
+                ["student_id", "person_id", "roll_no"],
             ),
         },
     },
@@ -507,6 +507,8 @@ DIMENSION_COL_MAP: Dict[str, Dict[str, str]] = {
     "dim.programme": {"select": "p.code AS programme", "group": "p.code", "join": "programme"},
     "section": {"select": "sec.code AS section", "group": "sec.code", "join": "section"},
     "dim.section": {"select": "sec.code AS section", "group": "sec.code", "join": "section"},
+    "student": {"select": "s.roll_no AS student", "group": "s.roll_no", "join": "student"},
+    "dim.student": {"select": "s.roll_no AS student", "group": "s.roll_no", "join": "student"},
 }
 
 

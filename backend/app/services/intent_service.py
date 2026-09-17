@@ -488,6 +488,7 @@ Output:
             re.search(r"\b(subject[- ]wise|course[- ]wise|by subject|by course)\b", msg_lower)
             or re.search(r"\battendance\s+(by|per|for each|across)\s+(subject|course)s?\b", msg_lower)
             or re.search(r"\b(subject|course)s?\s+attendance\b", msg_lower)
+            or re.search(r"\b(details?|breakdown)\b", msg_lower)
         )
         if is_subject_wise:
             return StructuredIntent(
@@ -1256,7 +1257,59 @@ Output:
 
         # 5. General Mentee attendance queries (all assigned mentees)
         if is_attendance:
-            # Subject-wise mentee attendance
+            # 5a. Count of students below threshold / shortage count:
+            # "How many of my students have attendance below 75%?", "How many of my students are below 75%?"
+            is_count = bool(re.search(r"\b(how many|count|number of)\b", msg_lower))
+            is_below = bool(re.search(r"\b(below|under|<|less than|shortage|short of|poor|low)\b", msg_lower))
+            if is_count and is_below:
+                return StructuredIntent(
+                    intent_type=IntentType.DIRECT_METRIC,
+                    metric_id="attendance.shortage_count",
+                    primary_metric_id="attendance.shortage_count",
+                    filters={},
+                    reasoning_summary="Counsellor requests count of assigned mentees with attendance shortage below 75%.",
+                )
+
+            # 5b. Highest / Lowest student attendance ranking:
+            # "Who has the lowest attendance among my students?"
+            is_ranking = bool(re.search(r"\b(lowest|highest|top|bottom|worst|best|min|max|least|most)\b", msg_lower))
+            if is_ranking:
+                order_dir = "asc" if any(w in msg_lower for w in ["lowest", "bottom", "worst", "min", "least"]) else "desc"
+                return StructuredIntent(
+                    intent_type=IntentType.RANKING_QUERY,
+                    metric_id="attendance.percentage",
+                    primary_metric_id="attendance.percentage",
+                    dimensions=["student"],
+                    filters={"limit": 1, "order": order_dir},
+                    order=order_dir,
+                    limit=1,
+                    reasoning_summary=f"Counsellor requests student with {order_dir} attendance.",
+                )
+
+            # 5c. Filtered list of students below threshold:
+            # "Which of my students have attendance below 75%?"
+            below_match = re.search(r"\b(?:below|under|<|less than)\s*(\d+(?:\.\d+)?)\s*%?\b", msg_lower)
+            is_shortage_list = bool(
+                below_match
+                or (
+                    re.search(r"\b(which|who|list|show|give me|find|display|get)\b", msg_lower)
+                    and re.search(r"\b(shortage|short of attendance|low attendance)\b", msg_lower)
+                )
+            )
+            if is_shortage_list:
+                th_val = float(below_match.group(1)) if below_match else 75.0
+                return StructuredIntent(
+                    intent_type=IntentType.THRESHOLD_QUERY,
+                    metric_id="attendance.percentage",
+                    primary_metric_id="attendance.percentage",
+                    dimensions=["student"],
+                    threshold=th_val,
+                    operator="<",
+                    filters={"threshold": th_val},
+                    reasoning_summary=f"Counsellor requests students with attendance below {th_val}%.",
+                )
+
+            # 5d. Subject-wise mentee attendance
             is_subject_wise = bool(
                 re.search(r"\b(subject[- ]wise|course[- ]wise|by subject|by course)\b", msg_lower)
             )
@@ -1269,7 +1322,28 @@ Output:
                     filters={},
                     reasoning_summary="Counsellor requests subject-wise attendance for assigned mentees.",
                 )
-            # Overall mentee attendance
+
+            # 5e. Student-level attendance breakdown / details:
+            # "Show my students with their attendance percentage.", "List my students with their attendance percentage.",
+            # "Give me the attendance details of my assigned students.", "Give me attendance details of my assigned students."
+            is_student_level = bool(
+                re.search(r"\b(student[- ]wise|per student|each student|every student)\b", msg_lower)
+                or re.search(r"\b(with (?:their )?attendance)\b", msg_lower)
+                or re.search(r"\b(?:attendance\s+details?|details?\s+of\s+.*attendance|details?\s+of\s+my\s+(?:assigned\s+)?students?)\b", msg_lower)
+                or re.search(r"\b(list|show)\s+(?:my\s+)?(?:assigned\s+)?students?\s+with\b", msg_lower)
+            )
+            if is_student_level:
+                return StructuredIntent(
+                    intent_type=IntentType.BREAKDOWN_QUERY,
+                    metric_id="attendance.percentage",
+                    primary_metric_id="attendance.percentage",
+                    dimensions=["student"],
+                    filters={},
+                    reasoning_summary="Counsellor requests student-level attendance breakdown for assigned mentees.",
+                )
+
+            # 5f. Overall mentee attendance:
+            # "What is the average attendance of my students?"
             return StructuredIntent(
                 intent_type=IntentType.METRIC_QUERY,
                 metric_id="attendance.percentage",
