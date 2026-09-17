@@ -168,9 +168,11 @@ class CollegeDatabaseService:
         parameters: Optional[Dict[str, Any]] = None,
         limit: Optional[int] = None,
         statement_timeout_ms: Optional[int] = None,
+        session_context: Optional[Dict[str, str]] = None,
     ) -> Tuple[List[str], List[Dict[str, Any]], Dict[str, str], float]:
         """
         Executes a validated read-only SQL query with parameters, statement timeout, and result limits.
+        Optionally establishes transaction-local PostgreSQL session settings for RLS policies.
 
         Returns:
             Tuple of:
@@ -203,6 +205,15 @@ class CollegeDatabaseService:
                     cur.execute("SET SESSION CHARACTERISTICS AS TRANSACTION READ ONLY;")
                     # Set PostgreSQL statement timeout
                     cur.execute(f"SET statement_timeout = {int(timeout)};")
+
+                    # Establish transaction-local session settings for Row Level Security (RLS)
+                    if session_context:
+                        for setting_name, setting_val in session_context.items():
+                            if setting_val is not None:
+                                cur.execute(
+                                    "SELECT set_config(%s, %s, true);",
+                                    (str(setting_name), str(setting_val)),
+                                )
 
                     # Execute parameterized query
                     cur.execute(native_sql, effective_params)

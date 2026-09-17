@@ -440,7 +440,7 @@ APPROVED_METRIC_FORMULAS: Dict[str, Dict[str, str]] = {
         "base_table": "attendance.v_current_attendance",
     },
     "attendance.shortage_count": {
-        "formula": "count(DISTINCT a.student_id) FILTER (WHERE a.band = 'SHORTAGE')",
+        "formula": "count(DISTINCT a.student_id) FILTER (WHERE a.band <> 'GTE_75' OR a.band = 'SHORTAGE' OR a.adjusted_pct < 75.0)",
         "base_table": "attendance.v_current_attendance",
     },
     "outcomes.co_attainment_level": {

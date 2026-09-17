@@ -20,6 +20,7 @@ from backend.app.schemas.query_result import QueryResult, QueryResultStatus
 from backend.app.schemas.sql_artifact import SQLArtifact
 from backend.app.services.audit import AuditAction, AuthAuditEvent, get_audit_service
 from backend.app.services.database import college_database_service
+from backend.app.services.identity_resolution import get_identity_resolution_service
 from backend.app.services.result_validator import result_validator
 from backend.app.services.sql_validator import get_sql_validator
 
@@ -40,6 +41,7 @@ class ExecutionService:
         self._validator = result_validator
         self._sql_validator = get_sql_validator()
         self._audit = get_audit_service()
+        self._identity_resolver = get_identity_resolution_service(db_service=self._db_service)
 
     def validate_artifact_pre_execution(self, artifact: SQLArtifact) -> None:
         """
@@ -78,7 +80,7 @@ class ExecutionService:
     def execute_artifact(
         self,
         artifact: SQLArtifact,
-        principal: Optional[UserPrincipal] = None,
+        principal: Optional[AuthenticatedPrincipal] = None,
     ) -> QueryResult:
         """
         Executes a pre-validated SQLArtifact against the institutional database.
@@ -104,12 +106,16 @@ class ExecutionService:
         username = principal.username if principal else "system"
 
         try:
-            # Step 3: Read-only execution
+            # Step 3: Build session context for PostgreSQL Row Level Security (RLS)
+            session_context = self._identity_resolver.build_session_context(principal)
+
+            # Step 4: Read-only execution with active RLS session settings
             columns, raw_rows, data_types, exec_time_ms = self._db_service.execute_query(
                 sql=artifact.sql,
                 parameters=artifact.parameters,
                 limit=artifact.limit,
                 statement_timeout_ms=settings.COLLEGE_DB_STATEMENT_TIMEOUT,
+                session_context=session_context,
             )
 
             # Step 4: Result validation and normalization
