@@ -65,16 +65,18 @@ def normalize_department_scope(scope_id: Any) -> Tuple[str, str]:
         'dept-ece-002' -> ('auth_department_code', 'ECE')
         'dept-mech-004' -> ('auth_department_code', 'MECH')
         'CSE' -> ('auth_department_code', 'CSE')
+        'cse department' -> ('auth_department_code', 'CSE')
         'a6300000-0003-4000-8000-000000000001' -> ('auth_department_id', 'a6300000-0003-4000-8000-000000000001')
     """
     scope_str = str(scope_id).strip()
     if len(scope_str) == 36 and scope_str.count("-") == 4:
         return ("auth_department_id", scope_str)
-    if scope_str.lower().startswith("dept-"):
-        parts = scope_str.split("-")
+    cleaned = re.sub(r"\s+(department|dept)$", "", scope_str, flags=re.IGNORECASE).strip()
+    if cleaned.lower().startswith("dept-"):
+        parts = cleaned.split("-")
         if len(parts) >= 2:
             return ("auth_department_code", parts[1].upper())
-    return ("auth_department_code", scope_str.upper())
+    return ("auth_department_code", cleaned.upper())
 
 
 # -------------------------------------------------------------------------
@@ -815,8 +817,10 @@ class SQLCompiler:
                 requested_list = user_dept if isinstance(user_dept, list) else [user_dept]
                 for req in requested_list:
                     req_clean = str(req).strip()
+                    is_self_dept = req_clean.lower() in ("my department", "our department", "my dept", "self", "department")
+                    is_id_match = bool(hod_dept and hod_dept[0] and (req_clean.lower() == str(hod_dept[0]).lower()))
                     _, req_code = normalize_department_scope(req_clean)
-                    if req_code.upper() != auth_code and req_clean.lower() != auth_name:
+                    if not is_self_dept and not is_id_match and req_code.upper() != auth_code and req_clean.lower() != auth_name:
                         raise SQLAuthorizationError(
                             f"HOD authorization scope violation: department '{req}' is outside assigned scope."
                         )

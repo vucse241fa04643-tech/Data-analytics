@@ -367,3 +367,95 @@ def test_20_bug_1_students_with_low_attendance_controlled_rejection(hod_cse_user
     assert resp.status == IntentValidationStatus.REJECTED
     assert resp.clarification_questions == []
     assert "REVIEW_REQUIRED" in resp.message
+
+
+def test_21_hod_attendance_my_department_authorized(hod_cse_user, compiler):
+    """Verifies HOD querying 'What is the average attendance in my department?' is authorized (200)."""
+    service = get_intent_service()
+    req = IntentRequest(message="What is the average attendance in my department?")
+    resp = service.interpret_intent(req, principal=hod_cse_user)
+    assert resp.status == IntentValidationStatus.VALID
+    assert resp.intent is not None
+    assert resp.intent.metric_id == "attendance.percentage"
+    artifact = compiler.compile(resp.intent, principal=hod_cse_user)
+    res = execution_service.execute_artifact(artifact, principal=hod_cse_user)
+    assert res.row_count == 1
+    assert float(res.rows[0]["metric_value"]) == pytest.approx(82.02, 0.1)
+
+
+def test_22_hod_attendance_explicit_department_authorized(hod_cse_user, compiler):
+    """Verifies HOD querying 'What is the average attendance in cse department?' is authorized (200)."""
+    service = get_intent_service()
+    req = IntentRequest(message="What is the average attendance in cse department?")
+    resp = service.interpret_intent(req, principal=hod_cse_user)
+    assert resp.status == IntentValidationStatus.VALID
+    assert resp.intent is not None
+    assert resp.intent.metric_id == "attendance.percentage"
+    artifact = compiler.compile(resp.intent, principal=hod_cse_user)
+    res = execution_service.execute_artifact(artifact, principal=hod_cse_user)
+    assert res.row_count == 1
+    assert float(res.rows[0]["metric_value"]) == pytest.approx(82.02, 0.1)
+
+
+def test_23_hod_attendance_different_department_remains_403(hod_cse_user):
+    """Verifies CSE HOD querying 'What is the average attendance in ece department?' remains 403 SCOPE_OUT_OF_BOUNDS."""
+    service = get_intent_service()
+    req = IntentRequest(message="What is the average attendance in ece department?")
+    resp = service.interpret_intent(req, principal=hod_cse_user)
+    assert resp.status == IntentValidationStatus.REJECTED
+    assert "HOD scope violation" in resp.message or "outside assigned scope" in resp.message
+
+
+def test_24_hod_attendance_institution_wide_remains_403(hod_cse_user):
+    """Verifies CSE HOD querying 'What is the average attendance across the institution?' remains 403 SCOPE_OUT_OF_BOUNDS."""
+    service = get_intent_service()
+    req = IntentRequest(message="What is the average attendance across the institution?")
+    resp = service.interpret_intent(req, principal=hod_cse_user)
+    assert resp.status == IntentValidationStatus.REJECTED
+    assert "HOD scope violation" in resp.message or "restricted to department-level" in resp.message
+
+
+def test_25_hod_uuid_database_principal_attendance_authorized(compiler):
+    """Verifies production DatabaseIdentityRepository principal with database UUID scope is authorized."""
+    from backend.app.services.identity_repository import DatabaseIdentityRepository
+    db_repo = DatabaseIdentityRepository()
+    user = db_repo.get_user_by_username("test_hod_cse")
+    if not user:
+        pytest.skip("DatabaseIdentityRepository test_hod_cse not provisioned locally")
+    principal = db_repo.resolve_principal(user["user_id"])
+    service = get_intent_service()
+
+    # 1. My department
+    req1 = IntentRequest(message="What is the average attendance in my department?")
+    resp1 = service.interpret_intent(req1, principal=principal)
+    assert resp1.status == IntentValidationStatus.VALID
+    art1 = compiler.compile(resp1.intent, principal=principal)
+    res1 = execution_service.execute_artifact(art1, principal=principal)
+    assert res1.row_count == 1
+    assert float(res1.rows[0]["metric_value"]) == pytest.approx(82.02, 0.1)
+
+    # 2. Explicit cse department
+    req2 = IntentRequest(message="What is the average attendance in cse department?")
+    resp2 = service.interpret_intent(req2, principal=principal)
+    assert resp2.status == IntentValidationStatus.VALID
+    art2 = compiler.compile(resp2.intent, principal=principal)
+    res2 = execution_service.execute_artifact(art2, principal=principal)
+    assert res2.row_count == 1
+    assert float(res2.rows[0]["metric_value"]) == pytest.approx(82.02, 0.1)
+
+    # 3. Foreign ece department remains rejected
+    req3 = IntentRequest(message="What is the average attendance in ece department?")
+    resp3 = service.interpret_intent(req3, principal=principal)
+    assert resp3.status == IntentValidationStatus.REJECTED
+    assert "HOD scope violation" in resp3.message
+
+
+def test_26_hod_department_normalization_variants():
+    """Verifies department normalization handles code, slug, suffix, and UUID correctly."""
+    assert normalize_department_scope("CSE") == ("auth_department_code", "CSE")
+    assert normalize_department_scope("cse") == ("auth_department_code", "CSE")
+    assert normalize_department_scope("cse department") == ("auth_department_code", "CSE")
+    assert normalize_department_scope("CSE Dept") == ("auth_department_code", "CSE")
+    assert normalize_department_scope("dept-cse-001") == ("auth_department_code", "CSE")
+    uuid_str = "a6300000-0003-4000-8000-000000000001"
+    assert normalize_department_scope(uuid_str) == ("auth_department_id", uuid_str)

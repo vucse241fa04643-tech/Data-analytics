@@ -247,16 +247,56 @@ class AuthorizationService:
 
         # If user is an HOD, verify requested department matches their authorized department scope
         if principal.has_role("HOD") and not principal.has_any_role("PRINCIPAL", "IQAC"):
+            from backend.app.services.identity_resolution import get_identity_resolution_service
+            id_svc = get_identity_resolution_service()
+            hod_dept = id_svc.resolve_hod_department(principal)
             hod_scopes = principal.get_scopes_for_role("HOD")
-            allowed_dept_ids = {sr.scope_id for sr in hod_scopes if sr.scope_id}
+            primary_scope_id = hod_scopes[0].scope_id if (hod_scopes and hod_scopes[0].scope_id) else (hod_dept[0] if hod_dept else None)
+
+            if not hod_dept and not primary_scope_id:
+                return AuthorizationDecision(
+                    allowed=False,
+                    reason_code="SCOPE_OUT_OF_BOUNDS",
+                    metric_id=metric_id,
+                    message="HOD account has no assigned departmental scope boundary.",
+                )
+
+            auth_dept_id = hod_dept[0] if hod_dept else None
+            auth_dept_code = hod_dept[1] if hod_dept else None
+            auth_dept_name = hod_dept[2] if hod_dept else None
+
+            # HOD accounts are strictly restricted from querying institution-wide or campus-wide scopes
+            if requested_scope_type in (ScopeType.INSTITUTION, ScopeType.CAMPUS):
+                return AuthorizationDecision(
+                    allowed=False,
+                    reason_code="SCOPE_OUT_OF_BOUNDS",
+                    metric_id=metric_id,
+                    message="HOD accounts are restricted to department-level scope.",
+                )
+
             if requested_scope_type == ScopeType.DEPARTMENT and requested_scope_id:
-                if requested_scope_id not in allowed_dept_ids:
+                req_clean = str(requested_scope_id).strip()
+                is_self = req_clean.lower() in ("my department", "our department", "my dept", "self", "department")
+                is_id = (str(primary_scope_id).lower() == req_clean.lower()) or bool(auth_dept_id and str(auth_dept_id).lower() == req_clean.lower())
+                is_code_or_name = bool(auth_dept_code and req_clean.upper() == auth_dept_code.upper()) or bool(auth_dept_name and req_clean.lower() == auth_dept_name.lower())
+
+                from backend.app.services.sql_compiler import normalize_department_scope
+                _, req_code = normalize_department_scope(req_clean)
+                is_norm_code = bool(auth_dept_code and req_code.upper() == auth_dept_code.upper())
+
+                if not (is_self or is_id or is_code_or_name or is_norm_code):
+                    logger.info(f"HOD {principal.username} requested department '{requested_scope_id}' outside scope: denied.")
                     return AuthorizationDecision(
                         allowed=False,
                         reason_code="SCOPE_OUT_OF_BOUNDS",
                         metric_id=metric_id,
                         message="HOD scope violation: requested department does not match assignment.",
                     )
+                # Normalize requested_scope_id to primary_scope_id for downstream scope validation
+                requested_scope_id = primary_scope_id
+            elif requested_scope_type is None or requested_scope_id is None:
+                requested_scope_type = ScopeType.DEPARTMENT
+                requested_scope_id = primary_scope_id
 
         # If user is a COUNSELLOR, allow only mentee-scoped attendance and assessment metrics.
         # General institutional analytics remain denied.
@@ -441,7 +481,10 @@ class AuthorizationService:
                 req_clean = str(user_dept).strip()
                 from backend.app.services.sql_compiler import normalize_department_scope
                 _, req_code = normalize_department_scope(req_clean)
-                if req_code.upper() != auth_dept_code.upper() and req_clean.lower() != auth_dept_name.lower():
+                is_self = req_clean.lower() in ("my department", "our department", "my dept", "self", "department")
+                is_id = bool(auth_dept_id and req_clean.lower() == str(auth_dept_id).lower())
+                is_match = is_self or is_id or (req_code.upper() == auth_dept_code.upper()) or (req_clean.lower() == auth_dept_name.lower())
+                if not is_match:
                     logger.info(f"HOD {principal.username} requested department '{user_dept}' outside scope: denied.")
                     return AuthorizationDecision(
                         allowed=False,

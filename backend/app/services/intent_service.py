@@ -278,6 +278,33 @@ Output:
         self._system_prompt_cache = prompt
         return prompt
 
+    def _is_hod_matching_scope(
+        self,
+        val: Any,
+        principal: AuthenticatedPrincipal,
+        hod_dept: Optional[Tuple],
+        primary_scope_id: Optional[str],
+    ) -> bool:
+        req_clean = str(val).strip()
+        if req_clean.lower() in ("my department", "our department", "my dept", "self", "department"):
+            return True
+        if primary_scope_id and str(primary_scope_id).lower() == req_clean.lower():
+            return True
+        if hod_dept:
+            auth_dept_id, auth_dept_code, auth_dept_name = hod_dept
+            if auth_dept_id and str(auth_dept_id).lower() == req_clean.lower():
+                return True
+            if auth_dept_code and auth_dept_code.upper() == req_clean.upper():
+                return True
+            if auth_dept_name and auth_dept_name.lower() == req_clean.lower():
+                return True
+            from backend.app.services.sql_compiler import normalize_department_scope
+            cleaned_suffix = re.sub(r"\s+(department|dept)$", "", req_clean, flags=re.IGNORECASE).strip()
+            _, req_code = normalize_department_scope(cleaned_suffix)
+            if auth_dept_code and req_code.upper() == auth_dept_code.upper():
+                return True
+        return False
+
     def _resolve_scope_from_filters(
         self, filters: Dict[str, Any], principal: AuthenticatedPrincipal
     ) -> Tuple[Optional[ScopeType], Optional[str]]:
@@ -293,16 +320,30 @@ Output:
                     if principal.has_role("HOD") and not principal.has_any_role(
                         "PRINCIPAL", "IQAC", "DEAN", "CAMPUS_ADMIN", "MANAGEMENT"
                     ):
+                        from backend.app.services.identity_resolution import get_identity_resolution_service
+                        id_svc = get_identity_resolution_service()
+                        hod_dept = id_svc.resolve_hod_department(principal)
                         hod_scopes = principal.get_scopes_for_role("HOD")
-                        allowed_dept_ids = {sr.scope_id for sr in hod_scopes if sr.scope_id}
+                        primary_scope_id = hod_scopes[0].scope_id if (hod_scopes and hod_scopes[0].scope_id) else (hod_dept[0] if hod_dept else None)
+
                         for item in val_raw:
-                            norm_item = DEPT_ALIAS_MAP.get(str(item).lower(), str(item))
-                            if norm_item not in allowed_dept_ids:
-                                return ScopeType.DEPARTMENT, norm_item
-                        return ScopeType.DEPARTMENT, val_raw[0] if val_raw else None
+                            if not self._is_hod_matching_scope(item, principal, hod_dept, primary_scope_id):
+                                return ScopeType.DEPARTMENT, str(item).strip()
+                        return ScopeType.DEPARTMENT, primary_scope_id
                     return ScopeType.INSTITUTION, None
 
                 val = str(val_raw).strip()
+                if principal.has_role("HOD") and not principal.has_any_role("PRINCIPAL", "IQAC"):
+                    from backend.app.services.identity_resolution import get_identity_resolution_service
+                    id_svc = get_identity_resolution_service()
+                    hod_dept = id_svc.resolve_hod_department(principal)
+                    hod_scopes = principal.get_scopes_for_role("HOD")
+                    primary_scope_id = hod_scopes[0].scope_id if (hod_scopes and hod_scopes[0].scope_id) else (hod_dept[0] if hod_dept else None)
+                    if self._is_hod_matching_scope(val, principal, hod_dept, primary_scope_id):
+                        return ScopeType.DEPARTMENT, primary_scope_id
+                    else:
+                        return ScopeType.DEPARTMENT, val
+
                 if val.lower() in ("my department", "our department", "my dept", "self", "department"):
                     if principal.has_role("HOD"):
                         hod_scopes = principal.get_scopes_for_role("HOD")
@@ -520,7 +561,7 @@ Output:
         # Security Guard 1: Institutional & Cross-Department Requests
         # -------------------------------------------------------------
         is_inst_query = bool(
-            re.search(r"\b(all\s+departments?|across\s+departments?|institution[- ]wide|college[- ]wide|college\s+students?|all\s+college)\b", msg_lower)
+            re.search(r"\b(all\s+departments?|across\s+(?:all\s+)?departments?|across\s+the\s+institution|across\s+the\s+college|institution[- ]wide|college[- ]wide|college\s+students?|all\s+college)\b", msg_lower)
             or re.search(r"\b(principal\s+dashboard|management\s+analytics|another\s+hod|other\s+hod|another\s+department)\b", msg_lower)
             or re.search(r"\b(all\s+students\s+below|college\s+baseline|institutional\s+baseline|institution\s+baseline)\b", msg_lower)
             or re.search(r"\bwhich\s+department\s+has\b", msg_lower)
