@@ -44,6 +44,7 @@ class IdentityResolutionService:
             except Exception:
                 self._db = None
         self._department_cache: Optional[list] = None
+        self._course_cache: Optional[list] = None
         self._student_id_cache: Dict[str, str] = {}
         self._faculty_id_cache: Dict[str, str] = {}
 
@@ -205,6 +206,86 @@ class IdentityResolutionService:
                 for w in name_words:
                     if len(w) >= 4 and re.search(rf"\b{re.escape(w)}\b", msg_lower):
                         return d_code
+
+        return None
+
+    def get_all_courses(self) -> list:
+        """
+        Dynamically fetches all active courses from authoritative curriculum.course / course_version.
+        Caches the result in memory for fast lookup across requests.
+        """
+        if self._course_cache is not None:
+            return self._course_cache
+
+        if not self._db or not self._db.is_configured():
+            return []
+
+        try:
+            query = """
+            SELECT cv.course_code, c.title, c.short_title, d.code as department_code
+            FROM curriculum.course c
+            JOIN curriculum.course_version cv ON cv.course_id = c.course_id
+            JOIN core.department d ON d.department_id = c.owning_department_id
+            ORDER BY cv.course_code
+            """
+            cols, rows, _, _ = self._db.execute_query(query)
+            self._course_cache = [
+                {
+                    "course_code": str(r["course_code"]).strip().upper(),
+                    "title": str(r["title"]).strip(),
+                    "short_title": str(r.get("short_title") or "").strip(),
+                    "department_code": str(r["department_code"]).strip().upper(),
+                }
+                for r in rows
+            ]
+            return self._course_cache
+        except Exception as exc:
+            logger.debug(f"Failed to fetch courses: {exc}")
+            return []
+
+    def resolve_course(self, text: str) -> Optional[dict]:
+        """
+        Dynamically resolves a course from text by checking course code, title, or keywords.
+        Returns:
+            {"course_code": ..., "title": ..., "department_code": ...} or None
+        """
+        if not text:
+            return None
+        import re
+        msg_lower = text.lower()
+
+        # 1. Match standard course codes: CS301, CS-301, CS 102, EC101, etc.
+        code_match = re.search(r"\b([A-Za-z]{2,4})[- ]?(\d{3})\b", text)
+        if code_match:
+            candidate = f"{code_match.group(1).upper()}{code_match.group(2)}"
+            courses = self.get_all_courses()
+            for c in courses:
+                if c["course_code"] == candidate:
+                    return c
+
+        # 2. Check title matches from database courses
+        courses = self.get_all_courses()
+        for c in courses:
+            title_lower = c["title"].lower()
+            if title_lower in msg_lower:
+                return c
+            # Significant title words (length >= 5)
+            simplified = re.sub(r"\b(and|for|in|of|the|to)\b", "", title_lower).strip()
+            chunks = [k.strip() for k in simplified.split() if len(k.strip()) >= 5]
+            if len(chunks) >= 2 and all(chk in msg_lower for chk in chunks[:2]):
+                return c
+
+        # Fallback aliases if DB is offline or mock
+        FALLBACK_MAP = {
+            "data structures": {"course_code": "CS102", "title": "Data Structures and Algorithms", "department_code": "CSE"},
+            "computer networks": {"course_code": "CS301", "title": "Computer Networks", "department_code": "CSE"},
+            "operating systems": {"course_code": "CS204", "title": "Operating Systems", "department_code": "CSE"},
+            "compiler design": {"course_code": "CS303", "title": "Compiler Design", "department_code": "CSE"},
+            "algorithms": {"course_code": "CS304", "title": "Design and Analysis of Algorithms", "department_code": "CSE"},
+        }
+        for k, v in FALLBACK_MAP.items():
+            if k in msg_lower:
+                return v
 
         return None
 

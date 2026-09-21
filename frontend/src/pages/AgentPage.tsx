@@ -15,6 +15,7 @@ import { QueryDetailsAccordion } from '../components/analytics/QueryDetailsAccor
 import { ExportControls } from '../components/analytics/ExportControls';
 import { VerificationCard } from '../components/analytics/VerificationCard';
 import { StudentRecordTable } from '../components/analytics/StudentRecordTable';
+import { PieChartCard } from '../components/analytics/PieChartCard';
 import { APP_PHASE } from '../constants/phases';
 import { useAuth } from '../context/AuthContext';
 import { formatScopeDisplay } from '../utils/formatters';
@@ -41,6 +42,7 @@ export const AgentPage: React.FC = () => {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [errorCode, setErrorCode] = useState<string | null>(null);
   const [conversationId, setConversationId] = useState<string | null>(null);
+  const [isLoadingPage, setIsLoadingPage] = useState(false);
 
   const handleResetConversation = async () => {
     if (conversationId) {
@@ -52,6 +54,26 @@ export const AgentPage: React.FC = () => {
     setErrorMessage(null);
     setErrorCode(null);
     setInputValue('');
+  };
+
+  const handlePageChange = async (newPage: number) => {
+    if (!submittedQuestion || isLoadingPage || isLoading) return;
+    setIsLoadingPage(true);
+    try {
+      const response = await apiService.executeAgentQuery(submittedQuestion, isDryRun, conversationId, newPage);
+      setQueryResponse(response);
+      if (response.conversation_id) {
+        setConversationId(response.conversation_id);
+      }
+    } catch (err: any) {
+      if (err instanceof ApiError) {
+        setErrorMessage(err.message || 'Could not load the requested page.');
+      } else {
+        setErrorMessage('Failed to navigate to the requested page.');
+      }
+    } finally {
+      setIsLoadingPage(false);
+    }
   };
 
   const handleSubmit = async (e?: React.FormEvent, overridePrompt?: string) => {
@@ -351,56 +373,85 @@ export const AgentPage: React.FC = () => {
                 <StudentRecordTable
                   result={result}
                   scope={scopeValue}
+                  onPageChange={handlePageChange}
+                  isLoadingPage={isLoadingPage}
                 />
               )}
 
               {/* Analytical KPI, Charts & Summaries (Excluded for STUDENT_LIST) */}
               {!isStudentList && (
                 <>
-                  {/* 2 & 3. RESULT SUMMARY & APPROPRIATE VISUALIZATION */}
-                  {viz && result && (
+                  {/* 2 & 3. RESULT SUMMARY & APPROPRIATE VISUALIZATIONS */}
+                  {result && (
                     <div>
-                      {viz.chart_type === 'kpi' && result.rows.length > 0 && (
-                        <KpiCard
-                          title={viz.title || metricDisplayName || 'Institutional Metric'}
-                          value={result.rows[0][viz.y_field || result.columns[0]]}
-                          unit={viz.unit}
-                          description={viz.description}
-                          subtitle={scopeValue ? `Scope: ${scopeValue}` : undefined}
-                        />
-                      )}
+                      {((queryResponse?.visualizations && queryResponse.visualizations.length > 0)
+                        ? queryResponse.visualizations
+                        : (viz ? [viz] : [])
+                      ).map((v, idx) => (
+                        <div key={`viz-${idx}-${v.chart_type}`} style={{ marginBottom: '16px' }}>
+                          {v.chart_type === 'kpi' && (
+                            <KpiCard
+                              title={v.title || metricDisplayName || 'Institutional Metric'}
+                              value={
+                                v.data && v.data.length > 0
+                                  ? v.data[0][v.y_field || 'count']
+                                  : result.rows.length > 0
+                                  ? result.rows[0][v.y_field || result.columns[0]]
+                                  : 'N/A'
+                              }
+                              unit={v.unit}
+                              description={v.description}
+                              subtitle={scopeValue ? `Scope: ${scopeValue}` : undefined}
+                            />
+                          )}
 
-                      {(viz.chart_type === 'bar' || viz.chart_type === 'horizontal_bar') &&
-                        viz.x_field &&
-                        viz.y_field &&
-                        result.rows.length > 0 && (
-                          <BarChartCard
-                            title={viz.title || `${metricDisplayName} Comparison`}
-                            data={result.rows}
-                            xField={viz.x_field}
-                            yField={viz.y_field}
-                            unit={viz.unit}
-                            isHorizontal={viz.chart_type === 'horizontal_bar'}
-                            description={viz.description}
-                          />
-                        )}
+                          {(v.chart_type === 'bar' || v.chart_type === 'horizontal_bar') &&
+                            v.x_field &&
+                            v.y_field &&
+                            (v.data || result.rows).length > 0 && (
+                              <BarChartCard
+                                title={v.title || `${metricDisplayName} Comparison`}
+                                data={v.data || result.rows}
+                                xField={v.x_field}
+                                yField={v.y_field}
+                                unit={v.unit}
+                                isHorizontal={v.chart_type === 'horizontal_bar'}
+                                description={v.description}
+                              />
+                            )}
 
-                      {viz.chart_type === 'line' &&
-                        viz.x_field &&
-                        viz.y_field &&
-                        result.rows.length > 0 && (
-                          <LineChartCard
-                            title={viz.title || `${metricDisplayName} Over Time`}
-                            data={result.rows}
-                            xField={viz.x_field}
-                            yField={viz.y_field}
-                            unit={viz.unit}
-                            description={viz.description}
-                          />
-                        )}
+                          {v.chart_type === 'pie' &&
+                            v.x_field &&
+                            v.y_field &&
+                            (v.data || result.rows).length > 0 && (
+                              <PieChartCard
+                                title={v.title || `${metricDisplayName} Distribution`}
+                                data={v.data || result.rows}
+                                xField={v.x_field}
+                                yField={v.y_field}
+                                unit={v.unit}
+                                description={v.description}
+                              />
+                            )}
+
+                          {v.chart_type === 'line' &&
+                            v.x_field &&
+                            v.y_field &&
+                            (v.data || result.rows).length > 0 && (
+                              <LineChartCard
+                                title={v.title || `${metricDisplayName} Over Time`}
+                                data={v.data || result.rows}
+                                xField={v.x_field}
+                                yField={v.y_field}
+                                unit={v.unit}
+                                description={v.description}
+                              />
+                            )}
+                        </div>
+                      ))}
 
                       {/* Visualization Unavailable Banner if chart_type is table or none for non-empty results */}
-                      {!viz.recommended && result.status === 'SUCCESS' && result.rows.length > 0 && (
+                      {viz && !viz.recommended && result.status === 'SUCCESS' && result.rows.length > 0 && (
                         <div
                           style={{
                             padding: '10px 14px',

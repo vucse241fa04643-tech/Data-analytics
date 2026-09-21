@@ -28,7 +28,8 @@
         "dim.academic_year",
         "dim.department",
         "dim.programme",
-        "dim.batch"
+        "dim.batch",
+        "dim.company"
       ],
       "allowed_filters": [
         "status"
@@ -73,7 +74,8 @@
         "dim.academic_year",
         "dim.department",
         "dim.programme",
-        "dim.batch"
+        "dim.batch",
+        "dim.company"
       ],
       "allowed_filters": [
         "status"
@@ -118,7 +120,8 @@
         "dim.academic_year",
         "dim.department",
         "dim.programme",
-        "dim.batch"
+        "dim.batch",
+        "dim.company"
       ],
       "allowed_filters": [
         "status"
@@ -163,7 +166,8 @@
         "dim.academic_year",
         "dim.department",
         "dim.programme",
-        "dim.batch"
+        "dim.batch",
+        "dim.company"
       ],
       "allowed_filters": [
         "status"

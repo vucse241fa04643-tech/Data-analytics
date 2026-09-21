@@ -149,8 +149,8 @@ class IntentValidator:
                 is_valid=False,
                 status=IntentValidationStatus.CLARIFICATION_REQUIRED,
                 error_code="CLARIFICATION_REQUIRED",
-                message="The analytical question is ambiguous and requires clarification before execution.",
-                clarification_questions=[
+                message=intent.reasoning_summary or "The analytical question is ambiguous and requires clarification before execution.",
+                clarification_questions=intent.clarification_questions if intent.clarification_questions else [
                     "Which academic department or programme would you like to analyze?",
                     "Which academic year or term period should be included?",
                 ],
@@ -258,6 +258,15 @@ class IntentValidator:
                     resolved_dim = d
                     break
 
+            if not resolved_dim and dim in ("company", "dim.company"):
+                resolved_dim = {
+                    "dimension_id": "dim.company",
+                    "canonical_name": "company",
+                    "display_name": "Company",
+                    "description": "Recruiting company offering verified employment opportunities.",
+                    "domain": "placement",
+                }
+
             if not resolved_dim:
                 logger.warning(f"Intent validation rejected unknown dimension: {dim}")
                 return IntentValidationResult(
@@ -310,7 +319,7 @@ class IntentValidator:
 
         # 8c. Validate that each filter key is explicitly permitted for this metric
         allowed_filters = self.get_allowed_filter_keys_for_metric(metric)
-        allowed_modifiers = {"limit", "order", "sort", "direction", "threshold", "operator", "baseline", "band", "scope"}
+        allowed_modifiers = {"limit", "order", "sort", "direction", "threshold", "operator", "baseline", "band", "scope", "placement_status", "result_status"}
         for k in intent.filters.keys():
             k_lower = k.lower()
             if k_lower not in allowed_filters and k_lower not in allowed_modifiers:

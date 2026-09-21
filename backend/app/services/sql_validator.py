@@ -67,6 +67,7 @@ ALLOWED_FUNCTIONS: Set[str] = {
     "filter",
     "stddev_pop",
     "corr",
+    "exists",
 }
 
 
@@ -194,7 +195,7 @@ class SQLValidator:
 
             if func_name not in ALLOWED_FUNCTIONS:
                 # Some functions appear as expressions (e.g. Cast, Substring, Connector/And/Or)
-                if isinstance(func, (exp.Cast, exp.Substring, exp.Case, exp.If, exp.Connector, exp.Not, exp.Binary, exp.Between)):
+                if isinstance(func, (exp.Cast, exp.Substring, exp.Case, exp.If, exp.Connector, exp.Not, exp.Binary, exp.Between, exp.Exists)):
                     continue
                 logger.warning(f"SQL validation rejected unauthorized function: {func_name}")
                 raise SQLValidationError(

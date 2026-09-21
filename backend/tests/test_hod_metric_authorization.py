@@ -360,13 +360,12 @@ def test_19_hod_cse_pass_percentage_for_ece_denied(hod_cse_user, compiler):
 
 
 def test_20_bug_1_students_with_low_attendance_controlled_rejection(hod_cse_user):
-    """Scenario for Bug 1: 'Show students with low attendance in my department' fails closed with REVIEW_REQUIRED message."""
+    """Scenario for Bug 1: 'Show students with low attendance in my department' asks for threshold clarification."""
     service = get_intent_service()
     req = IntentRequest(message="Show students with low attendance in my department")
     resp = service.interpret_intent(req, principal=hod_cse_user)
-    assert resp.status == IntentValidationStatus.REJECTED
-    assert resp.clarification_questions == []
-    assert "REVIEW_REQUIRED" in resp.message
+    assert resp.status == IntentValidationStatus.CLARIFICATION_REQUIRED
+    assert any("75%" in q for q in (resp.clarification_questions or []))
 
 
 def test_21_hod_attendance_my_department_authorized(hod_cse_user, compiler):

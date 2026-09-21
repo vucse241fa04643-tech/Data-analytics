@@ -5,7 +5,7 @@ Deterministic visualization descriptor schema for institutional analytics presen
 from __future__ import annotations
 
 from enum import Enum
-from typing import Optional
+from typing import Any, Dict, List, Optional
 from pydantic import BaseModel, Field
 
 
@@ -15,6 +15,8 @@ class ChartType(str, Enum):
     BAR = "bar"
     HORIZONTAL_BAR = "horizontal_bar"
     LINE = "line"
+    PIE = "pie"
+    SCATTER = "scatter"
     TABLE = "table"
     NONE = "none"
 
@@ -23,11 +25,11 @@ class VisualizationDescriptor(BaseModel):
     """Deterministic visualization specification derived strictly from validated QueryResult and Semantic Layer."""
     recommended: bool = Field(
         ...,
-        description="Whether a graphic visualization (KPI, bar, horizontal_bar, line) is recommended over default table",
+        description="Whether a graphic visualization (KPI, bar, horizontal_bar, line, pie, scatter) is recommended over default table",
     )
     chart_type: ChartType = Field(
         ...,
-        description="Selected visualization format (kpi, bar, horizontal_bar, line, table, none)",
+        description="Selected visualization format (kpi, bar, horizontal_bar, line, pie, scatter, table, none)",
     )
     x_field: Optional[str] = Field(
         default=None,
@@ -48,4 +50,8 @@ class VisualizationDescriptor(BaseModel):
     description: Optional[str] = Field(
         default=None,
         description="Semantic context or note explaining the visual representation",
+    )
+    data: Optional[List[Dict[str, Any]]] = Field(
+        default=None,
+        description="Optional transformed or aggregated data rows for multi-category composition (e.g. placed vs unplaced counts)",
     )

@@ -27,6 +27,7 @@ def _make_result(
     metric_id: str = "academics.active_student_strength",
     status: QueryResultStatus = QueryResultStatus.SUCCESS,
     error: str = None,
+    total_count: Optional[int] = None,
 ) -> QueryResult:
     """Helper to construct a typed QueryResult object for testing."""
     return QueryResult(
@@ -41,6 +42,7 @@ def _make_result(
             data_types=data_types,
             executed_at=datetime.now(timezone.utc),
             metric_id=metric_id,
+            total_count=total_count,
         ),
         error=error,
     )
@@ -255,3 +257,141 @@ def test_no_llm_calls_made_by_visualization_service(monkeypatch):
 
     assert viz.chart_type == ChartType.KPI
     assert "100" in explanation
+
+
+def test_select_visualizations_section_distribution_yields_bar_and_pie():
+    """Section distribution of students represents additive composition -> both BAR and PIE."""
+    service = get_visualization_service()
+    result = _make_result(
+        rows=[
+            {"section": "A", "active_student_strength": 50},
+            {"section": "B", "active_student_strength": 50},
+            {"section": "C", "active_student_strength": 50},
+        ],
+        columns=["section", "active_student_strength"],
+        data_types={"section": "varchar", "active_student_strength": "integer"},
+        metric_id="academics.active_student_strength",
+    )
+    viz_list = service.select_visualizations(result)
+    types = [v.chart_type for v in viz_list]
+    assert ChartType.BAR in types or ChartType.HORIZONTAL_BAR in types
+    assert ChartType.PIE in types
+    pie = next(v for v in viz_list if v.chart_type == ChartType.PIE)
+    assert pie.title == "Section Distribution"
+
+
+def test_select_visualizations_attendance_by_section_yields_bar_only():
+    """Attendance percentages are independent rates (not additive) -> BAR ONLY, NO PIE."""
+    service = get_visualization_service()
+    result = _make_result(
+        rows=[
+            {"section": "A", "attendance_percentage": 82.5},
+            {"section": "B", "attendance_percentage": 81.2},
+            {"section": "C", "attendance_percentage": 82.3},
+        ],
+        columns=["section", "attendance_percentage"],
+        data_types={"section": "varchar", "attendance_percentage": "numeric"},
+        metric_id="attendance.percentage",
+    )
+    viz_list = service.select_visualizations(result)
+    types = [v.chart_type for v in viz_list]
+    assert ChartType.BAR in types or ChartType.HORIZONTAL_BAR in types
+    assert ChartType.PIE not in types
+
+
+def test_select_visualizations_placed_students_count_yields_kpi_bar_pie():
+    """Placement count query produces KPI, Bar (placed vs unplaced), and Pie share with authorized total."""
+    service = get_visualization_service()
+    result = _make_result(
+        rows=[{"metric_value": 31}],
+        columns=["metric_value"],
+        data_types={"metric_value": "integer"},
+        metric_id="placement.placed_students_count",
+        total_count=150,
+    )
+    viz_list = service.select_visualizations(result, intent={"filters": {"department": "CSE"}})
+    types = [v.chart_type for v in viz_list]
+    assert ChartType.KPI in types
+    assert ChartType.BAR in types
+    assert ChartType.PIE in types
+    bar_chart = next(v for v in viz_list if v.chart_type == ChartType.BAR)
+    assert bar_chart.data == [{"status": "Placed", "count": 31}, {"status": "Unplaced", "count": 119}]
+    # Verify sum equals authorized total exactly
+    assert sum(item["count"] for item in bar_chart.data) == 150
+
+
+def test_select_visualizations_placed_students_count_dynamic_total():
+    """Verify complement = authorized_total - category_count with arbitrary dynamic total (no hardcoded constants)."""
+    service = get_visualization_service()
+    custom_total = 240
+    placed_count = 65
+    result = _make_result(
+        rows=[{"metric_value": placed_count}],
+        columns=["metric_value"],
+        data_types={"metric_value": "integer"},
+        metric_id="placement.placed_students_count",
+        total_count=custom_total,
+    )
+    viz_list = service.select_visualizations(result, intent={"filters": {"department": "ECE"}})
+    bar_chart = next(v for v in viz_list if v.chart_type == ChartType.BAR)
+    assert bar_chart.data == [
+        {"status": "Placed", "count": placed_count},
+        {"status": "Unplaced", "count": custom_total - placed_count},
+    ]
+    assert sum(item["count"] for item in bar_chart.data) == custom_total
+
+
+def test_select_visualizations_without_authorized_total_omits_derived_charts():
+    """When no authorized total is known, arbitrary constants are strictly avoided."""
+    service = get_visualization_service()
+    result = _make_result(
+        rows=[{"metric_value": 31}],
+        columns=["metric_value"],
+        data_types={"metric_value": "integer"},
+        metric_id="placement.placed_students_count",
+        total_count=None,
+    )
+    viz_list = service.select_visualizations(result, intent={"filters": {"department": "CSE"}})
+    types = [v.chart_type for v in viz_list]
+    assert types == [ChartType.KPI]
+
+
+def test_select_visualizations_attendance_below_75_yields_kpi_bar_pie():
+    """Attendance below 75 count query produces KPI, Bar (below vs at/above), and Pie."""
+    service = get_visualization_service()
+    result = _make_result(
+        rows=[{"metric_value": 38}],
+        columns=["metric_value"],
+        data_types={"metric_value": "integer"},
+        metric_id="attendance.percentage",
+        total_count=150,
+    )
+    viz_list = service.select_visualizations(
+        result,
+        intent={"intent_type": "THRESHOLD_QUERY", "threshold": 75, "operator": "<", "reasoning_summary": "below 75 attendance"}
+    )
+    types = [v.chart_type for v in viz_list]
+    assert ChartType.KPI in types
+    assert ChartType.BAR in types
+    assert ChartType.PIE in types
+    bar_chart = next(v for v in viz_list if v.chart_type == ChartType.BAR)
+    assert bar_chart.data == [
+        {"category": "Below 75%", "count": 38},
+        {"category": "75% and Above", "count": 112},
+    ]
+    # Verify sum equals authorized total exactly
+    assert sum(item["count"] for item in bar_chart.data) == 150
+
+
+def test_select_visualizations_single_student_count_yields_kpi_only():
+    """Single strength question ('How many students in my department') yields KPI only."""
+    service = get_visualization_service()
+    result = _make_result(
+        rows=[{"metric_value": 150}],
+        columns=["metric_value"],
+        data_types={"metric_value": "integer"},
+        metric_id="academics.active_student_strength",
+    )
+    viz_list = service.select_visualizations(result, intent={"reasoning_summary": "student count in department"})
+    types = [v.chart_type for v in viz_list]
+    assert types == [ChartType.KPI]

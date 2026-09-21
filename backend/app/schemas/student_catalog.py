@@ -213,4 +213,10 @@ ALLOWED_STUDENT_FILTER_KEYS: Set[str] = {
     "roll_no",
     "student_id",
     "status",
+    "result_status",
+    "placement_status",
+    "marks_above",
+    "marks_below",
+    "scored_above",
+    "scored_below",
 }

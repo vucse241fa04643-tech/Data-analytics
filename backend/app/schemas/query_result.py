@@ -61,6 +61,17 @@ class AgentQueryRequest(BaseModel):
         default=None,
         description="Opaque conversation session identifier for multi-turn follow-up queries",
     )
+    page: Optional[int] = Field(
+        default=None,
+        ge=1,
+        description="Pagination page index for record retrieval (1-based)",
+    )
+    page_size: Optional[int] = Field(
+        default=None,
+        ge=1,
+        le=50,
+        description="Pagination page size (bounded up to 50)",
+    )
 
 
 from backend.app.schemas.visualization import VisualizationDescriptor
@@ -77,6 +88,7 @@ class AgentQueryResponse(BaseModel):
     message: Optional[str] = Field(default=None, description="Informational or guidance message")
     request_id: Optional[str] = Field(default=None, description="Trace request identifier")
     visualization: Optional[VisualizationDescriptor] = Field(default=None, description="Deterministic visualization recommendation")
+    visualizations: List[VisualizationDescriptor] = Field(default_factory=list, description="Deterministic list of visualizations when multiple representations (e.g. Bar and Pie) are appropriate")
     explanation: Optional[str] = Field(default=None, description="Deterministic analytical explanation derived from validated data")
     metric_display_name: Optional[str] = Field(default=None, description="Human-readable display name from semantic registry")
     conversation_id: Optional[str] = Field(default=None, description="Opaque identifier for the active conversation")

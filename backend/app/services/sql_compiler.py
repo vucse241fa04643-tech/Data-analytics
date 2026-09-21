@@ -230,6 +230,11 @@ BASE_OBJECT_RELATIONS: Dict[str, Dict[str, Any]] = {
                 ["curriculum.batch"],
                 ["batch_id", "label"],
             ),
+            "section": (
+                "JOIN curriculum.section sec ON sec.section_id = s.current_section_id",
+                ["curriculum.section"],
+                ["section_id", "code"],
+            ),
         },
     },
     "academics.course_offering": {
@@ -339,6 +344,11 @@ BASE_OBJECT_RELATIONS: Dict[str, Dict[str, Any]] = {
                 "JOIN curriculum.batch b ON b.batch_id = s.batch_id",
                 ["people.student", "curriculum.batch"],
                 ["student_id", "batch_id", "label"],
+            ),
+            "company": (
+                "JOIN placement.company c ON c.company_id = po.company_id",
+                ["placement.company"],
+                ["company_id", "name"],
             ),
         },
     },
@@ -509,6 +519,8 @@ DIMENSION_COL_MAP: Dict[str, Dict[str, str]] = {
     "dim.section": {"select": "sec.code AS section", "group": "sec.code", "join": "section"},
     "student": {"select": "s.roll_no AS student", "group": "s.roll_no", "join": "student"},
     "dim.student": {"select": "s.roll_no AS student", "group": "s.roll_no", "join": "student"},
+    "company": {"select": "c.name AS company", "group": "c.name", "join": "company"},
+    "dim.company": {"select": "c.name AS company", "group": "c.name", "join": "company"},
 }
 
 
@@ -1132,6 +1144,14 @@ class SQLCompiler:
                     except (ValueError, TypeError):
                         pass
 
+            elif clean_key in ("placement_status",):
+                if base_table == "people.student":
+                    tables_referenced.add("placement.offer")
+                    if str(f_val).upper() == "PLACED":
+                        where_conditions.append("EXISTS (SELECT 1 FROM placement.offer po WHERE po.student_id = s.student_id AND po.status IN ('ACCEPTED', 'JOINED', 'OFFERED'))")
+                    elif str(f_val).upper() == "NOT_PLACED":
+                        where_conditions.append("NOT EXISTS (SELECT 1 FROM placement.offer po WHERE po.student_id = s.student_id AND po.status IN ('ACCEPTED', 'JOINED', 'OFFERED'))")
+
         # Process Time Context
         tc = intent.time_context
         if tc.academic_year and "academic_year" not in filters_applied and "year" not in filters_applied:
@@ -1459,10 +1479,58 @@ class SQLCompiler:
             where_conditions.append(pred)
             filters_applied.append(f"status={status_val}")
 
+        # Result status filter (e.g. failed students)
+        res_status = raw_filters.get("result_status")
+        if res_status:
+            tables_referenced.add("assessment.course_result")
+            parameters["filter_result_status"] = str(res_status).strip().upper()
+            pred = "EXISTS (SELECT 1 FROM assessment.course_result cr WHERE cr.student_id = s.student_id AND cr.result_status = :filter_result_status)"
+            where_conditions.append(pred)
+            filters_applied.append(f"result_status={res_status}")
+
+        # Placement status filter (e.g. placed / not placed students)
+        placement_status = raw_filters.get("placement_status")
+        if placement_status:
+            tables_referenced.add("placement.offer")
+            if str(placement_status).upper() == "PLACED":
+                pred = "EXISTS (SELECT 1 FROM placement.offer po WHERE po.student_id = s.student_id AND po.status IN ('ACCEPTED', 'JOINED', 'OFFERED'))"
+                where_conditions.append(pred)
+                filters_applied.append("placement_status=PLACED")
+            elif str(placement_status).upper() == "NOT_PLACED":
+                pred = "NOT EXISTS (SELECT 1 FROM placement.offer po WHERE po.student_id = s.student_id AND po.status IN ('ACCEPTED', 'JOINED', 'OFFERED'))"
+                where_conditions.append(pred)
+                filters_applied.append("placement_status=NOT_PLACED")
+
+        # Marks threshold filter (e.g. scored above 90, scored below 40)
+        marks_above = raw_filters.get("marks_above") or raw_filters.get("scored_above")
+        if marks_above is not None:
+            try:
+                val = float(marks_above)
+                tables_referenced.add("assessment.course_result")
+                parameters["filter_marks_above"] = val
+                pred = "EXISTS (SELECT 1 FROM assessment.course_result cr WHERE cr.student_id = s.student_id AND cr.total_marks > :filter_marks_above)"
+                where_conditions.append(pred)
+                filters_applied.append(f"marks_above={val}")
+            except (ValueError, TypeError):
+                pass
+
+        marks_below = raw_filters.get("marks_below") or raw_filters.get("scored_below")
+        if marks_below is not None:
+            try:
+                val = float(marks_below)
+                tables_referenced.add("assessment.course_result")
+                parameters["filter_marks_below"] = val
+                pred = "EXISTS (SELECT 1 FROM assessment.course_result cr WHERE cr.student_id = s.student_id AND cr.total_marks < :filter_marks_below)"
+                where_conditions.append(pred)
+                filters_applied.append(f"marks_below={val}")
+            except (ValueError, TypeError):
+                pass
+
         # 5. Pagination Bounds
         page = max(1, intent.page)
         page_size = min(50, max(1, intent.page_size))
         offset = (page - 1) * page_size
+        fetch_limit = page_size + 1
 
         # 6. Assemble SQL
         select_clause = ",\n    ".join(select_expressions)
@@ -1476,7 +1544,7 @@ class SQLCompiler:
         )
         where_clause = "WHERE " + " AND ".join(where_conditions) if where_conditions else ""
         order_clause = "ORDER BY s.roll_no ASC NULLS LAST, s.student_id ASC"
-        pagination_clause = f"LIMIT {page_size} OFFSET {offset}" if offset > 0 else f"LIMIT {page_size}"
+        pagination_clause = f"LIMIT {fetch_limit} OFFSET {offset}" if offset > 0 else f"LIMIT {fetch_limit}"
 
         parts = [
             f"SELECT\n    {select_clause}",
@@ -1499,8 +1567,9 @@ class SQLCompiler:
             filters=filters_applied,
             authorization_predicates=auth_predicates,
             query_type=intent.intent_type.value,
-            limit=page_size,
+            limit=fetch_limit,
             page=intent.page or 1,
+            page_size=page_size,
             read_only=True,
             validation_status="PENDING_VALIDATION",
         )

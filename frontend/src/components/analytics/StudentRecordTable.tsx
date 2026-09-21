@@ -26,6 +26,12 @@ export const StudentRecordTable: React.FC<StudentRecordTableProps> = ({
   const pageSize = result.metadata?.page_size || 25;
   const hasMore = result.metadata?.has_more ?? (rowCount === pageSize);
 
+  React.useEffect(() => {
+    if (result.metadata?.page) {
+      setLocalPage(result.metadata.page);
+    }
+  }, [result.metadata?.page]);
+
   const handlePrev = () => {
     if (page > 1) {
       const p = page - 1;

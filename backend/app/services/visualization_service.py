@@ -378,6 +378,147 @@ class VisualizationService:
             description="Multi-dimensional dataset best viewed in tabular format.",
         )
 
+    def select_visualizations(
+        self,
+        query_result: QueryResult,
+        intent: Optional[Dict[str, Any]] = None,
+        metric_id: Optional[str] = None,
+        authorized_total: Optional[int] = None,
+    ) -> List[VisualizationDescriptor]:
+        """Deterministically selects chart types according to Rules A-E.
+        Supports multi-visualization descriptors (e.g. BAR + PIE) for suitable additive compositions.
+        """
+        primary_viz = self.select_visualization(query_result, intent, metric_id)
+        if not primary_viz.recommended or primary_viz.chart_type == ChartType.NONE:
+            return [primary_viz]
+
+        m_id = metric_id or (query_result.metadata.metric_id if query_result.metadata else None)
+        columns = query_result.columns
+        data_types = query_result.metadata.data_types if query_result.metadata else {}
+        numeric_cols, dimension_cols = self._classify_columns(columns, data_types, query_result.rows)
+        raw_unit = primary_viz.unit
+
+        results: List[VisualizationDescriptor] = [primary_viz]
+
+        # Case 1: Part-to-whole additive compositions from multi-row results
+        if primary_viz.chart_type in (ChartType.BAR, ChartType.HORIZONTAL_BAR) and len(dimension_cols) == 1 and len(numeric_cols) == 1:
+            dim_col = dimension_cols[0]
+            val_col = numeric_cols[0]
+
+            # A. Section distribution of students (e.g. academics.active_student_strength)
+            if dim_col == "section" and ("strength" in (m_id or "").lower() or "student" in (m_id or "").lower()):
+                pie_viz = VisualizationDescriptor(
+                    recommended=True,
+                    chart_type=ChartType.PIE,
+                    x_field=dim_col,
+                    y_field=val_col,
+                    title="Section Distribution",
+                    unit=raw_unit,
+                    description="Proportionate distribution of students across sections.",
+                )
+                results.append(pie_viz)
+
+            # B. Company-wise placements (e.g. placement.placed_students_count by company)
+            elif dim_col == "company" and "placement" in (m_id or "").lower() and len(query_result.rows) <= 10:
+                pie_viz = VisualizationDescriptor(
+                    recommended=True,
+                    chart_type=ChartType.PIE,
+                    x_field=dim_col,
+                    y_field=val_col,
+                    title="Company Placement Share",
+                    unit=raw_unit,
+                    description="Share of total accepted placements by recruiting company.",
+                )
+                results.append(pie_viz)
+
+        # Case 2: Single-value queries with known complementary actual data derived from authorized context
+        elif primary_viz.chart_type == ChartType.KPI and query_result.row_count == 1 and len(numeric_cols) >= 1:
+            val = query_result.rows[0].get(numeric_cols[0])
+            i_dict = intent if isinstance(intent, dict) else {}
+            i_type = i_dict.get("intent_type")
+            filters = i_dict.get("filters") or i_dict.get("student_filters") or {}
+            msg_reasoning = (i_dict.get("reasoning_summary") or "").lower()
+
+            eff_total = authorized_total
+            if eff_total is None and query_result.metadata and query_result.metadata.total_count is not None:
+                eff_total = query_result.metadata.total_count
+
+            # A. Placed / Unplaced students count
+            if "placement" in (m_id or "").lower() or filters.get("placement_status") or "placed" in msg_reasoning:
+                try:
+                    num_val = int(val)
+                    if eff_total is not None and eff_total >= num_val:
+                        is_unplaced = filters.get("placement_status") == "NOT_PLACED" or "unplaced" in msg_reasoning
+                        placed_cnt = (eff_total - num_val) if is_unplaced else num_val
+                        unplaced_cnt = num_val if is_unplaced else (eff_total - num_val)
+                        comp_data = [
+                            {"status": "Placed", "count": placed_cnt},
+                            {"status": "Unplaced", "count": unplaced_cnt},
+                        ]
+                        dept_name = filters.get("department") or "department"
+                        bar_viz = VisualizationDescriptor(
+                            recommended=True,
+                            chart_type=ChartType.BAR,
+                            x_field="status",
+                            y_field="count",
+                            title="Placement Status (Placed vs Unplaced)",
+                            unit="students",
+                            description=f"Comparison of placed and unplaced students in {dept_name}.",
+                            data=comp_data,
+                        )
+                        pie_viz = VisualizationDescriptor(
+                            recommended=True,
+                            chart_type=ChartType.PIE,
+                            x_field="status",
+                            y_field="count",
+                            title="Placement Share",
+                            unit="students",
+                            description=f"Proportion of placed vs unplaced {dept_name} students.",
+                            data=comp_data,
+                        )
+                        results.extend([bar_viz, pie_viz])
+                except (ValueError, TypeError):
+                    pass
+
+            # B. Attendance threshold count (e.g. below 75% attendance)
+            elif ("attendance" in (m_id or "").lower() or i_type == "THRESHOLD_QUERY" or "attendance" in msg_reasoning) and (
+                filters.get("threshold") == 75 or i_dict.get("threshold") == 75 or "below 75" in msg_reasoning or "shortage" in msg_reasoning
+            ):
+                try:
+                    num_val = int(val)
+                    if eff_total is not None and eff_total >= num_val:
+                        below_75 = num_val
+                        above_75 = max(eff_total - below_75, 0)
+                        comp_data = [
+                            {"category": "Below 75%", "count": below_75},
+                            {"category": "75% and Above", "count": above_75},
+                        ]
+                        bar_viz = VisualizationDescriptor(
+                            recommended=True,
+                            chart_type=ChartType.BAR,
+                            x_field="category",
+                            y_field="count",
+                            title="Attendance Below 75% vs At/Above 75%",
+                            unit="students",
+                            description="Comparison of students below 75% attendance vs at or above 75%.",
+                            data=comp_data,
+                        )
+                        pie_viz = VisualizationDescriptor(
+                            recommended=True,
+                            chart_type=ChartType.PIE,
+                            x_field="category",
+                            y_field="count",
+                            title="Attendance Proportion (75% Threshold)",
+                            unit="students",
+                            description="Proportion of students below 75% attendance vs at or above 75%.",
+                            data=comp_data,
+                        )
+                        results.extend([bar_viz, pie_viz])
+                except (ValueError, TypeError):
+                    pass
+
+        return results
+
     def generate_explanation(
         self,
         query_result: QueryResult,

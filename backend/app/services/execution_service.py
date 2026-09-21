@@ -128,7 +128,7 @@ class ExecutionService:
                 statement_timeout_ms=settings.COLLEGE_DB_STATEMENT_TIMEOUT,
                 expected_columns=artifact.columns,
                 page=getattr(artifact, "page", None) or (1 if artifact.query_type == "STUDENT_LIST" else None),
-                page_size=artifact.limit,
+                page_size=getattr(artifact, "page_size", None) or artifact.limit,
                 result_type=artifact.query_type,
             )
 

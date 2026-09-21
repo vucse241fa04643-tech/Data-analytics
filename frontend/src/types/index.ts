@@ -179,7 +179,7 @@ export interface AgentQueryRequest {
 /**
  * Phase 9 & 10 – Visualization & Conversational Analytics Types
  */
-export type ChartType = 'kpi' | 'bar' | 'horizontal_bar' | 'line' | 'table' | 'none';
+export type ChartType = 'kpi' | 'bar' | 'horizontal_bar' | 'line' | 'pie' | 'scatter' | 'table' | 'none';
 
 export interface VisualizationDescriptor {
   recommended: boolean;
@@ -189,6 +189,7 @@ export interface VisualizationDescriptor {
   title?: string | null;
   unit?: string | null;
   description?: string | null;
+  data?: Record<string, any>[] | null;
 }
 
 export interface AgentQueryResponse {
@@ -200,6 +201,7 @@ export interface AgentQueryResponse {
   message?: string | null;
   request_id?: string | null;
   visualization?: VisualizationDescriptor | null;
+  visualizations?: VisualizationDescriptor[] | null;
   explanation?: string | null;
   metric_display_name?: string | null;
   conversation_id?: string | null;

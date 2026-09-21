@@ -773,7 +773,8 @@
       "allowed_dimensions": [
         "dim.academic_year",
         "dim.term",
-        "dim.department"
+        "dim.department",
+        "dim.course"
       ],
       "allowed_filters": [
         "term_id",
@@ -1619,7 +1620,8 @@
         "dim.academic_year",
         "dim.department",
         "dim.programme",
-        "dim.batch"
+        "dim.batch",
+        "dim.company"
       ],
       "allowed_filters": [
         "status"
@@ -1754,7 +1756,8 @@
         "dim.academic_year",
         "dim.department",
         "dim.programme",
-        "dim.batch"
+        "dim.batch",
+        "dim.company"
       ],
       "allowed_filters": [
         "status"

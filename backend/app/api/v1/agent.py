@@ -136,6 +136,12 @@ def execute_agent_query(
         conversation_context=context,
     )
 
+    if intent_response.intent:
+        if payload.page is not None:
+            intent_response.intent.page = max(1, payload.page)
+        if payload.page_size is not None:
+            intent_response.intent.page_size = min(50, max(1, payload.page_size))
+
     if intent_response.status == IntentValidationStatus.REJECTED:
         # If rejected for authorization/scope boundaries, return HTTP 403 Forbidden
         msg = intent_response.message or "Request is not authorized for the current user role or scope."
@@ -353,6 +359,7 @@ def execute_agent_query(
 
     if is_student_list:
         viz = None
+        visualizations = []
         explanation = None
         anomaly_assessment = None
         meta = (
@@ -361,11 +368,36 @@ def execute_agent_query(
             else ("Authorized Student Records", "Student-level record retrieval")
         )
     else:
-        viz = visualization_service.select_visualization(
+        # Dynamically resolve authorized student total from database under the principal's RLS session context
+        authorized_total = None
+        if query_result.metadata and query_result.metadata.total_count is not None:
+            authorized_total = query_result.metadata.total_count
+        elif is_hod_user and hod_dept_code:
+            try:
+                session_ctx = execution_service._identity_resolver.build_session_context(principal)
+                _, tot_rows, _, _ = execution_service._db_service.execute_query(
+                    sql="SELECT count(DISTINCT s.student_id) AS total FROM people.student s "
+                        "JOIN curriculum.batch b ON b.batch_id = s.batch_id "
+                        "JOIN curriculum.programme p ON p.programme_id = b.programme_id "
+                        "JOIN core.department d ON d.department_id = p.department_id "
+                        "WHERE d.code = :dept_code",
+                    parameters={"dept_code": hod_dept_code},
+                    session_context=session_ctx,
+                )
+                if tot_rows and tot_rows[0].get("total") is not None:
+                    authorized_total = int(tot_rows[0]["total"])
+                    if query_result.metadata:
+                        query_result.metadata.total_count = authorized_total
+            except Exception as e:
+                logger.warning(f"Could not resolve authorized_total from database: {e}")
+
+        visualizations = visualization_service.select_visualizations(
             query_result=query_result,
             intent=intent_dict,
             metric_id=metric_id,
+            authorized_total=authorized_total,
         )
+        viz = visualizations[0] if visualizations else None
         explanation = visualization_service.generate_explanation(
             query_result=query_result,
             intent=intent_dict,
@@ -380,7 +412,7 @@ def execute_agent_query(
             if comp_label:
                 meta = (f"{meta[0]} ({comp_label})", meta[1], meta[2])
 
-        if is_hod_user and viz:
+        if is_hod_user and viz and not viz.description:
             viz.description = f"Scope: HOD / {hod_dept_code} Department"
 
         if is_student_user and metric_id in ("attendance.percentage", "attendance.raw_percentage"):
@@ -511,6 +543,7 @@ def execute_agent_query(
         message="Query executed and validated successfully.",
         request_id=req_id,
         visualization=viz,
+        visualizations=visualizations,
         explanation=explanation,
         metric_display_name=meta[0],
         conversation_id=active_conv_id,

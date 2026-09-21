@@ -75,7 +75,8 @@
       "allowed_dimensions": [
         "dim.academic_year",
         "dim.term",
-        "dim.department"
+        "dim.department",
+        "dim.course"
       ],
       "allowed_filters": [
         "term_id",

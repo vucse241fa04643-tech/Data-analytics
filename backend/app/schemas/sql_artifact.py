@@ -69,6 +69,10 @@ class SQLArtifact(BaseModel):
         default=None,
         description="Page number for paginated list queries",
     )
+    page_size: Optional[int] = Field(
+        default=None,
+        description="Page size limit for paginated list queries",
+    )
     read_only: bool = Field(
         default=True,
         description="Strictly true for all generated institutional SQL artifacts",

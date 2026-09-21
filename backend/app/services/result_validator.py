@@ -59,7 +59,15 @@ class ResultValidator:
         is_student_list = (metric_id == "student.list" or result_type == "STUDENT_LIST")
         eff_result_type = "STUDENT_LIST" if is_student_list else (result_type or "ANALYTICAL_METRIC")
 
-        # 1. Row count validation
+        # 1. Row count validation & pagination lookahead truncation
+        has_more_records: Optional[bool] = None
+        if is_student_list and page_size:
+            if len(raw_rows) > page_size:
+                has_more_records = True
+                raw_rows = raw_rows[:page_size]
+            else:
+                has_more_records = False
+
         row_count = len(raw_rows)
         max_rows = 50 if is_student_list else settings.MAX_RESULT_ROWS
         if row_count > max_rows:
@@ -152,7 +160,7 @@ class ResultValidator:
             statement_timeout_ms=statement_timeout_ms,
             page=page,
             page_size=page_size,
-            has_more=(len(normalized_rows) == page_size) if (is_student_list and page_size) else None,
+            has_more=has_more_records if has_more_records is not None else ((len(normalized_rows) == page_size) if (is_student_list and page_size) else None),
         )
 
         return QueryResult(

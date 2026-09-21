@@ -416,7 +416,9 @@ class ApiService {
   async executeAgentQuery(
     prompt: string,
     dryRun: boolean = false,
-    conversationId?: string | null
+    conversationId?: string | null,
+    page?: number,
+    pageSize?: number
   ): Promise<AgentQueryResponse> {
     const trimmed = prompt.trim();
     if (!trimmed) {
@@ -434,6 +436,12 @@ class ApiService {
       };
       if (conversationId) {
         payload.conversation_id = conversationId;
+      }
+      if (page) {
+        payload.page = page;
+      }
+      if (pageSize) {
+        payload.page_size = pageSize;
       }
 
       const response = await fetch(`${this.baseUrl}/api/v1/agent/query`, {

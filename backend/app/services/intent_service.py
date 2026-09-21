@@ -626,6 +626,41 @@ Output:
         bottom_match = re.search(r"\b(?:bottom|lowest)\s+(\d+)\b", msg_lower)
         limit_val = int(top_match.group(1)) if top_match else (int(bottom_match.group(1)) if bottom_match else None)
 
+        # Course resolution & Foreign Course Enforcement
+        resolved_course = id_svc.resolve_course(user_message)
+        found_course = None
+        if resolved_course:
+            course_dept = resolved_course.get("department_code")
+            if course_dept and course_dept != auth_dept_code:
+                # Query targets a course from a foreign department! Quarantine to trigger 403 SCOPE_OUT_OF_BOUNDS
+                return StructuredIntent(
+                    intent_type=IntentType.METRIC_QUERY,
+                    metric_id="attendance.percentage",
+                    primary_metric_id="attendance.percentage",
+                    filters={"department": course_dept, "course": resolved_course["course_code"]},
+                    reasoning_summary=f"Query targeting course {resolved_course['course_code']} belonging to foreign department {course_dept}.",
+                )
+            found_course = resolved_course["course_code"]
+        else:
+            course_match = re.search(r"\b([A-Za-z]{2,4}[- ]?\d{3})\b", msg)
+            if course_match:
+                candidate_course = course_match.group(1).replace("-", "").replace(" ", "").upper()
+                all_codes = id_svc.get_all_department_codes()
+                foreign_prefix = None
+                for c in all_codes:
+                    if c != auth_dept_code and candidate_course.startswith(c[:2]):
+                        foreign_prefix = c
+                        break
+                if foreign_prefix:
+                    return StructuredIntent(
+                        intent_type=IntentType.METRIC_QUERY,
+                        metric_id="attendance.percentage",
+                        primary_metric_id="attendance.percentage",
+                        filters={"department": foreign_prefix, "course": candidate_course},
+                        reasoning_summary=f"Query targeting course {candidate_course} belonging to foreign department {foreign_prefix}.",
+                    )
+                found_course = candidate_course
+
         # Threshold value extraction
         th_match = re.search(r"\b(?:below|under|less than|<|above|over|greater than|>)\s*(\d+(?:\.\d+)?)\s*%?\b", msg_lower)
         th_val = float(th_match.group(1)) if th_match else None
@@ -672,20 +707,170 @@ Output:
                 reasoning_summary=f"HOD authorized student record lookup for {roll_val}.",
             )
 
-        # Attendance Risk / Low Attendance Students
-        if (
-            re.search(r"\bstudents?\s+(?:with|having|of)?\s*(?:low|poor|shortage of|short)\s+attendance\b", msg_lower)
+        # Attendance Risk / Threshold / Shortage Queries
+        is_att_threshold = bool(
+            re.search(r"\bstudents?\s+(?:with|having|of)?\s*(?:low|poor|shortage\s+(?:of)?|short)\s+attendance\b", msg_lower)
             or re.search(r"\b(?:low|poor|shortage)\s+attendance\s+students?\b", msg_lower)
-            or re.search(r"\bstudents?\s+(?:are\s+)?(?:below|under|<)\s*(\d+)?%?\b", msg_lower)
+            or re.search(r"\bstudents?\s+(?:with|having|of)?\s*(?:attendance\s+)?(?:are\s+)?(?:below|under|<|above|over|>|greater than|less than)\s*(\d+(?:\.\d+)?)?%?\b", msg_lower)
+            or (
+                re.search(r"\battendance\s+(?:is\s+)?(?:below|under|<|above|over|>|greater than|less than)\s*(\d+(?:\.\d+)?)?%?\b", msg_lower)
+                and not any(w in msg_lower for w in ["which courses", "courses with", "courses having", "course with", "sections with", "which sections"])
+            )
             or "attendance risk" in msg_lower
             or "short of attendance" in msg_lower
-        ):
+        )
+        if is_att_threshold:
+            # If no numerical threshold is specified (e.g. "low attendance", "attendance risk"),
+            # ask for clarification with suggested threshold rather than assuming or rejecting blindly.
+            if th_val is None and not found_course:
+                return StructuredIntent(
+                    intent_type=IntentType.CLARIFICATION_NEEDED,
+                    clarification_questions=["What attendance threshold should I use, such as below 75%?"],
+                    primary_metric_id=None,
+                    filters=base_filters,
+                    reasoning_summary=f"HOD low attendance student inquiry for {target_dept} without explicit threshold requires threshold clarification.",
+                )
+
+            att_filters = dict(base_filters)
+            if found_course:
+                att_filters["course"] = found_course
+
+            is_count_q = bool(
+                re.search(r"\b(how\s+many|count|number\s+of)\b", msg_lower)
+            )
+            target_op = op_val or "<"
+            target_th = th_val or 75.0
+
+            if is_count_q:
+                if target_op == "<" and not found_course and (target_th == 75.0 or "shortage" in msg_lower):
+                    # Overall department shortage count -> APPROVED attendance.shortage_count
+                    return StructuredIntent(
+                        intent_type=IntentType.METRIC_QUERY,
+                        metric_id="attendance.shortage_count",
+                        primary_metric_id="attendance.shortage_count",
+                        filters=att_filters,
+                        reasoning_summary=f"HOD attendance shortage count inquiry for {target_dept}.",
+                    )
+                else:
+                    # Specific course count query or non-standard threshold -> THRESHOLD_QUERY
+                    return StructuredIntent(
+                        intent_type=IntentType.THRESHOLD_QUERY,
+                        metric_id="attendance.percentage",
+                        primary_metric_id="attendance.percentage",
+                        dimensions=["student"],
+                        filters=att_filters,
+                        threshold=target_th,
+                        operator=target_op,
+                        reasoning_summary=f"HOD attendance threshold query for {target_dept} (threshold={target_th}, op={target_op}).",
+                    )
+            else:
+                # Student list below/above threshold -> APPROVED attendance.percentage with dim.student
+                dims = ["student"]
+                if "specific course" in msg_lower and not found_course:
+                    dims = ["student", "course"]
+                return StructuredIntent(
+                    intent_type=IntentType.THRESHOLD_QUERY,
+                    metric_id="attendance.percentage",
+                    primary_metric_id="attendance.percentage",
+                    dimensions=dims,
+                    filters=att_filters,
+                    threshold=target_th,
+                    operator=target_op,
+                    reasoning_summary=f"HOD attendance threshold query for {target_dept} (threshold={target_th}, op={target_op}).",
+                )
+
+        # -------------------------------------------------------------
+        # Student Lists (Failed, Placed, Unplaced, Demographic & Marks Filters)
+        # -------------------------------------------------------------
+        # Failed students list query
+        is_failed_students_list_query = bool(
+            re.search(r"\b(?:list|show|display|get|find)\s+(?:all\s+)?(?:the\s+)?failed\s+students?\b", msg_lower)
+            or re.search(r"\b(?:list|show|display|get|find)\s+(?:the\s+)?students?\s+(?:who\s+)?failed\b", msg_lower)
+            or re.search(r"\bfailed\s+students?\s+list\b", msg_lower)
+            or "students who failed" in msg_lower
+            or "list of failed students" in msg_lower
+            or "list failed students" in msg_lower
+        )
+        if is_failed_students_list_query:
+            s_filters = {"department": target_dept, "result_status": "FAIL"}
+            if found_course:
+                s_filters["course"] = found_course
             return StructuredIntent(
-                intent_type=IntentType.METRIC_QUERY,
-                metric_id="attendance.students_below_threshold",
-                primary_metric_id="attendance.students_below_threshold",
-                filters={**base_filters, "threshold": th_val or 75.0},
-                reasoning_summary=f"HOD low attendance student threshold inquiry for {target_dept}.",
+                intent_type=IntentType.STUDENT_LIST,
+                primary_metric_id="academics.active_student_strength",
+                student_filters=s_filters,
+                filters=base_filters,
+                reasoning_summary=f"HOD departmental failed students list retrieval for {target_dept}.",
+            )
+
+        # Scored above / scored below student list query
+        score_match = re.search(r"\b(?:which\s+students?|students?\s+who|students?)\s+(?:scored|got|have\s+marks)\s+(above|over|>|greater than|below|under|<|less than)\s*(\d+(?:\.\d+)?)\b", msg_lower)
+        if score_match:
+            op_str = score_match.group(1)
+            score_val = float(score_match.group(2))
+            is_above = op_str in ["above", "over", ">", "greater than"]
+            s_filters = {"department": target_dept}
+            if is_above:
+                s_filters["marks_above"] = score_val
+            else:
+                s_filters["marks_below"] = score_val
+            if found_course:
+                s_filters["course"] = found_course
+            return StructuredIntent(
+                intent_type=IntentType.STUDENT_LIST,
+                primary_metric_id="academics.active_student_strength",
+                student_filters=s_filters,
+                filters=base_filters,
+                reasoning_summary=f"HOD student marks filter query for {target_dept} (marks {op_str} {score_val}).",
+            )
+
+        # Placed students query
+        is_placed_students_query = bool(
+            re.search(r"\b(?:show|list|find|get)\s+(?:the\s+)?students?\s+(?:who\s+)?(?:are|were|got)?\s*placed\b", msg_lower)
+            or re.search(r"\b(?:show|list|find|get)\s+placed\s+students?\b", msg_lower)
+            or re.search(r"\bplaced\s+students?\s+list\b", msg_lower)
+            or "students who got placed" in msg_lower
+            or "students who are placed" in msg_lower
+        )
+        if is_placed_students_query:
+            return StructuredIntent(
+                intent_type=IntentType.STUDENT_LIST,
+                primary_metric_id="academics.active_student_strength",
+                student_filters={"department": target_dept, "placement_status": "PLACED"},
+                filters=base_filters,
+                reasoning_summary=f"HOD departmental placed students list retrieval for {target_dept}.",
+            )
+
+        # Unplaced students query
+        is_unplaced_students_query = bool(
+            re.search(r"\b(?:show|list|find|get)\s+(?:the\s+)?(?:unplaced\s+students?|students?\s+(?:who\s+are\s+)?not\s+placed)\b", msg_lower)
+            or re.search(r"\b(?:unplaced|not\s+placed)\s+students?\s+list\b", msg_lower)
+            or "students who are not placed" in msg_lower
+            or "students not placed" in msg_lower
+        )
+        if is_unplaced_students_query:
+            return StructuredIntent(
+                intent_type=IntentType.STUDENT_LIST,
+                primary_metric_id="academics.active_student_strength",
+                student_filters={"department": target_dept, "placement_status": "NOT_PLACED"},
+                filters=base_filters,
+                reasoning_summary=f"HOD departmental unplaced students list retrieval for {target_dept}.",
+            )
+
+        # General Course List / Offerings
+        is_course_list_query = bool(
+            re.search(r"\b(?:list|show|get)\s+(?:all\s+)?(?:active\s+)?courses?\b", msg_lower)
+            or re.search(r"\b(?:list|show|get)\s+(?:the\s+)?course\s+offerings?\b", msg_lower)
+            or re.search(r"\bcourses?\s+(?:in|of)\s+my\s+department\b", msg_lower)
+        )
+        if is_course_list_query and not any(k in msg_lower for k in ["pass", "fail", "mark", "marks", "attendance", "how many", "count", "lowest", "highest", "below", "above", "rate", "performance"]):
+            return StructuredIntent(
+                intent_type=IntentType.BREAKDOWN_QUERY,
+                metric_id="academics.active_course_offerings",
+                primary_metric_id="academics.active_course_offerings",
+                dimensions=["course"],
+                filters=base_filters,
+                reasoning_summary=f"HOD active course list for {target_dept}.",
             )
 
         # General Student Lists & Year/Section Filtering
@@ -696,10 +881,10 @@ Output:
             or re.search(r"\bstudents?\s+in\s+(?:second|2nd|first|1st|third|3rd|fourth|4th)\s+year\b", msg_lower)
             or re.search(r"\bstudents?\s+in\s+section\s+[a-zA-Z]\b", msg_lower)
         )
-        if is_student_list_query and not any(k in msg_lower for k in ["strength", "count", "how many", "passed", "failed", "appeared", "placed"]):
+        if is_student_list_query and not any(k in msg_lower for k in ["strength", "count", "how many", "passed", "failed", "appeared", "placed", "distribution", "breakdown", "by year", "by batch", "by program", "mark", "marks", "score", "attendance", "performance", "result", "results"]):
             year_match = re.search(r"\b([1-4])(?:st|nd|rd|th)?\s+year\b", msg_lower) or re.search(r"\byear\s+([1-4])\b", msg_lower)
             sec_match = re.search(r"\bsection\s+([a-zA-Z])\b", msg_lower)
-            s_filters: Dict[str, Any] = {"department": target_dept}
+            s_filters = {"department": target_dept}
             if year_match:
                 s_filters["year_of_study"] = int(year_match.group(1))
             if sec_match:
@@ -768,12 +953,12 @@ Output:
                 )
 
             # Course comparison: e.g. "Compare CS301 and CS302" or "between courses"
-            courses_found = re.findall(r"\b([A-Za-z]{2,4}\d{3})\b", msg)
+            courses_found = re.findall(r"\b([A-Za-z]{2,4}[- ]?\d{3})\b", msg)
             if courses_found or "course" in msg_lower or "subject" in msg_lower:
                 c_filters = dict(base_filters)
                 if courses_found:
-                    c_filters["course"] = courses_found
-                c_metric = "assessment.course_pass_percentage" if "pass" in msg_lower else "attendance.percentage"
+                    c_filters["course"] = [c.replace("-", "").replace(" ", "").upper() for c in courses_found]
+                c_metric = "assessment.course_pass_percentage" if any(k in msg_lower for k in ["pass", "performance", "result", "academic", "score", "mark"]) else "attendance.percentage"
                 return StructuredIntent(
                     intent_type=IntentType.COMPARISON_QUERY,
                     metric_id=c_metric,
@@ -783,13 +968,21 @@ Output:
                     reasoning_summary=f"HOD course comparison within {target_dept}.",
                 )
 
-            # Year / Batch comparison: e.g. "Compare first year and second year", "between batches"
-            if "year" in msg_lower or "batch" in msg_lower:
-                c_metric = "placement.placed_students_count" if "placement" in msg_lower else "academics.active_student_strength"
+            # Year / Batch / Placement comparison: e.g. "Compare placement results", "between batches"
+            if "placement" in msg_lower or "placed" in msg_lower:
                 return StructuredIntent(
                     intent_type=IntentType.COMPARISON_QUERY,
-                    metric_id=c_metric,
-                    primary_metric_id=c_metric,
+                    metric_id="placement.placed_students_count",
+                    primary_metric_id="placement.placed_students_count",
+                    dimensions=["batch"],
+                    filters=base_filters,
+                    reasoning_summary=f"HOD placement comparison across batches in {target_dept}.",
+                )
+            if "year" in msg_lower or "batch" in msg_lower:
+                return StructuredIntent(
+                    intent_type=IntentType.COMPARISON_QUERY,
+                    metric_id="academics.active_student_strength",
+                    primary_metric_id="academics.active_student_strength",
                     dimensions=["batch"],
                     filters=base_filters,
                     reasoning_summary=f"HOD batch/year comparison within {target_dept}.",
@@ -867,11 +1060,84 @@ Output:
         # -------------------------------------------------------------
         # 6. Department-Internal Rankings (Top / Bottom / Highest / Lowest)
         # -------------------------------------------------------------
+        is_course_low_att = bool(
+            th_val is None
+            and (
+                re.search(r"\b(?:which\s+courses?|courses?\s+(?:with|having|have))\s+(?:low|poor|lowest|shortage\s+of)\s+attendance\b", msg_lower)
+                or "courses with low attendance" in msg_lower
+                or "courses have low attendance" in msg_lower
+                or "courses with lowest attendance" in msg_lower
+                or (re.search(r"\bwhich\s+courses?\b", msg_lower) and "attendance" in msg_lower and any(w in msg_lower for w in ["low", "poor", "lowest", "shortage"]))
+            )
+        )
+        if is_course_low_att:
+            return StructuredIntent(
+                intent_type=IntentType.RANKING_QUERY,
+                metric_id="attendance.percentage",
+                primary_metric_id="attendance.percentage",
+                dimensions=["course"],
+                filters=base_filters,
+                order="ASC",
+                limit=limit_val or 5,
+                reasoning_summary=f"HOD courses with low attendance ranking query in {target_dept}.",
+            )
+
         is_ranking = bool(
-            re.search(r"\b(highest|lowest|top|bottom|worst|best|rank)\b", msg_lower)
+            re.search(r"\b(highest|lowest|top|bottom|worst|best|rank|most|least)\b", msg_lower)
             and not is_baseline_query
         )
         if is_ranking:
+            # Company recruitment ranking (e.g. "Which company recruited the most students?")
+            if ("company" in msg_lower or "companies" in msg_lower) and any(k in msg_lower for k in ["recruit", "recruited", "placed", "student", "students", "hire", "hired", "most"]):
+                return StructuredIntent(
+                    intent_type=IntentType.RANKING_QUERY,
+                    metric_id="placement.placed_students_count",
+                    primary_metric_id="placement.placed_students_count",
+                    dimensions=["company"],
+                    filters=base_filters,
+                    order="DESC" if not is_below else "ASC",
+                    limit=limit_val or 1,
+                    reasoning_summary=f"HOD company recruitment ranking query in {target_dept}.",
+                )
+
+            # Package / CTC inquiry (ranking if company, otherwise direct highest CTC metric)
+            if any(k in msg_lower for k in ["ctc", "package", "salary"]):
+                if "company" in msg_lower or "companies" in msg_lower:
+                    return StructuredIntent(
+                        intent_type=IntentType.RANKING_QUERY,
+                        metric_id="placement.highest_ctc",
+                        primary_metric_id="placement.highest_ctc",
+                        dimensions=["company"],
+                        filters=base_filters,
+                        order="DESC" if not is_below else "ASC",
+                        limit=limit_val or 1,
+                        reasoning_summary=f"HOD company CTC ranking query in {target_dept}.",
+                    )
+                else:
+                    return StructuredIntent(
+                        intent_type=IntentType.METRIC_QUERY,
+                        metric_id="placement.highest_ctc",
+                        primary_metric_id="placement.highest_ctc",
+                        filters=base_filters,
+                        reasoning_summary=f"HOD highest CTC inquiry for {target_dept}.",
+                    )
+
+            # Student attendance ranking
+            if any(w in msg_lower for w in ["student", "students", "who"]) and "attendance" in msg_lower:
+                r_dim = ["student"]
+                r_metric = "attendance.percentage"
+                r_sort = "ASC" if is_below else "DESC"
+                return StructuredIntent(
+                    intent_type=IntentType.RANKING_QUERY,
+                    metric_id=r_metric,
+                    primary_metric_id=r_metric,
+                    dimensions=r_dim,
+                    filters=base_filters,
+                    order=r_sort,
+                    limit=limit_val or (1 if "who" in msg_lower else 5),
+                    reasoning_summary=f"HOD student attendance ranking query in {target_dept}.",
+                )
+
             r_dim = ["section"] if "section" in msg_lower else ["course"]
             r_sort = "ASC" if is_below else "DESC"
             if "pass" in msg_lower:
@@ -888,7 +1154,7 @@ Output:
                 dimensions=r_dim,
                 filters=base_filters,
                 order=r_sort,
-                limit=limit_val or (1 if not top_match and not bottom_match and "rank" not in msg_lower else None),
+                limit=limit_val or (1 if ("which" in msg_lower or not top_match and not bottom_match and "rank" not in msg_lower) else None),
                 reasoning_summary=f"HOD ranking query for {r_metric} by {r_dim[0]} in {target_dept}.",
             )
 
@@ -921,10 +1187,40 @@ Output:
         is_breakdown = bool(
             re.search(r"\b(by\s+section|section[- ]wise|by\s+course|by\s+subject|course[- ]wise|subject[- ]wise)\b", msg_lower)
             or re.search(r"\b(by\s+batch|by\s+year|by\s+programme|by\s+program|by\s+semester)\b", msg_lower)
+            or re.search(r"\b(by\s+company|company[- ]wise)\b", msg_lower)
+            or re.search(r"\b(?:which\s+)?companies\s+(?:recruited|hired|placed|visited)\b", msg_lower)
+            or re.search(r"\bwhich\s+companies\b", msg_lower)
+            or re.search(r"\bplacement\s+details?\b", msg_lower)
+            or re.search(r"\b(student[- ]wise|each\s+student|every\s+student)\b", msg_lower)
+            or re.search(r"\b(in\s+each\s+course|for\s+each\s+course|in\s+each\s+section)\b", msg_lower)
             or re.search(r"\b(course\s+performance|course\s+results?|placement\s+statistics)\b", msg_lower)
+            or re.search(r"\b(attendance\s+distribution|distribution\s+of\s+attendance)\b", msg_lower)
+            or re.search(r"\b(student\s+distribution|distribution\s+of\s+students)\b", msg_lower)
         )
         if is_breakdown:
-            if "section" in msg_lower:
+            brk_filters = dict(base_filters)
+            if found_course:
+                brk_filters["course"] = found_course
+
+            if "company" in msg_lower or "companies" in msg_lower or "placement" in msg_lower:
+                b_dim = ["company"]
+                b_metric = "placement.placed_students_count"
+            elif any(w in msg_lower for w in ["student-wise", "each student", "every student"]) and "attendance" in msg_lower:
+                b_dim = ["student"]
+                b_metric = "attendance.percentage"
+            elif "failure count" in msg_lower or "failure in each course" in msg_lower or ("fail" in msg_lower and "course" in msg_lower):
+                b_dim = ["course"]
+                b_metric = "assessment.failure_count"
+            elif any(w in msg_lower for w in ["student count", "students appeared", "number of students"]) and ("course" in msg_lower or "subject" in msg_lower):
+                b_dim = ["course"]
+                b_metric = "assessment.students_appeared"
+            elif "attendance distribution" in msg_lower or "distribution of attendance" in msg_lower:
+                b_dim = ["course"] if "course" in msg_lower else ["section"]
+                b_metric = "attendance.percentage"
+            elif "student distribution" in msg_lower or "distribution of students" in msg_lower:
+                b_dim = ["section"] if "section" in msg_lower else (["programme"] if any(w in msg_lower for w in ["program", "programme"]) else ["batch"])
+                b_metric = "academics.active_student_strength"
+            elif "section" in msg_lower:
                 b_dim = ["section"]
                 b_metric = "academics.active_student_strength" if any(k in msg_lower for k in ["strength", "student"]) else "attendance.percentage"
             elif "batch" in msg_lower or "year" in msg_lower:
@@ -952,7 +1248,7 @@ Output:
                 metric_id=b_metric,
                 primary_metric_id=b_metric,
                 dimensions=b_dim,
-                filters=base_filters,
+                filters=brk_filters,
                 reasoning_summary=f"HOD breakdown query for {b_metric} by {b_dim[0]} in {target_dept}.",
             )
 
@@ -977,8 +1273,18 @@ Output:
                 reasoning_summary=f"HOD average PO attainment inquiry for {target_dept}.",
             )
 
+        # Placement Rate (REVIEW_REQUIRED metric)
+        if any(k in msg_lower for k in ["placement rate", "placement percentage", "placement percent", "percentage of placement"]):
+            return StructuredIntent(
+                intent_type=IntentType.METRIC_QUERY,
+                metric_id="placement.placement_rate",
+                primary_metric_id="placement.placement_rate",
+                filters=base_filters,
+                reasoning_summary=f"HOD placement rate inquiry for {target_dept} (unapproved metric, requires cohort definition).",
+            )
+
         # Placement Analytics
-        if "highest ctc" in msg_lower or "top package" in msg_lower:
+        if any(k in msg_lower for k in ["highest ctc", "top package", "highest package", "max package", "maximum package", "highest salary"]):
             return StructuredIntent(
                 intent_type=IntentType.METRIC_QUERY,
                 metric_id="placement.highest_ctc",
@@ -1002,7 +1308,15 @@ Output:
                 filters=base_filters,
                 reasoning_summary=f"HOD total offers count inquiry for {target_dept}.",
             )
-        if re.search(r"\b(students?\s+placed|how\s+many\s+(?:were\s+)?placed|placed\s+students?|placement\s+count)\b", msg_lower):
+        if re.search(r"\b(how\s+many\s+(?:students\s+)?(?:are\s+)?(?:unplaced|not\s+placed)|unplaced\s+count)\b", msg_lower):
+            return StructuredIntent(
+                intent_type=IntentType.METRIC_QUERY,
+                metric_id="academics.active_student_strength",
+                primary_metric_id="academics.active_student_strength",
+                filters={**base_filters, "placement_status": "NOT_PLACED"},
+                reasoning_summary=f"HOD unplaced students count inquiry for {target_dept}.",
+            )
+        if re.search(r"\b(students?\s+(?:are\s+)?placed|how\s+many\s+(?:students\s+)?(?:are\s+|were\s+)?placed|placed\s+students?|placement\s+count)\b", msg_lower):
             return StructuredIntent(
                 intent_type=IntentType.METRIC_QUERY,
                 metric_id="placement.placed_students_count",
@@ -1069,77 +1383,102 @@ Output:
                 reasoning_summary=f"HOD departmental student strength inquiry for {target_dept}.",
             )
 
-        # Attendance Percentage (Raw vs Adjusted)
+        # Attendance Percentage (Raw vs Adjusted, Course-specific or Department-wide)
         if "raw attendance" in msg_lower:
+            c_filters = dict(base_filters)
+            if found_course:
+                c_filters["course"] = found_course
             return StructuredIntent(
                 intent_type=IntentType.METRIC_QUERY,
                 metric_id="attendance.raw_percentage",
                 primary_metric_id="attendance.raw_percentage",
-                filters=base_filters,
+                filters=c_filters,
                 reasoning_summary=f"HOD raw attendance inquiry for {target_dept}.",
             )
         if re.search(r"\battendance\b", msg_lower):
+            c_filters = dict(base_filters)
+            if found_course:
+                c_filters["course"] = found_course
             return StructuredIntent(
                 intent_type=IntentType.METRIC_QUERY,
                 metric_id="attendance.percentage",
                 primary_metric_id="attendance.percentage",
-                filters=base_filters,
-                reasoning_summary=f"HOD average attendance inquiry for {target_dept}.",
+                filters=c_filters,
+                reasoning_summary=f"HOD average attendance inquiry for {target_dept}" + (f" in course {found_course}." if found_course else "."),
             )
 
-        # Course Pass Percentage / Pass Rate
-        if re.search(r"\b(pass\s+percentage|pass\s+percent|pass\s+rate|course\s+pass|passing\s+percentage)\b", msg_lower):
+        # Course Pass Percentage / Pass Rate / Academic Performance
+        if re.search(r"\b(pass\s+percentage|pass\s+percent|pass\s+rate|course\s+pass|passing\s+percentage|performance|student\s+performance|average\s+performance)\b", msg_lower):
+            c_filters = dict(base_filters)
+            if found_course:
+                c_filters["course"] = found_course
             return StructuredIntent(
                 intent_type=IntentType.METRIC_QUERY,
                 metric_id="assessment.course_pass_percentage",
                 primary_metric_id="assessment.course_pass_percentage",
-                filters=base_filters,
-                reasoning_summary=f"HOD average course pass percentage for {target_dept}.",
+                filters=c_filters,
+                reasoning_summary=f"HOD average course pass percentage for {target_dept}" + (f" in course {found_course}." if found_course else "."),
             )
 
         # Academic Result Metrics (Passed, Failed, Appeared, Marks)
         if re.search(r"\b(students?\s+passed|how\s+many\s+passed|number\s+of\s+passed)\b", msg_lower):
+            c_filters = dict(base_filters)
+            if found_course:
+                c_filters["course"] = found_course
             return StructuredIntent(
                 intent_type=IntentType.METRIC_QUERY,
                 metric_id="assessment.students_passed",
                 primary_metric_id="assessment.students_passed",
-                filters=base_filters,
-                reasoning_summary=f"HOD students passed inquiry for {target_dept}.",
+                filters=c_filters,
+                reasoning_summary=f"HOD students passed inquiry for {target_dept}" + (f" in course {found_course}." if found_course else "."),
             )
-        if re.search(r"\b(students?\s+failed|how\s+many\s+failed|failure\s+count|failed\s+students?)\b", msg_lower):
+        if re.search(r"\b(students?\s+(?:who\s+)?failed|how\s+many\s+(?:students\s+)?failed|failure\s+count|failed\s+students?)\b", msg_lower):
+            c_filters = dict(base_filters)
+            if found_course:
+                c_filters["course"] = found_course
             return StructuredIntent(
                 intent_type=IntentType.METRIC_QUERY,
                 metric_id="assessment.failure_count",
                 primary_metric_id="assessment.failure_count",
-                filters=base_filters,
-                reasoning_summary=f"HOD failure count inquiry for {target_dept}.",
+                filters=c_filters,
+                reasoning_summary=f"HOD failure count inquiry for {target_dept}" + (f" in course {found_course}." if found_course else "."),
             )
         if re.search(r"\b(students?\s+appeared|appeared\s+students?)\b", msg_lower):
+            c_filters = dict(base_filters)
+            if found_course:
+                c_filters["course"] = found_course
             return StructuredIntent(
                 intent_type=IntentType.METRIC_QUERY,
                 metric_id="assessment.students_appeared",
                 primary_metric_id="assessment.students_appeared",
-                filters=base_filters,
-                reasoning_summary=f"HOD students appeared inquiry for {target_dept}.",
+                filters=c_filters,
+                reasoning_summary=f"HOD students appeared inquiry for {target_dept}" + (f" in course {found_course}." if found_course else "."),
             )
         if re.search(r"\binternal\s+marks\b", msg_lower):
+            c_filters = dict(base_filters)
+            if found_course:
+                c_filters["course"] = found_course
             return StructuredIntent(
                 intent_type=IntentType.METRIC_QUERY,
                 metric_id="assessment.internal_marks_average",
                 primary_metric_id="assessment.internal_marks_average",
-                filters=base_filters,
-                reasoning_summary=f"HOD internal marks average inquiry for {target_dept}.",
+                filters=c_filters,
+                reasoning_summary=f"HOD internal marks average inquiry for {target_dept}" + (f" in course {found_course}." if found_course else "."),
             )
         if re.search(r"\b(average\s+total\s+marks|average\s+marks|mean\s+marks|average\s+score|total\s+marks)\b", msg_lower):
+            c_filters = dict(base_filters)
+            if found_course:
+                c_filters["course"] = found_course
             return StructuredIntent(
                 intent_type=IntentType.METRIC_QUERY,
                 metric_id="assessment.average_total_marks",
                 primary_metric_id="assessment.average_total_marks",
-                filters=base_filters,
-                reasoning_summary=f"HOD average total marks inquiry for {target_dept}.",
+                filters=c_filters,
+                reasoning_summary=f"HOD average total marks inquiry for {target_dept}" + (f" in course {found_course}." if found_course else "."),
             )
 
         return None
+
 
     def _recognize_counsellor_intent(
         self, user_message: str, principal: AuthenticatedPrincipal
@@ -1374,7 +1713,8 @@ Output:
             "average", "avg", "count", "percentage", "percent", "%", "strength",
             "ratio", "rate", "distribution", "trend", "compare", "breakdown",
             "attendance", "threshold", "gpa", "cgpa", "marks", "score", "placement",
-            "salary", "package", "backlog", "pass", "fail", "how many", "total", "below"
+            "salary", "package", "backlog", "pass", "fail", "how many", "total", "below",
+            "performance", "result", "results"
         ]
         if any(marker in msg_lower for marker in aggregate_markers):
             return None
@@ -2431,15 +2771,17 @@ Output:
         dept_codes = id_svc.get_all_department_codes()
         dept_pattern = r"\b(" + "|".join(re.escape(c.lower()) for c in dept_codes) + r")\b" if dept_codes else r"\b[a-z]{2,5}\b"
         dept_raw = re.findall(dept_pattern, msg_lower)
-        if not dept_raw:
+        if not dept_raw and any(k in msg_lower for k in ["all departments", "all dept", "across departments", "every department"]):
+            depts = list(dept_codes) if dept_codes else ["CSE", "ECE", "EEE", "MECH", "CIVIL"]
+        elif not dept_raw:
             return None
-
-        # Normalize and deduplicate departments preserving order
-        depts = []
-        for d in dept_raw:
-            d_upper = d.upper()
-            if d_upper not in depts:
-                depts.append(d_upper)
+        else:
+            # Normalize and deduplicate departments preserving order
+            depts = []
+            for d in dept_raw:
+                d_upper = d.upper()
+                if d_upper not in depts:
+                    depts.append(d_upper)
 
         if len(depts) < 2:
             return None
@@ -2522,13 +2864,37 @@ Output:
             or type(self._llm_client).__name__ == "UnconfiguredMock"
         )
         if not is_mock_llm:
-            # If MANAGEMENT, run management analytical recognizer first
-            if principal.has_role("MANAGEMENT") or "MANAGEMENT" in (principal.roles or []):
-                raw_intent = self._recognize_management_intent(user_message, principal)
-            elif principal.has_role("PRINCIPAL") or "PRINCIPAL" in (principal.roles or []):
-                raw_intent = self._recognize_principal_intent(user_message, principal)
-            elif principal.has_role("HOD") or "HOD" in (principal.roles or []):
-                raw_intent = self._recognize_hod_intent(user_message, principal)
+            # Check for conversational follow-up pagination
+            if conversation_context and conversation_context.last_intent_type == IntentType.STUDENT_LIST:
+                msg_clean = user_message.lower().strip()
+                page_req = None
+                if msg_clean in ("next page", "next", "show next page", "go to next page"):
+                    page_req = 2
+                elif msg_clean in ("previous page", "previous", "prev", "show previous page", "go to previous page"):
+                    page_req = 1
+                else:
+                    p_match = re.search(r"\bpage\s+(\d+)\b", msg_clean)
+                    if p_match:
+                        page_req = int(p_match.group(1))
+                if page_req is not None:
+                    raw_intent = StructuredIntent(
+                        intent_type=IntentType.STUDENT_LIST,
+                        primary_metric_id=conversation_context.last_metric_id or "academics.active_student_strength",
+                        student_filters=dict(conversation_context.last_filters),
+                        filters=dict(conversation_context.last_filters),
+                        page=page_req,
+                        page_size=25,
+                        reasoning_summary=f"Pagination request to page {page_req} for previous student list query.",
+                    )
+
+            # If MANAGEMENT / PRINCIPAL / HOD, run analytical recognizer first
+            if raw_intent is None:
+                if principal.has_role("MANAGEMENT") or "MANAGEMENT" in (principal.roles or []):
+                    raw_intent = self._recognize_management_intent(user_message, principal)
+                elif principal.has_role("PRINCIPAL") or "PRINCIPAL" in (principal.roles or []):
+                    raw_intent = self._recognize_principal_intent(user_message, principal)
+                elif principal.has_role("HOD") or "HOD" in (principal.roles or []):
+                    raw_intent = self._recognize_hod_intent(user_message, principal)
 
             # If COUNSELLOR, run counsellor recognizer first to prevent broader recognizers from intercepting
             if raw_intent is None and principal.has_role("COUNSELLOR") and not principal.has_any_role(
